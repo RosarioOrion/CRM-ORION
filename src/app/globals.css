@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+:root {
+  --orion-navy: #0f1f45;
+  --orion-navy-light: #16295c;
+  --orion-gold: #c9972e;
+  --orion-bg: #f6f5f2;
+  --orion-text: #1c2333;
+  --background: #ffffff;
+  --foreground: var(--orion-text);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-orion-navy: var(--orion-navy);
+  --color-orion-navy-light: var(--orion-navy-light);
+  --color-orion-gold: var(--orion-gold);
+  --color-orion-bg: var(--orion-bg);
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+  background: var(--orion-bg);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
