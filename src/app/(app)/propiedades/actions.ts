@@ -13,6 +13,7 @@ const PropiedadSchema = z.object({
   tipo: z.string().min(2, "Ingresá el tipo (casa, apartamento, etc.)"),
   zona: z.string().min(2, "Ingresá la zona"),
   precio: z.coerce.number().optional(),
+  moneda: z.enum(["USD", "UYU"]).default("USD"),
   duenoId: z.string().min(1, "Elegí el contacto dueño"),
 });
 
@@ -37,6 +38,7 @@ export async function crearPropiedad(
     tipo: formData.get("tipo"),
     zona: formData.get("zona"),
     precio: formData.get("precio") || undefined,
+    moneda: formData.get("moneda") || "USD",
     duenoId: formData.get("duenoId"),
   });
 
@@ -53,6 +55,7 @@ export async function crearPropiedad(
     tipo: parsed.data.tipo,
     zona: parsed.data.zona,
     precio: parsed.data.precio ?? null,
+    moneda: parsed.data.moneda,
     duenoId: parsed.data.duenoId,
     agenteId: sesion.userId,
   });

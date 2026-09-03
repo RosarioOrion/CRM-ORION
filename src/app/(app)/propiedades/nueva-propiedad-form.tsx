@@ -67,12 +67,22 @@ export function NuevaPropiedadForm({ contactos }: { contactos: Contacto[] }) {
         required
         className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy"
       />
-      <input
-        name="precio"
-        type="number"
-        placeholder="Precio en USD (opcional)"
-        className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy"
-      />
+      <div className="flex gap-2">
+        <select
+          name="moneda"
+          defaultValue="USD"
+          className="w-24 rounded-lg border border-gray-300 px-2 py-2 text-sm outline-none focus:border-orion-navy"
+        >
+          <option value="USD">USD</option>
+          <option value="UYU">UYU</option>
+        </select>
+        <input
+          name="precio"
+          type="number"
+          placeholder="Precio (opcional)"
+          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy"
+        />
+      </div>
       <select
         name="duenoId"
         required
