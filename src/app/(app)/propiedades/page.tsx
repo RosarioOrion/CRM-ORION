@@ -68,7 +68,23 @@ export default async function PropiedadesPage() {
                 </span>
               </div>
               <p className="font-semibold text-gray-800">{p.titulo}</p>
-              <p className="text-sm text-gray-500">{p.zona}</p>
+              <p className="text-sm text-gray-500">
+                {p.zona}
+                {p.departamento ? ` — ${p.departamento}` : ""}
+              </p>
+              {(p.dormitorios || p.banos || p.m2Cubiertos || p.m2Terreno || p.hectareas) && (
+                <p className="mt-1 text-xs text-gray-400">
+                  {[
+                    p.dormitorios ? `${p.dormitorios} dorm` : null,
+                    p.banos ? `${p.banos} baños` : null,
+                    p.m2Cubiertos ? `${p.m2Cubiertos} m²` : null,
+                    p.m2Terreno ? `${p.m2Terreno} m² terreno` : null,
+                    p.hectareas ? `${p.hectareas} ha` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              )}
               <div className="mt-3 flex items-center justify-between text-sm">
                 <span className="text-gray-600">
                   {p.operacion === "VENTA" ? "Venta" : "Alquiler"} ·{" "}
