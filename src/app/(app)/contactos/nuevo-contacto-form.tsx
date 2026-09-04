@@ -18,15 +18,58 @@ export function NuevoContactoForm() {
     crearContacto,
     initialState
   );
-  const formRef = useRef<HTMLFormElement>(null);
-  const [origen, setOrigen] = useState<OrigenContacto>("OTRO");
+  const [abierto, setAbierto] = useState(false);
 
   useEffect(() => {
-    if (!pending && !state?.error) {
-      formRef.current?.reset();
-      setOrigen("OTRO");
+    if (!pending && !state?.error && abierto) {
+      setAbierto(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending, state]);
+
+  if (!abierto) {
+    return (
+      <button
+        type="button"
+        onClick={() => setAbierto(true)}
+        className="flex items-center gap-2 rounded-lg bg-orion-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-orion-navy-light"
+      >
+        <span className="text-base leading-none">+</span> Contacto nuevo
+      </button>
+    );
+  }
+
+  return (
+    <div>
+      <div className="mb-2 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setAbierto(false)}
+          className="text-xs font-semibold text-gray-500 hover:text-orion-navy dark:text-gray-400 dark:hover:text-white"
+        >
+          Cancelar ✕
+        </button>
+      </div>
+      <ContactoFormFields
+        formAction={formAction}
+        pending={pending}
+        error={state?.error}
+      />
+    </div>
+  );
+}
+
+function ContactoFormFields({
+  formAction,
+  pending,
+  error,
+}: {
+  formAction: (formData: FormData) => void;
+  pending: boolean;
+  error?: string;
+}) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const [origen, setOrigen] = useState<OrigenContacto>("OTRO");
 
   return (
     <form
@@ -89,9 +132,9 @@ export function NuevoContactoForm() {
         placeholder="Notas"
         className="sm:col-span-2 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy"
       />
-      {state?.error && (
+      {error && (
         <p className="sm:col-span-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-          {state.error}
+          {error}
         </p>
       )}
       <div className="sm:col-span-2">
