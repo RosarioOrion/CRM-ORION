@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
 :root {
   --orion-navy: #0f1f45;
   --orion-navy-light: #16295c;
@@ -7,6 +9,13 @@
   --orion-bg: #f6f5f2;
   --orion-text: #1c2333;
   --background: #ffffff;
+  --foreground: var(--orion-text);
+}
+
+[data-theme="dark"] {
+  --orion-bg: #0b1220;
+  --orion-text: #e4e7ee;
+  --background: #111827;
   --foreground: var(--orion-text);
 }
 
