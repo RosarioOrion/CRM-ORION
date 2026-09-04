@@ -122,68 +122,57 @@ export default async function PropiedadesPage({
         </form>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
         {misPropiedades.length === 0 ? (
           <p className="col-span-full rounded-xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-400 dark:bg-gray-800 dark:border-gray-700">
             No hay propiedades para este filtro.
           </p>
         ) : (
-          misPropiedades.map((p) => (
-            <Link
-              key={p.id}
-              href={`/propiedades/${p.id}`}
-              className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:border-orion-navy hover:shadow-md dark:bg-gray-800 dark:border-gray-700"
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <span className="rounded bg-orion-navy px-2 py-0.5 text-xs font-bold text-white">
-                  {p.codigo}
-                </span>
-                <span
-                  className={`rounded px-2 py-0.5 text-xs font-semibold ${ESTADO_COLOR[p.estado]}`}
-                >
-                  {ESTADO_LABEL[p.estado]}
-                </span>
-              </div>
-              <p className="font-semibold text-gray-800 dark:text-gray-100">
-                {limpiarTitulo(p.titulo)}
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {p.zona}
-                {p.departamento ? ` — ${p.departamento}` : ""}
-              </p>
-              {(p.dormitorios ||
-                p.banos ||
-                p.m2Cubiertos ||
-                p.m2Terreno ||
-                p.hectareas ||
-                p.cocheras ||
-                p.ambientes) && (
-                <p className="mt-1 text-xs text-gray-400">
-                  {[
-                    p.dormitorios ? `${p.dormitorios} dorm` : null,
-                    p.banos ? `${p.banos} baños` : null,
-                    p.ambientes ? `${p.ambientes} amb` : null,
-                    p.cocheras ? `${p.cocheras} coch` : null,
-                    p.m2Cubiertos ? `${p.m2Cubiertos} m²` : null,
-                    p.m2Terreno ? `${p.m2Terreno} m² terreno` : null,
-                    p.hectareas ? `${p.hectareas} ha` : null,
-                ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-              )}
-              <div className="mt-3 flex items-center justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-300">
-                  {p.operacion === "VENTA" ? "Venta" : "Alquiler"} · {p.tipo}
-                </span>
-                {p.precio && (
-                  <span className="font-bold text-orion-navy dark:text-orion-gold">
-                    {p.moneda} {p.precio.toLocaleString("es-UY")}
+          misPropiedades.map((p) => {
+            const primeraFoto = p.fotos?.[0];
+            return (
+              <Link
+                key={p.id}
+                href={`/propiedades/${p.id}`}
+                className="group overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:border-orion-navy hover:shadow-md dark:bg-gray-800 dark:border-gray-700"
+              >
+                <div className="relative aspect-square w-full overflow-hidden bg-gray-100 dark:bg-gray-900">
+                  {primeraFoto ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={primeraFoto}
+                      alt={limpiarTitulo(p.titulo)}
+                      className="h-full w-full object-cover transition group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">
+                      Sin foto
+                    </div>
+                  )}
+                  <span className="absolute left-1.5 top-1.5 rounded bg-orion-navy/90 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    {p.codigo}
                   </span>
-                )}
-              </div>
-            </Link>
-          ))
+                  <span
+                    className={`absolute right-1.5 top-1.5 rounded px-1.5 py-0.5 text-[10px] font-semibold ${ESTADO_COLOR[p.estado]}`}
+                  >
+                    {ESTADO_LABEL[p.estado]}
+                  </span>
+                </div>
+                <div className="p-2.5">
+                  <p className="line-clamp-2 text-xs font-semibold leading-snug text-gray-800 dark:text-gray-100">
+                    {limpiarTitulo(p.titulo)}
+                  </p>
+                  {p.precio ? (
+                    <p className="mt-1 text-sm font-bold text-orion-navy dark:text-orion-gold">
+                      {p.moneda} {p.precio.toLocaleString("es-UY")}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-xs text-gray-400">Precio a consultar</p>
+                  )}
+                </div>
+              </Link>
+            );
+          })
         )}
       </div>
     </div>
