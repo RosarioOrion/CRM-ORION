@@ -582,4 +582,7 @@ function PropiedadFormFields({
       {pending ? "Guardando…" : "Publicar propiedad"}
     </button>
     </div>
-    </</div>
+
+    </form>
+      );
+}
