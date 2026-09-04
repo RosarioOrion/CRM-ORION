@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { obtenerSesion, cerrarSesion } from "@/lib/auth";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV = [
   { href: "/dashboard", label: "Inicio", icon: "🏠" },
@@ -40,6 +41,10 @@ export default async function AppLayout({
             </Link>
           ))}
         </nav>
+
+        <div className="border-t border-white/10 px-3 py-2">
+          <ThemeToggle />
+        </div>
 
         <div className="border-t border-white/10 px-4 py-4">
           <p className="text-sm font-medium">{sesion.nombre}</p>
