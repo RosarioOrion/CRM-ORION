@@ -1,7 +1,15 @@
 "use client";
 
-import { useActionState, useRef, useEffect } from "react";
+import { useActionState, useRef, useEffect, useState } from "react";
 import { crearContacto, type ContactoState } from "./actions";
+import {
+  CATEGORIAS_CONTACTO,
+  CATEGORIA_LABEL,
+  ORIGENES_CONTACTO,
+  ORIGEN_LABEL,
+  ORIGEN_DETALLE_PLACEHOLDER,
+  type OrigenContacto,
+} from "@/lib/contactos";
 
 const initialState: ContactoState = {};
 
@@ -11,10 +19,12 @@ export function NuevoContactoForm() {
     initialState
   );
   const formRef = useRef<HTMLFormElement>(null);
+  const [origen, setOrigen] = useState<OrigenContacto>("OTRO");
 
   useEffect(() => {
     if (!pending && !state?.error) {
       formRef.current?.reset();
+      setOrigen("OTRO");
     }
   }, [pending, state]);
 
@@ -46,10 +56,38 @@ export function NuevoContactoForm() {
         placeholder="Email (opcional)"
         className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy"
       />
+      <select
+        name="categoria"
+        defaultValue="OTRO"
+        className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy"
+      >
+        {CATEGORIAS_CONTACTO.map((cat) => (
+          <option key={cat} value={cat}>
+            {CATEGORIA_LABEL[cat]}
+          </option>
+        ))}
+      </select>
+      <select
+        name="origen"
+        value={origen}
+        onChange={(e) => setOrigen(e.target.value as OrigenContacto)}
+        className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy"
+      >
+        {ORIGENES_CONTACTO.map((o) => (
+          <option key={o} value={o}>
+            {ORIGEN_LABEL[o]}
+          </option>
+        ))}
+      </select>
+      <input
+        name="origenDetalle"
+        placeholder={ORIGEN_DETALLE_PLACEHOLDER[origen]}
+        className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy"
+      />
       <input
         name="notas"
         placeholder="Notas"
-        className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy"
+        className="sm:col-span-2 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy"
       />
       {state?.error && (
         <p className="sm:col-span-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
