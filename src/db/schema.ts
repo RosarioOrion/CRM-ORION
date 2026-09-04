@@ -15,6 +15,10 @@ export const estadoPropiedadEnum = pgEnum("estado_propiedad", [
       "ACTIVA",
       "PAUSADA",
       "CERRADA",
+      "VENDIDA",
+      "ALQUILADA",
+      "VENDIDA_OTRA_INMOBILIARIA",
+      "ALQUILADA_OTRA_INMOBILIARIA",
     ]);
 export const operacionEnum = pgEnum("operacion", ["VENTA", "ALQUILER"]);
 
@@ -93,6 +97,7 @@ export const propiedades = pgTable("propiedades", {
       formaTerreno: text("forma_terreno"),
       estadoEdilicio: text("estado_edilicio"),
       extras: jsonb("extras").$type<string[]>().notNull().default([]),
+      fotos: jsonb("fotos").$type<string[]>().notNull().default([]),
       descripcion: text("descripcion"),
       estado: estadoPropiedadEnum("estado").notNull().default("ACTIVA"),
       duenoId: text("dueno_id")
