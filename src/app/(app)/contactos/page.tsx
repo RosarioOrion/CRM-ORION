@@ -64,49 +64,43 @@ export default async function ContactosPage({
         <NuevoContactoForm />
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:bg-gray-800 dark:border-gray-700">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
         {misContactos.length === 0 ? (
-          <p className="p-6 text-center text-sm text-gray-400">
+          <p className="col-span-full rounded-xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-400 dark:bg-gray-800 dark:border-gray-700">
             {q
               ? "No hay contactos que coincidan con la búsqueda."
               : "Todavía no cargaste ningún contacto."}
           </p>
         ) : (
-          <table className="w-full text-left text-sm">
-            <thead className="bg-orion-navy text-white">
-              <tr>
-                <th className="px-4 py-2 font-semibold">Nombre</th>
-                <th className="px-4 py-2 font-semibold">Teléfono</th>
-                <th className="px-4 py-2 font-semibold">Email</th>
-                <th className="px-4 py-2 font-semibold">Notas</th>
-              </tr>
-            </thead>
-            <tbody>
-              {misContactos.map((c, i) => (
-                <tr
-                  key={c.id}
-                  className={
-                    i % 2 === 0
-                      ? "bg-white dark:bg-gray-800"
-                      : "bg-gray-50 dark:bg-gray-900/40"
-                  }
-                >
-                  <td className="px-4 py-2 font-medium text-gray-800 dark:text-gray-100">
-                    {c.nombre}
-                  </td>
-                  <td className="px-4 py-2 text-gray-600 dark:text-gray-300">
-                    {c.telefono || "—"}
-                  </td>
-                  <td className="px-4 py-2 text-gray-600 dark:text-gray-300">
-                    {c.email || "—"}
-                  </td>
-                  <td className="px-4 py-2 text-gray-600 dark:text-gray-300">
-                    {c.notas || "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          misContactos.map((c) => {
+            const inicial = c.nombre.trim().charAt(0).toUpperCase() || "?";
+            return (
+              <div
+                key={c.id}
+                className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition hover:border-orion-navy hover:shadow-md dark:bg-gray-800 dark:border-gray-700"
+              >
+                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-orion-navy text-sm font-bold text-white dark:bg-orion-gold dark:text-orion-navy">
+                  {inicial}
+                </div>
+                <p className="line-clamp-2 text-sm font-semibold leading-snug text-gray-800 dark:text-gray-100">
+                  {c.nombre}
+                </p>
+                <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">
+                  {c.telefono || "Sin teléfono"}
+                </p>
+                {c.email && (
+                  <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                    {c.email}
+                  </p>
+                )}
+                {c.notas && (
+                  <p className="mt-1 line-clamp-2 text-xs text-gray-400 dark:text-gray-500">
+                    {c.notas}
+                  </p>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
     </div>
