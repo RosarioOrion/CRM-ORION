@@ -111,6 +111,23 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
       )
   );
 
+  // 4. Columnas nuevas de contactos: categoría y origen del contacto.
+  await paso(resultados, "Agregar columna categoria en contactos", () =>
+    db.execute(
+      sql`ALTER TABLE contactos ADD COLUMN IF NOT EXISTS categoria text NOT NULL DEFAULT 'OTRO'`
+    )
+  );
+  await paso(resultados, "Agregar columna origen en contactos", () =>
+    db.execute(
+      sql`ALTER TABLE contactos ADD COLUMN IF NOT EXISTS origen text NOT NULL DEFAULT 'OTRO'`
+    )
+  );
+  await paso(resultados, "Agregar columna origen_detalle en contactos", () =>
+    db.execute(
+      sql`ALTER TABLE contactos ADD COLUMN IF NOT EXISTS origen_detalle text`
+    )
+  );
+
   return resultados;
 }
 
