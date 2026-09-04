@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { crearPropiedad, type PropiedadState } from "./actions";
 
 const initialState: PropiedadState = {};
@@ -139,6 +139,13 @@ export function NuevaPropiedadForm({ contactos }: { contactos: Contacto[] }) {
     crearPropiedad,
     initialState
     );
+  const [abierto, setAbierto] = useState(false);
+
+  useEffect(() => {
+    if (state?.ok) {
+      setAbierto(false);
+    }
+  }, [state?.ok]);
 
 if (contactos.length === 0) {
   return (
@@ -148,15 +155,38 @@ if (contactos.length === 0) {
     </div>
     );
 }
-  
+
+  if (!abierto) {
+    return (
+      <button
+        type="button"
+        onClick={() => setAbierto(true)}
+        className="flex items-center gap-2 rounded-lg bg-orion-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-orion-navy-light"
+      >
+        <span className="text-base leading-none">+</span> Propiedad nueva
+      </button>
+    );
+  }
+
   return (
-    <PropiedadFormFields
-      key={state?.ok ?? "initial"}
-      contactos={contactos}
-      formAction={formAction}
-      pending={pending}
-      error={state?.error}
-      />
+    <div>
+      <div className="mb-2 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setAbierto(false)}
+          className="text-xs font-semibold text-gray-500 hover:text-orion-navy dark:text-gray-400 dark:hover:text-white"
+        >
+          Cancelar ✕
+        </button>
+      </div>
+      <PropiedadFormFields
+        key={state?.ok ?? "initial"}
+        contactos={contactos}
+        formAction={formAction}
+        pending={pending}
+        error={state?.error}
+        />
+    </div>
     );
 }
 
