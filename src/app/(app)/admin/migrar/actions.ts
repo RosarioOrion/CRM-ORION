@@ -119,7 +119,7 @@ export async function listarTitulosConCorchetes(): Promise<
 > {
   await requerirTeamLeader();
   const r = await db.execute<{ titulo: string; estado: string }>(
-    sql`SELECT titulo, estado::text as estado FROM propiedades WHERE titulo ~ '\[' ORDER BY titulo`
+    sql`SELECT titulo, estado::text as estado FROM propiedades WHERE titulo LIKE '%[%' ORDER BY titulo`
   );
   return r as unknown as { titulo: string; estado: string }[];
 }
