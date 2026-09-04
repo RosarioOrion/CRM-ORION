@@ -48,6 +48,9 @@ export const contactos = pgTable("contactos", {
       telefono: text("telefono"),
       email: text("email"),
       notas: text("notas"),
+      categoria: text("categoria").notNull().default("OTRO"),
+      origen: text("origen").notNull().default("OTRO"),
+      origenDetalle: text("origen_detalle"),
       archivado: boolean("archivado").notNull().default(false),
       agenteId: text("agente_id")
         .notNull()
