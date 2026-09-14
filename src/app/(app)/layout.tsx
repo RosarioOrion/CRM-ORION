@@ -7,6 +7,7 @@ const NAV = [
   { href: "/dashboard", label: "Inicio", icon: "🏠" },
   { href: "/contactos", label: "Contactos", icon: "👤" },
   { href: "/propiedades", label: "Propiedades", icon: "🏢" },
+  { href: "/busquedas", label: "Búsquedas", icon: "🔍" },
 ];
 
 export default async function AppLayout({
@@ -34,7 +35,7 @@ export default async function AppLayout({
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
+              className="flex-items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
             >
               <span>{item.icon}</span>
               <span>{item.label}</span>
