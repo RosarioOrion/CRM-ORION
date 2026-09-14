@@ -1,3 +1,18 @@
+export const TIPOS_PROPIEDAD = [
+  "Apartamento",
+  "Casa",
+  "Oficina",
+  "Local",
+  "Depósito",
+  "Galpón",
+  "Garage",
+  "Terreno",
+  "Quinta",
+  "Campo",
+  "Chacra",
+  "Estancia",
+] as const;
+
 export const ESTADOS_PROPIEDAD = [
   "ACTIVA",
   "PAUSADA",
