@@ -127,17 +127,33 @@ function BusquedaFormFields({
         className={inputClass}
       />
 
-      <input
-        name="precioMin"
-        type="number"
-        placeholder="Precio mínimo (opcional)"
-        className={inputClass}
-      />
+      <div className="flex gap-2">
+        <select
+          name="moneda"
+          defaultValue="UYU"
+          className={`w-24 shrink-0 ${inputClass}`}
+        >
+          <option value="UYU">UYU</option>
+          <option value="USD">USD</option>
+        </select>
+        <input
+          name="precioMin"
+          type="number"
+          placeholder="Precio mínimo (opcional)"
+          className={`flex-1 ${inputClass}`}
+        />
+      </div>
       <input
         name="precioMax"
         type="number"
         placeholder="Precio máximo (opcional)"
         className={inputClass}
+      />
+
+      <input
+        name="notas"
+        placeholder="Notas (opcional, ej. temporal 6 meses con opción)"
+        className={`sm:col-span-2 ${inputClass}`}
       />
 
       <div>

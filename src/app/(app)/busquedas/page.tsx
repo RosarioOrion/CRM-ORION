@@ -13,10 +13,10 @@ const TABS = [
   { key: "alquiler", label: "Alquiler" },
 ];
 
-function formatearPrecio(min: number | null, max: number | null) {
-  if (min && max) return `USD ${min.toLocaleString()} – ${max.toLocaleString()}`;
-  if (min) return `Desde USD ${min.toLocaleString()}`;
-  if (max) return `Hasta USD ${max.toLocaleString()}`;
+function formatearPrecio(min: number | null, max: number | null, moneda: string) {
+  if (min && max) return `${moneda} ${min.toLocaleString()} – ${max.toLocaleString()}`;
+  if (min) return `Desde ${moneda} ${min.toLocaleString()}`;
+  if (max) return `Hasta ${moneda} ${max.toLocaleString()}`;
   return "Sin rango definido";
 }
 
@@ -60,6 +60,8 @@ export default async function BusquedasPage({
       zona: busquedas.zona,
       precioMin: busquedas.precioMin,
       precioMax: busquedas.precioMax,
+      moneda: busquedas.moneda,
+      notas: busquedas.notas,
       activa: busquedas.activa,
       vence: busquedas.vence,
       contactoId: contactos.id,
@@ -191,11 +193,16 @@ export default async function BusquedasPage({
                     {f.tipo} en {f.zona}
                   </p>
                   <p className="mt-0.5 text-xs text-gray-400">
-                    {formatearPrecio(f.precioMin, f.precioMax)}
+                    {formatearPrecio(f.precioMin, f.precioMax, f.moneda)}
                     {f.vence
                       ? ` · vence ${new Date(f.vence).toLocaleDateString("es-UY")}`
                       : ""}
                   </p>
+                  {f.notas && (
+                    <p className="mt-0.5 text-xs italic text-gray-400">
+                      {f.notas}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex flex-col items-end gap-2">

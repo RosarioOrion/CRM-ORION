@@ -14,6 +14,8 @@ const BusquedaSchema = z.object({
   zona: z.string().min(2, "Ingresá la zona"),
   precioMin: z.coerce.number().optional(),
   precioMax: z.coerce.number().optional(),
+  moneda: z.enum(["USD", "UYU"]).default("UYU"),
+  notas: z.string().optional(),
   vence: z.string().optional(),
 });
 
@@ -61,6 +63,8 @@ export async function crearBusqueda(
     zona: formData.get("zona"),
     precioMin: formData.get("precioMin") || undefined,
     precioMax: formData.get("precioMax") || undefined,
+    moneda: formData.get("moneda") || undefined,
+    notas: formData.get("notas") || undefined,
     vence: formData.get("vence") || undefined,
   });
 
@@ -77,6 +81,8 @@ export async function crearBusqueda(
     zona: parsed.data.zona,
     precioMin: parsed.data.precioMin ?? null,
     precioMax: parsed.data.precioMax ?? null,
+    moneda: parsed.data.moneda,
+    notas: parsed.data.notas ?? null,
     vence: parsed.data.vence ? new Date(parsed.data.vence) : null,
   });
 
