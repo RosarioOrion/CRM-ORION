@@ -128,6 +128,18 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
     )
   );
 
+  // 5. Columnas nuevas de búsquedas: moneda del rango de precio y notas libres.
+  await paso(resultados, "Agregar columna moneda en busquedas", () =>
+    db.execute(
+      sql`ALTER TABLE busquedas ADD COLUMN IF NOT EXISTS moneda text NOT NULL DEFAULT 'USD'`
+    )
+  );
+  await paso(resultados, "Agregar columna notas en busquedas", () =>
+    db.execute(
+      sql`ALTER TABLE busquedas ADD COLUMN IF NOT EXISTS notas text`
+    )
+  );
+
   return resultados;
 }
 
