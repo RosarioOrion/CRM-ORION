@@ -21,6 +21,11 @@ export const estadoPropiedadEnum = pgEnum("estado_propiedad", [
       "ALQUILADA_OTRA_INMOBILIARIA",
     ]);
 export const operacionEnum = pgEnum("operacion", ["VENTA", "ALQUILER"]);
+export const estadoCaptacionEnum = pgEnum("estado_captacion", [
+      "LLAMANDO",
+      "TASANDO",
+      "PARA_PUBLICAR",
+    ]);
 
 export const usuarios = pgTable("usuarios", {
       id: text("id").primaryKey().$defaultFn(() => createId()),
@@ -40,6 +45,7 @@ export const usuariosRelations = relations(usuarios, ({ one, many }) => ({
       }),
       contactos: many(contactos),
       propiedades: many(propiedades),
+      captaciones: many(captaciones),
 }));
 
 export const contactos = pgTable("contactos", {
@@ -65,6 +71,7 @@ export const contactosRelations = relations(contactos, ({ one, many }) => ({
       }),
       propiedades: many(propiedades),
       busquedas: many(busquedas),
+      captaciones: many(captaciones),
 }));
 
 export const propiedades = pgTable("propiedades", {
@@ -144,5 +151,43 @@ export const busquedasRelations = relations(busquedas, ({ one }) => ({
       contacto: one(contactos, {
               fields: [busquedas.contactoId],
               references: [contactos.id],
+      }),
+}));
+
+export const captaciones = pgTable("captaciones", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      titulo: text("titulo").notNull(),
+      contactoId: text("contacto_id")
+        .notNull()
+        .references(() => contactos.id),
+      agenteId: text("agente_id")
+        .notNull()
+        .references(() => usuarios.id),
+      operacion: operacionEnum("operacion").notNull(),
+      tipo: text("tipo").notNull(),
+      zona: text("zona"),
+      direccion: text("direccion"),
+      origen: text("origen").notNull().default("OTRO"),
+      origenDetalle: text("origen_detalle"),
+      notas: text("notas"),
+      estado: estadoCaptacionEnum("estado").notNull().default("LLAMANDO"),
+      convertidaEnPropiedadId: text("convertida_en_propiedad_id").references(
+        () => propiedades.id
+      ),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});
+
+export const captacionesRelations = relations(captaciones, ({ one }) => ({
+      contacto: one(contactos, {
+              fields: [captaciones.contactoId],
+              references: [contactos.id],
+      }),
+      agente: one(usuarios, {
+              fields: [captaciones.agenteId],
+              references: [usuarios.id],
+      }),
+      propiedad: one(propiedades, {
+              fields: [captaciones.convertidaEnPropiedadId],
+              references: [propiedades.id],
       }),
 }));
