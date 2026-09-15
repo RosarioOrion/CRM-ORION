@@ -140,6 +140,37 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
     )
   );
 
+  // 6. Modulo de Captaciones (Kanban Llamando -> Tasando -> Para publicar).
+  await paso(resultados, "Crear enum estado_captacion", () =>
+    db.execute(sql`
+      DO $$ BEGIN
+        CREATE TYPE estado_captacion AS ENUM ('LLAMANDO', 'TASANDO', 'PARA_PUBLICAR');
+      EXCEPTION
+        WHEN duplicate_object THEN NULL;
+      END $$;
+    `)
+  );
+  await paso(resultados, "Crear tabla captaciones", () =>
+    db.execute(sql`
+      CREATE TABLE IF NOT EXISTS captaciones (
+        id text PRIMARY KEY,
+        titulo text NOT NULL,
+        contacto_id text NOT NULL REFERENCES contactos(id),
+        agente_id text NOT NULL REFERENCES usuarios(id),
+        operacion operacion NOT NULL,
+        tipo text NOT NULL,
+        zona text,
+        direccion text,
+        origen text NOT NULL DEFAULT 'OTRO',
+        origen_detalle text,
+        notas text,
+        estado estado_captacion NOT NULL DEFAULT 'LLAMANDO',
+        convertida_en_propiedad_id text REFERENCES propiedades(id),
+        creado_en timestamp NOT NULL DEFAULT now()
+      )
+    `)
+  );
+
   return resultados;
 }
 
