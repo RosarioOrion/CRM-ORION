@@ -52,3 +52,34 @@ export function limpiarTitulo(titulo: string): string {
     .replace(/\s{2,}/g, " ")
     .trim();
 }
+
+export const OPERACION_LABEL: Record<string, string> = {
+  VENTA: "Venta",
+  ALQUILER: "Alquiler",
+};
+
+/**
+ * Arma el resumen compacto de características que se muestra en la ficha
+ * de la grilla de propiedades, tipo "90m² · 2d · 2b".
+ */
+export function resumenCaracteristicas(p: {
+  m2Cubiertos: number | null;
+  m2Privados: number | null;
+  m2Terreno: number | null;
+  hectareas: number | null;
+  dormitorios: number | null;
+  banos: number | null;
+}): string {
+  const partes: string[] = [];
+
+  const m2 = p.m2Cubiertos ?? p.m2Privados ?? p.m2Terreno;
+  if (m2) {
+    partes.push(`${m2}m²`);
+  } else if (p.hectareas) {
+    partes.push(`${p.hectareas}ha`);
+  }
+  if (p.dormitorios) partes.push(`${p.dormitorios}d`);
+  if (p.banos) partes.push(`${p.banos}b`);
+
+  return partes.join(" · ");
+}
