@@ -183,3 +183,66 @@ export async function listarTitulosConCorchetes(): Promise<
   );
   return r as unknown as { titulo: string; estado: string }[];
 }
+
+export type DiagnosticoFotos = {
+  id: string;
+  codigo: string;
+  titulo: string;
+  tipo: string;
+  cantidad: number | null;
+  kb: number;
+};
+
+/**
+ * Muestra el peso real (en la base de datos) del campo fotos de cada
+ * propiedad, ordenado de mayor a menor. Sirve para encontrar una fila con
+ * datos corruptos o desmedidos (por ejemplo, un problema de carga que dejó
+ * el campo con un tamaño anormal) sin tener que acceder a la base
+ * directamente.
+ */
+export async function diagnosticarFotos(): Promise<DiagnosticoFotos[]> {
+  await requerirTeamLeader();
+  const r = await db.execute<{
+    id: string;
+    codigo: string;
+    titulo: string;
+    tipo: string;
+    cantidad: number | null;
+    bytes: number;
+  }>(sql`
+    SELECT
+      id,
+      codigo,
+      titulo,
+      jsonb_typeof(fotos) as tipo,
+      CASE WHEN jsonb_typeof(fotos) = 'array' THEN jsonb_array_length(fotos) ELSE NULL END as cantidad,
+      pg_column_size(fotos) as bytes
+    FROM propiedades
+    ORDER BY pg_column_size(fotos) DESC
+    LIMIT 30
+  `);
+  const filas = r as unknown as {
+    id: string;
+    codigo: string;
+    titulo: string;
+    tipo: string;
+    cantidad: number | null;
+    bytes: number;
+  }[];
+  return filas.map((f) => ({
+    id: f.id,
+    codigo: f.codigo,
+    titulo: f.titulo,
+    tipo: f.tipo,
+    cantidad: f.cantidad,
+    kb: Math.round((f.bytes / 1024) * 10) / 10,
+  }));
+}
+
+/** Vacía por completo el campo fotos de una propiedad puntual (recuperación de emergencia). */
+export async function vaciarFotosPropiedad(propiedadId: string): Promise<void> {
+  await requerirTeamLeader();
+  await db.execute(
+    sql`UPDATE propiedades SET fotos = '[]'::jsonb WHERE id = ${propiedadId}`
+  );
+}

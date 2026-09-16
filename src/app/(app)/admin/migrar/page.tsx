@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { obtenerSesion } from "@/lib/auth";
 import { listarTitulosConCorchetes } from "./actions";
 import { EjecutarMigracionBoton } from "./ejecutar-boton";
+import { DiagnosticoFotos } from "./diagnostico-fotos";
 
 export default async function MigrarPage() {
   const sesion = await obtenerSesion();
@@ -49,6 +50,8 @@ export default async function MigrarPage() {
           </ul>
         )}
       </div>
+
+      <DiagnosticoFotos />
     </div>
   );
 }
