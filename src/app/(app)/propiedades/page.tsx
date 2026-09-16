@@ -8,7 +8,9 @@ import {
   ESTADO_LABEL,
   ESTADO_COLOR,
   ESTADOS_PROPIEDAD,
+  OPERACION_LABEL,
   limpiarTitulo,
+  resumenCaracteristicas,
 } from "@/lib/propiedades";
 
 const TABS: { estado: string; label: string }[] = [
@@ -130,6 +132,7 @@ export default async function PropiedadesPage({
         ) : (
           misPropiedades.map((p) => {
             const primeraFoto = p.fotos?.[0];
+            const resumen = resumenCaracteristicas(p);
             return (
               <Link
                 key={p.id}
@@ -159,9 +162,19 @@ export default async function PropiedadesPage({
                   </span>
                 </div>
                 <div className="p-2.5">
+                  <div className="mb-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    <span>{OPERACION_LABEL[p.operacion] ?? p.operacion}</span>
+                    <span>·</span>
+                    <span className="truncate">{p.tipo}</span>
+                  </div>
                   <p className="line-clamp-2 text-xs font-semibold leading-snug text-gray-800 dark:text-gray-100">
                     {limpiarTitulo(p.titulo)}
                   </p>
+                  {resumen && (
+                    <p className="mt-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                      {resumen}
+                    </p>
+                  )}
                   {p.precio ? (
                     <p className="mt-1 text-sm font-bold text-orion-navy dark:text-orion-gold">
                       {p.moneda} {p.precio.toLocaleString("es-UY")}
