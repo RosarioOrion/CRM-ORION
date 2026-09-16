@@ -13,36 +13,35 @@ export const TIPOS_PROPIEDAD = [
   "Estancia",
 ] as const;
 
+// Una propiedad puede estar Activa, Reservada (mientras se cierra una venta o
+// alquiler), Inactiva (pausada temporalmente), Cerrada (se dio de baja, por
+// ejemplo porque la vendió/alquiló otra inmobiliaria o el dueño desistió), o
+// Vendida/Alquilada (cuando una Reservada se firma).
 export const ESTADOS_PROPIEDAD = [
   "ACTIVA",
+  "RESERVADA",
   "PAUSADA",
   "CERRADA",
   "VENDIDA",
   "ALQUILADA",
-  "VENDIDA_OTRA_INMOBILIARIA",
-  "ALQUILADA_OTRA_INMOBILIARIA",
 ] as const;
 
 export const ESTADO_LABEL: Record<string, string> = {
   ACTIVA: "Activa",
-  PAUSADA: "Suspendida",
-  CERRADA: "Dada de baja",
+  RESERVADA: "Reservada",
+  PAUSADA: "Inactiva",
+  CERRADA: "Cerrada",
   VENDIDA: "Vendida",
   ALQUILADA: "Alquilada",
-  VENDIDA_OTRA_INMOBILIARIA: "Vendida (otra inmobiliaria)",
-  ALQUILADA_OTRA_INMOBILIARIA: "Alquilada (otra inmobiliaria)",
 };
 
 export const ESTADO_COLOR: Record<string, string> = {
   ACTIVA: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+  RESERVADA: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
   PAUSADA: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
   CERRADA: "bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-300",
   VENDIDA: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
   ALQUILADA: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
-  VENDIDA_OTRA_INMOBILIARIA:
-    "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
-  ALQUILADA_OTRA_INMOBILIARIA:
-    "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
 };
 
 /** Saca las etiquetas de estado tipo "[CERRADA]" que quedaron pegadas al título al migrar desde Lumen OS. */
