@@ -140,7 +140,7 @@ export async function crearPropiedad(
       return { ok: Date.now() };
 }
 
-const FOTO_MAX_BYTES = 5 * 1024 * 1024;
+const FOTO_MAX_BYTES = 8 * 1024 * 1024;
 
 export type FotosState = { error?: string; ok?: number };
 
@@ -166,7 +166,7 @@ export async function agregarFotos(
           return { error: `${archivo.name} no es una imagen valida.` };
         }
         if (archivo.size > FOTO_MAX_BYTES) {
-          return { error: `${archivo.name} pesa mas de 5MB.` };
+          return { error: `${archivo.name} pesa mas de 8MB.` };
         }
         const buffer = Buffer.from(await archivo.arrayBuffer());
         nuevasFotos.push(`data:${archivo.type};base64,${buffer.toString("base64")}`);
