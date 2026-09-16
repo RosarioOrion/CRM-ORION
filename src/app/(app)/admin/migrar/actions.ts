@@ -55,15 +55,8 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
   await paso(resultados, "Agregar estado ALQUILADA", () =>
     db.execute(sql`ALTER TYPE estado_propiedad ADD VALUE IF NOT EXISTS 'ALQUILADA'`)
   );
-  await paso(resultados, "Agregar estado VENDIDA_OTRA_INMOBILIARIA", () =>
-    db.execute(
-      sql`ALTER TYPE estado_propiedad ADD VALUE IF NOT EXISTS 'VENDIDA_OTRA_INMOBILIARIA'`
-    )
-  );
-  await paso(resultados, "Agregar estado ALQUILADA_OTRA_INMOBILIARIA", () =>
-    db.execute(
-      sql`ALTER TYPE estado_propiedad ADD VALUE IF NOT EXISTS 'ALQUILADA_OTRA_INMOBILIARIA'`
-    )
+  await paso(resultados, "Agregar estado RESERVADA", () =>
+    db.execute(sql`ALTER TYPE estado_propiedad ADD VALUE IF NOT EXISTS 'RESERVADA'`)
   );
 
   // 2. Columna de fotos.
@@ -85,18 +78,30 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
   );
   await paso(
     resultados,
-    "Corregir estado -> VENDIDA_OTRA_INMOBILIARIA",
+    "Corregir estado -> CERRADA (por título [VENDIDA POR OTRA INMOBILIARIA])",
     () =>
       db.execute(
-        sql`UPDATE propiedades SET estado = 'VENDIDA_OTRA_INMOBILIARIA' WHERE titulo ILIKE '%[VENDIDA POR OTRA INMOBILIARIA]%' AND estado != 'VENDIDA_OTRA_INMOBILIARIA'`
+        sql`UPDATE propiedades SET estado = 'CERRADA' WHERE titulo ILIKE '%[VENDIDA POR OTRA INMOBILIARIA]%' AND estado != 'CERRADA'`
       )
   );
   await paso(
     resultados,
-    "Corregir estado -> ALQUILADA_OTRA_INMOBILIARIA",
+    "Corregir estado -> CERRADA (por título [ALQUILADA POR OTRA INMOBILIARIA])",
     () =>
       db.execute(
-        sql`UPDATE propiedades SET estado = 'ALQUILADA_OTRA_INMOBILIARIA' WHERE titulo ILIKE '%[ALQUILADA POR OTRA INMOBILIARIA]%' AND estado != 'ALQUILADA_OTRA_INMOBILIARIA'`
+        sql`UPDATE propiedades SET estado = 'CERRADA' WHERE titulo ILIKE '%[ALQUILADA POR OTRA INMOBILIARIA]%' AND estado != 'CERRADA'`
+      )
+  );
+  // Ya no distinguimos "vendida/alquilada por otra inmobiliaria": si la
+  // operación la cerró otra persona o empresa, la propiedad simplemente
+  // pasa a Cerrada. Esto reasigna las propiedades que habían quedado en
+  // esos estados viejos (de una versión anterior de esta migración).
+  await paso(
+    resultados,
+    "Migrar estados 'por otra inmobiliaria' -> CERRADA",
+    () =>
+      db.execute(
+        sql`UPDATE propiedades SET estado = 'CERRADA' WHERE estado::text IN ('VENDIDA_OTRA_INMOBILIARIA', 'ALQUILADA_OTRA_INMOBILIARIA')`
       )
   );
   await paso(resultados, "Corregir estado -> VENDIDA (por título [VENDIDA])", () =>
