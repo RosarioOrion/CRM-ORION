@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
       // esa suma + el overhead de multipart/form-data. Por defecto
       // Next.js limita el body de un Server Action a 1MB, lo que hacía
       // fallar cualquier subida de fotos.
-      bodySizeLimit: "25mb",
+      bodySizeLimit: "30mb",
     },
   },
 };
