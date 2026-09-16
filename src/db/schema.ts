@@ -13,12 +13,11 @@ import { createId } from "@paralleldrive/cuid2";
 export const rolEnum = pgEnum("rol", ["AGENTE", "TEAM_LEADER", "ADMINISTRADOR"]);
 export const estadoPropiedadEnum = pgEnum("estado_propiedad", [
       "ACTIVA",
+      "RESERVADA",
       "PAUSADA",
       "CERRADA",
       "VENDIDA",
       "ALQUILADA",
-      "VENDIDA_OTRA_INMOBILIARIA",
-      "ALQUILADA_OTRA_INMOBILIARIA",
     ]);
 export const operacionEnum = pgEnum("operacion", ["VENTA", "ALQUILER"]);
 export const estadoCaptacionEnum = pgEnum("estado_captacion", [
