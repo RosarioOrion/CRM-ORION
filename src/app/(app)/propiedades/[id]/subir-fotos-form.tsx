@@ -4,12 +4,61 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { agregarFotos } from "../actions";
 
-// Subimos las fotos en lotes en vez de mandarlas todas juntas en un solo
-// pedido: así, aunque el usuario elija muchas fotos de cámara/celular
-// (que pesan varios MB cada una), nunca chocamos con el límite de tamaño
-// del body del Server Action. Cada lote se arma sumando pesos hasta este
-// tope, dejando margen debajo del límite configurado en next.config.ts.
+// Antes de subir, achicamos cada foto en el navegador (redimensionar +
+// recomprimir a JPEG). Las fotos de celular real suelen pesar 4-10MB a
+// resolución completa; para verlas en una ficha de propiedad no hace
+// falta esa resolución, así que esto las deja típicamente en unos
+// cientos de KB sin pérdida notoria de calidad. Resultado: lotes mucho
+// más livianos, menos pedidos al servidor, y subidas varias veces más
+// rápidas — sin tocar el límite del body del Server Action.
+const LADO_MAXIMO_PX = 1920;
+const CALIDAD_JPEG = 0.82;
+
+async function comprimirImagen(archivo: File): Promise<File> {
+  if (!archivo.type.startsWith("image/") || archivo.type === "image/svg+xml") {
+    return archivo;
+  }
+
+  try {
+    const bitmap = await createImageBitmap(archivo);
+    let { width, height } = bitmap;
+
+    if (width > LADO_MAXIMO_PX || height > LADO_MAXIMO_PX) {
+      const escala = Math.min(LADO_MAXIMO_PX / width, LADO_MAXIMO_PX / height);
+      width = Math.round(width * escala);
+      height = Math.round(height * escala);
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return archivo;
+
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close?.();
+
+    const blob: Blob | null = await new Promise((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", CALIDAD_JPEG)
+    );
+
+    // Si la compresión falló o (foto ya chica/optimizada) termina pesando
+    // más que el original, nos quedamos con el archivo tal cual vino.
+    if (!blob || blob.size >= archivo.size) return archivo;
+
+    const nombre = archivo.name.replace(/\.\w+$/, "") + ".jpg";
+    return new File([blob], nombre, { type: "image/jpeg" });
+  } catch {
+    // Formato que el navegador no puede decodificar (raro) -> subimos el original.
+    return archivo;
+  }
+}
+
+// Aun con fotos comprimidas, seguimos mandando en lotes (no todo en un
+// solo pedido) para no depender de un único request gigante, y los
+// subimos con algo de paralelismo para aprovechar mejor la conexión.
 const LOTE_MAX_BYTES = 15 * 1024 * 1024;
+const LOTES_EN_PARALELO = 3;
 
 function armarLotes(archivos: File[]): File[][] {
   const lotes: File[][] = [];
@@ -42,32 +91,58 @@ export function SubirFotosForm({ propiedadId }: { propiedadId: string }) {
 
     const input =
       formRef.current?.querySelector<HTMLInputElement>('input[name="fotos"]');
-    const archivos = input?.files ? Array.from(input.files) : [];
+    const archivosOriginales = input?.files ? Array.from(input.files) : [];
 
-    if (archivos.length === 0) {
+    if (archivosOriginales.length === 0) {
       setError("Elegí al menos una foto.");
       return;
     }
 
-    const lotes = armarLotes(archivos);
     setEnviando(true);
 
     try {
-      for (let i = 0; i < lotes.length; i++) {
-        setProgreso(
-          lotes.length > 1
-            ? `Subiendo fotos… (lote ${i + 1} de ${lotes.length})`
-            : "Subiendo fotos…"
-        );
+      setProgreso(
+        archivosOriginales.length > 1
+          ? `Optimizando ${archivosOriginales.length} fotos…`
+          : "Optimizando foto…"
+      );
+      const archivos = await Promise.all(archivosOriginales.map(comprimirImagen));
 
-        const fd = new FormData();
-        for (const archivo of lotes[i]) fd.append("fotos", archivo);
+      const lotes = armarLotes(archivos);
+      let completados = 0;
+      let huboError: string | null = null;
 
-        const resultado = await agregarFotos(propiedadId, {}, fd);
-        if (resultado.error) {
-          setError(resultado.error);
-          return;
+      // Subimos los lotes con un cupo de paralelismo: se disparan varios
+      // pedidos a la vez (no uno por uno esperando cada respuesta), lo que
+      // acorta bastante el tiempo total con muchas fotos.
+      let siguiente = 0;
+      async function trabajador() {
+        while (siguiente < lotes.length && !huboError) {
+          const indice = siguiente++;
+          const fd = new FormData();
+          for (const archivo of lotes[indice]) fd.append("fotos", archivo);
+
+          const resultado = await agregarFotos(propiedadId, {}, fd);
+          if (resultado.error) {
+            huboError = resultado.error;
+            return;
+          }
+          completados++;
+          setProgreso(
+            lotes.length > 1
+              ? `Subiendo fotos… (${completados} de ${lotes.length} lotes)`
+              : "Subiendo fotos…"
+          );
         }
+      }
+
+      await Promise.all(
+        Array.from({ length: Math.min(LOTES_EN_PARALELO, lotes.length) }, trabajador)
+      );
+
+      if (huboError) {
+        setError(huboError);
+        return;
       }
 
       formRef.current?.reset();
