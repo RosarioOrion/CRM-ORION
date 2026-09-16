@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { count, eq } from "drizzle-orm";
+import { count, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { propiedades } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
@@ -140,7 +140,7 @@ export async function crearPropiedad(
       return { ok: Date.now() };
 }
 
-const FOTO_MAX_BYTES = 8 * 1024 * 1024;
+const FOTO_MAX_BYTES = 10 * 1024 * 1024;
 
 export type FotosState = { error?: string; ok?: number };
 
@@ -166,23 +166,28 @@ export async function agregarFotos(
           return { error: `${archivo.name} no es una imagen valida.` };
         }
         if (archivo.size > FOTO_MAX_BYTES) {
-          return { error: `${archivo.name} pesa mas de 8MB.` };
+          return { error: `${archivo.name} pesa mas de 10MB.` };
         }
         const buffer = Buffer.from(await archivo.arrayBuffer());
         nuevasFotos.push(`data:${archivo.type};base64,${buffer.toString("base64")}`);
       }
 
-      const [propiedad] = await db
-        .select({ fotos: propiedades.fotos })
-        .from(propiedades)
-        .where(eq(propiedades.id, propiedadId));
-
-      if (!propiedad) return { error: "Propiedad no encontrada." };
-
-      await db
+      // Concatenamos con una sola sentencia UPDATE atomica (fotos = fotos || nuevas)
+      // en vez de leer y despues escribir en dos pasos separados. Con subidas por
+      // lotes, dos pedidos pueden llegar a superponerse (uno lento de un intento
+      // anterior que sigue en el servidor mientras otro ya termino) y un
+      // "leer -> modificar -> guardar" en dos pasos hace que el que termina
+      // despues pise y borre lo que guardo el otro. La concatenacion atomica en
+      // la base de datos evita ese problema sin importar el orden de llegada.
+      const actualizadas = await db
         .update(propiedades)
-        .set({ fotos: [...propiedad.fotos, ...nuevasFotos] })
-        .where(eq(propiedades.id, propiedadId));
+        .set({
+          fotos: sql`${propiedades.fotos} || ${JSON.stringify(nuevasFotos)}::jsonb`,
+        })
+        .where(eq(propiedades.id, propiedadId))
+        .returning({ id: propiedades.id });
+
+      if (actualizadas.length === 0) return { error: "Propiedad no encontrada." };
 
       revalidatePath(`/propiedades/${propiedadId}`);
       revalidatePath("/propiedades");
@@ -193,16 +198,18 @@ export async function eliminarFoto(propiedadId: string, fotoUrl: string) {
       const sesion = await obtenerSesion();
       if (!sesion) return;
 
-      const [propiedad] = await db
-        .select({ fotos: propiedades.fotos })
-        .from(propiedades)
-        .where(eq(propiedades.id, propiedadId));
-
-      if (!propiedad) return;
-
+      // Misma logica que agregarFotos: se filtra el elemento dentro de la
+      // propia sentencia UPDATE (atomica), sin un select previo que pueda
+      // quedar desactualizado si hay otro pedido de fotos en simultaneo.
       await db
         .update(propiedades)
-        .set({ fotos: propiedad.fotos.filter((f) => f !== fotoUrl) })
+        .set({
+          fotos: sql`(
+            SELECT COALESCE(jsonb_agg(elem), '[]'::jsonb)
+            FROM jsonb_array_elements_text(${propiedades.fotos}) AS elem
+            WHERE elem <> ${fotoUrl}
+          )`,
+        })
         .where(eq(propiedades.id, propiedadId));
 
       revalidatePath(`/propiedades/${propiedadId}`);
