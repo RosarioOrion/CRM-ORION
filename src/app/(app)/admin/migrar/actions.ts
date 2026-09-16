@@ -1,8 +1,10 @@
 "use server";
 
+import sharp from "sharp";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
+import { propiedades } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
-import { sql } from "drizzle-orm";
 
 export type PasoMigracion = {
   paso: string;
@@ -245,4 +247,69 @@ export async function vaciarFotosPropiedad(propiedadId: string): Promise<void> {
   await db.execute(
     sql`UPDATE propiedades SET fotos = '[]'::jsonb WHERE id = ${propiedadId}`
   );
+}
+
+/**
+ * Redimensiona y recomprime las fotos YA guardadas de una propiedad
+ * (sin perderlas), en vez de borrarlas. Se usa cuando una propiedad quedó
+ * con fotos muy pesadas (por ejemplo, subidas antes de que existiera la
+ * compresión automática en el navegador) y eso hace fallar la página al
+ * abrirla. Mantiene el orden y no toca fotos que ya estén livianas.
+ */
+export async function recomprimirFotosPropiedad(
+  propiedadId: string
+): Promise<{ ok: boolean; mensaje: string }> {
+  await requerirTeamLeader();
+
+  const [prop] = await db
+    .select({ fotos: propiedades.fotos })
+    .from(propiedades)
+    .where(eq(propiedades.id, propiedadId));
+
+  if (!prop) return { ok: false, mensaje: "Propiedad no encontrada." };
+  if (prop.fotos.length === 0) {
+    return { ok: false, mensaje: "Esta propiedad no tiene fotos." };
+  }
+
+  let recomprimidas = 0;
+  const nuevasFotos: string[] = [];
+
+  for (const fotoDataUri of prop.fotos) {
+    const match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(fotoDataUri);
+    if (!match) {
+      nuevasFotos.push(fotoDataUri);
+      continue;
+    }
+    const buffer = Buffer.from(match[2], "base64");
+
+    // Si ya está liviana (subida con la compresión nueva), no hace falta tocarla.
+    if (buffer.byteLength <= 900 * 1024) {
+      nuevasFotos.push(fotoDataUri);
+      continue;
+    }
+
+    try {
+      const salida = await sharp(buffer)
+        .rotate() // respeta la orientación EXIF antes de descartarla
+        .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: 78 })
+        .toBuffer();
+      nuevasFotos.push(`data:image/jpeg;base64,${salida.toString("base64")}`);
+      recomprimidas++;
+    } catch {
+      // Si esta imagen puntual no se puede procesar, la dejamos como estaba
+      // en vez de perderla.
+      nuevasFotos.push(fotoDataUri);
+    }
+  }
+
+  await db
+    .update(propiedades)
+    .set({ fotos: nuevasFotos })
+    .where(eq(propiedades.id, propiedadId));
+
+  return {
+    ok: true,
+    mensaje: `Listo: ${recomprimidas} de ${prop.fotos.length} foto(s) recomprimidas.`,
+  };
 }
