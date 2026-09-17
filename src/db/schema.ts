@@ -258,12 +258,50 @@ export const busquedas = pgTable("busquedas", {
       creadoEn: timestamp("creado_en").notNull().defaultNow(),
 });
 
-export const busquedasRelations = relations(busquedas, ({ one }) => ({
+export const busquedasRelations = relations(busquedas, ({ one, many }) => ({
       contacto: one(contactos, {
               fields: [busquedas.contactoId],
               references: [contactos.id],
       }),
+      coincidenciasAvisadas: many(coincidenciasAvisadas),
 }));
+
+// Motor de coincidencias: el match búsqueda↔propiedad se calcula al vuelo
+// (no se guarda), pero acá queda registro de qué pares ya le avisó Rosario
+// al cliente, para no repetir el aviso y para llevar una nota de cómo
+// reaccionó.
+export const coincidenciasAvisadas = pgTable("coincidencias_avisadas", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      busquedaId: text("busqueda_id")
+        .notNull()
+        .references(() => busquedas.id),
+      propiedadId: text("propiedad_id")
+        .notNull()
+        .references(() => propiedades.id),
+      agenteId: text("agente_id")
+        .notNull()
+        .references(() => usuarios.id),
+      nota: text("nota"),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});
+
+export const coincidenciasAvisadasRelations = relations(
+  coincidenciasAvisadas,
+  ({ one }) => ({
+        busqueda: one(busquedas, {
+                fields: [coincidenciasAvisadas.busquedaId],
+                references: [busquedas.id],
+        }),
+        propiedad: one(propiedades, {
+                fields: [coincidenciasAvisadas.propiedadId],
+                references: [propiedades.id],
+        }),
+        agente: one(usuarios, {
+                fields: [coincidenciasAvisadas.agenteId],
+                references: [usuarios.id],
+        }),
+  })
+);
 
 export const captaciones = pgTable("captaciones", {
       id: text("id").primaryKey().$defaultFn(() => createId()),
