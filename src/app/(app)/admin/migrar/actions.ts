@@ -274,6 +274,20 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
     `)
   );
 
+  // 10. Registro de portales donde está publicada cada propiedad.
+  await paso(resultados, "Crear tabla portales_publicados", () =>
+    db.execute(sql`
+      CREATE TABLE IF NOT EXISTS portales_publicados (
+        id text PRIMARY KEY,
+        propiedad_id text NOT NULL REFERENCES propiedades(id),
+        portal text NOT NULL,
+        url text NOT NULL,
+        agente_id text NOT NULL REFERENCES usuarios(id),
+        creado_en timestamp NOT NULL DEFAULT now()
+      )
+    `)
+  );
+
   return resultados;
 }
 
