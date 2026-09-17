@@ -200,6 +200,47 @@ export const pipelineAccionesRelations = relations(pipelineAcciones, ({ one }) =
       }),
 }));
 
+// Agenda de visitas: coordinación y seguimiento de visitas a propiedades.
+export const estadoVisitaEnum = pgEnum("estado_visita", [
+      "PROGRAMADA",
+      "REALIZADA",
+      "CANCELADA",
+      "NO_SE_PRESENTO",
+]);
+
+export const visitas = pgTable("visitas", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      propiedadId: text("propiedad_id")
+        .notNull()
+        .references(() => propiedades.id),
+      contactoId: text("contacto_id")
+        .notNull()
+        .references(() => contactos.id),
+      agenteId: text("agente_id")
+        .notNull()
+        .references(() => usuarios.id),
+      fecha: timestamp("fecha").notNull(),
+      estado: estadoVisitaEnum("estado").notNull().default("PROGRAMADA"),
+      notas: text("notas"),
+      resultado: text("resultado"),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});
+
+export const visitasRelations = relations(visitas, ({ one }) => ({
+      propiedad: one(propiedades, {
+              fields: [visitas.propiedadId],
+              references: [propiedades.id],
+      }),
+      contacto: one(contactos, {
+              fields: [visitas.contactoId],
+              references: [contactos.id],
+      }),
+      agente: one(usuarios, {
+              fields: [visitas.agenteId],
+              references: [usuarios.id],
+      }),
+}));
+
 export const busquedas = pgTable("busquedas", {
       id: text("id").primaryKey().$defaultFn(() => createId()),
       contactoId: text("contacto_id")
