@@ -91,7 +91,9 @@ export function TarjetaPipeline(p: TarjetaPipelineProps) {
             )}
             {urgente && !p.esFinal && (
               <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-300">
-                ⚠️ Sin contacto hace {p.diasSinContacto ?? "?"}+ días
+                {p.diasSinContacto === null
+                  ? "⚠️ Sin seguimiento registrado todavía"
+                  : `⚠️ Sin contacto hace ${p.diasSinContacto} día(s)`}
               </span>
             )}
           </div>
