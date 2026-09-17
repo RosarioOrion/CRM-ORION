@@ -233,6 +233,32 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
     `)
   );
 
+  // 8. Modulo de Agenda de visitas.
+  await paso(resultados, "Crear enum estado_visita", () =>
+    db.execute(sql`
+      DO $$ BEGIN
+        CREATE TYPE estado_visita AS ENUM ('PROGRAMADA', 'REALIZADA', 'CANCELADA', 'NO_SE_PRESENTO');
+      EXCEPTION
+        WHEN duplicate_object THEN NULL;
+      END $$;
+    `)
+  );
+  await paso(resultados, "Crear tabla visitas", () =>
+    db.execute(sql`
+      CREATE TABLE IF NOT EXISTS visitas (
+        id text PRIMARY KEY,
+        propiedad_id text NOT NULL REFERENCES propiedades(id),
+        contacto_id text NOT NULL REFERENCES contactos(id),
+        agente_id text NOT NULL REFERENCES usuarios(id),
+        fecha timestamp NOT NULL,
+        estado estado_visita NOT NULL DEFAULT 'PROGRAMADA',
+        notas text,
+        resultado text,
+        creado_en timestamp NOT NULL DEFAULT now()
+      )
+    `)
+  );
+
   return resultados;
 }
 
