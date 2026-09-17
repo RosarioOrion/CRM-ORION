@@ -6,6 +6,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 const NAV = [
   { href: "/dashboard", label: "Inicio", icon: "🏠" },
   { href: "/captaciones", label: "Captaciones", icon: "🚀" },
+  { href: "/pipeline", label: "Pipeline", icon: "📊" },
   { href: "/contactos", label: "Contactos", icon: "👤" },
   { href: "/propiedades", label: "Propiedades", icon: "🏢" },
   { href: "/busquedas", label: "Búsquedas", icon: "🔍" },
