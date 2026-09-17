@@ -34,6 +34,13 @@ export const usuarios = pgTable("usuarios", {
       telefono: text("telefono"),
       rol: rolEnum("rol").notNull().default("AGENTE"),
       teamLeaderId: text("team_leader_id"),
+      // Presentación / bio profesional que el agente carga al registrarse
+      // (para su perfil dentro de Orion).
+      descripcion: text("descripcion"),
+      // Cuentas creadas por un administrador nacen aprobadas; las que se
+      // crean solas desde /registro quedan en false hasta que un
+      // administrador o team leader las aprueba.
+      aprobado: boolean("aprobado").notNull().default(true),
       creadoEn: timestamp("creado_en").notNull().defaultNow(),
 });
 
