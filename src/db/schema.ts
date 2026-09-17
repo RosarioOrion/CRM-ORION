@@ -109,6 +109,11 @@ export const propiedades = pgTable("propiedades", {
       fotos: jsonb("fotos").$type<string[]>().notNull().default([]),
       descripcion: text("descripcion"),
       estado: estadoPropiedadEnum("estado").notNull().default("ACTIVA"),
+      // Fecha desde la que corre la cadencia del Pipeline (semana 1 de 14 en
+      // venta / semana 1 de 7 en alquiler). Por defecto es cuando se cargó en
+      // Orion, pero se puede corregir a mano si la propiedad ya venía en
+      // proceso desde antes (por ejemplo, migrada desde Lumen OS).
+      fechaInicioPipeline: timestamp("fecha_inicio_pipeline").notNull().defaultNow(),
       duenoId: text("dueno_id")
         .notNull()
         .references(() => contactos.id),
@@ -118,13 +123,79 @@ export const propiedades = pgTable("propiedades", {
       creadoEn: timestamp("creado_en").notNull().defaultNow(),
 });
 
-export const propiedadesRelations = relations(propiedades, ({ one }) => ({
+export const propiedadesRelations = relations(propiedades, ({ one, many }) => ({
       dueno: one(contactos, {
               fields: [propiedades.duenoId],
               references: [contactos.id],
       }),
       agente: one(usuarios, {
               fields: [propiedades.agenteId],
+              references: [usuarios.id],
+      }),
+      historialPrecios: many(historialPrecios),
+      pipelineAcciones: many(pipelineAcciones),
+}));
+
+// Categorías de acciones de la cadencia de Pipeline (14 semanas venta / 7
+// semanas alquiler), tal como las define el manual de Rosario: cuatro frentes
+// de trabajo en paralelo cada semana.
+export const categoriaPipelineEnum = pgEnum("categoria_pipeline", [
+      "SEGUIMIENTO_DUENO",
+      "MARKETING",
+      "VENTAS_NEGOCIACION",
+      "REPORTE",
+]);
+
+// Historial de ajustes de precio de una propiedad — permite ver en el
+// Pipeline si ya se bajó el precio y cuándo, en vez de solo el precio actual.
+export const historialPrecios = pgTable("historial_precios", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      propiedadId: text("propiedad_id")
+        .notNull()
+        .references(() => propiedades.id),
+      precioAnterior: integer("precio_anterior"),
+      monedaAnterior: text("moneda_anterior"),
+      precioNuevo: integer("precio_nuevo").notNull(),
+      monedaNueva: text("moneda_nueva").notNull(),
+      agenteId: text("agente_id")
+        .notNull()
+        .references(() => usuarios.id),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});
+
+export const historialPreciosRelations = relations(historialPrecios, ({ one }) => ({
+      propiedad: one(propiedades, {
+              fields: [historialPrecios.propiedadId],
+              references: [propiedades.id],
+      }),
+}));
+
+// Registro de acciones de seguimiento hechas semana a semana sobre una
+// propiedad activa (llamada al dueño, publicación, reporte, etc.). Es lo que
+// permite calcular "último contacto" y marcar como cumplida la acción
+// sugerida de la semana en curso.
+export const pipelineAcciones = pgTable("pipeline_acciones", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      propiedadId: text("propiedad_id")
+        .notNull()
+        .references(() => propiedades.id),
+      agenteId: text("agente_id")
+        .notNull()
+        .references(() => usuarios.id),
+      categoria: categoriaPipelineEnum("categoria").notNull(),
+      semana: integer("semana").notNull(),
+      descripcion: text("descripcion").notNull(),
+      nota: text("nota"),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});
+
+export const pipelineAccionesRelations = relations(pipelineAcciones, ({ one }) => ({
+      propiedad: one(propiedades, {
+              fields: [pipelineAcciones.propiedadId],
+              references: [propiedades.id],
+      }),
+      agente: one(usuarios, {
+              fields: [pipelineAcciones.agenteId],
               references: [usuarios.id],
       }),
 }));
