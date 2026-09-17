@@ -12,6 +12,7 @@ const NAV = [
   { href: "/busquedas", label: "Búsquedas", icon: "🔍" },
   { href: "/agenda", label: "Agenda", icon: "📅" },
   { href: "/coincidencias", label: "Coincidencias", icon: "🎯" },
+  { href: "/ajustes", label: "Ajustes", icon: "⚙️" },
 ];
 
 export default async function AppLayout({
