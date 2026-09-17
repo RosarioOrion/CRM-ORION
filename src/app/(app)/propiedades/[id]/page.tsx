@@ -23,6 +23,7 @@ import { CambiarEstado } from "./cambiar-estado";
 import { SubirFotosForm } from "./subir-fotos-form";
 import { PipelineToggle } from "./pipeline-toggle";
 import { RegistroPortales } from "./registro-portales";
+import { EditarDescripcion } from "./editar-descripcion";
 import { eliminarFoto } from "../actions";
 
 type Propiedad = typeof propiedades.$inferSelect;
@@ -222,16 +223,7 @@ export default async function PropiedadDetallePage({
           </div>
         )}
 
-        {propiedad.descripcion && (
-          <div className="mb-6">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-              Descripción
-            </p>
-            <p className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-200">
-              {propiedad.descripcion}
-            </p>
-          </div>
-        )}
+        <EditarDescripcion propiedadId={propiedad.id} descripcionInicial={propiedad.descripcion} />
 
         {dueno && (
           <div className="mb-6">
