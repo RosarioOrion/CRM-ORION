@@ -134,6 +134,34 @@ export const propiedadesRelations = relations(propiedades, ({ one, many }) => ({
       }),
       historialPrecios: many(historialPrecios),
       pipelineAcciones: many(pipelineAcciones),
+      portalesPublicados: many(portalesPublicados),
+}));
+
+// Registro manual de dónde está publicada cada propiedad (Mercado Libre,
+// InfoCasa, Casas y Más, redes, etc). Simple log de links, no hay
+// integración automática con los portales todavía.
+export const portalesPublicados = pgTable("portales_publicados", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      propiedadId: text("propiedad_id")
+        .notNull()
+        .references(() => propiedades.id),
+      portal: text("portal").notNull(),
+      url: text("url").notNull(),
+      agenteId: text("agente_id")
+        .notNull()
+        .references(() => usuarios.id),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});
+
+export const portalesPublicadosRelations = relations(portalesPublicados, ({ one }) => ({
+      propiedad: one(propiedades, {
+              fields: [portalesPublicados.propiedadId],
+              references: [propiedades.id],
+      }),
+      agente: one(usuarios, {
+              fields: [portalesPublicados.agenteId],
+              references: [usuarios.id],
+      }),
 }));
 
 // Categorías de acciones de la cadencia de Pipeline (14 semanas venta / 7
