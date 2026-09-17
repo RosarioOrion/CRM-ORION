@@ -259,6 +259,21 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
     `)
   );
 
+  // 9. Modulo de Motor de coincidencias (registro de avisos ya enviados;
+  // el match en sí se calcula al vuelo, no se guarda).
+  await paso(resultados, "Crear tabla coincidencias_avisadas", () =>
+    db.execute(sql`
+      CREATE TABLE IF NOT EXISTS coincidencias_avisadas (
+        id text PRIMARY KEY,
+        busqueda_id text NOT NULL REFERENCES busquedas(id),
+        propiedad_id text NOT NULL REFERENCES propiedades(id),
+        agente_id text NOT NULL REFERENCES usuarios(id),
+        nota text,
+        creado_en timestamp NOT NULL DEFAULT now()
+      )
+    `)
+  );
+
   return resultados;
 }
 
