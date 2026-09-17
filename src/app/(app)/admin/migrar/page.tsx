@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation";
-import { obtenerSesion } from "@/lib/auth";
+import { obtenerSesion, esAdmin } from "@/lib/auth";
 import { listarTitulosConCorchetes } from "./actions";
 import { EjecutarMigracionBoton } from "./ejecutar-boton";
 import { DiagnosticoFotos } from "./diagnostico-fotos";
 
 export default async function MigrarPage() {
   const sesion = await obtenerSesion();
-  if (!sesion || sesion.rol !== "TEAM_LEADER") {
+  if (!sesion || !esAdmin(sesion.rol)) {
     redirect("/dashboard");
   }
 

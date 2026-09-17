@@ -4,7 +4,7 @@ import sharp from "sharp";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { propiedades } from "@/db/schema";
-import { obtenerSesion } from "@/lib/auth";
+import { obtenerSesion, esAdmin } from "@/lib/auth";
 
 export type PasoMigracion = {
   paso: string;
@@ -14,7 +14,7 @@ export type PasoMigracion = {
 
 async function requerirTeamLeader() {
   const sesion = await obtenerSesion();
-  if (!sesion || sesion.rol !== "TEAM_LEADER") {
+  if (!sesion || !esAdmin(sesion.rol)) {
     throw new Error("No autorizado.");
   }
 }
@@ -285,6 +285,16 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
         agente_id text NOT NULL REFERENCES usuarios(id),
         creado_en timestamp NOT NULL DEFAULT now()
       )
+    `)
+  );
+
+  // 11. Perfil de usuarios: presentación profesional + aprobación para
+  // las cuentas que se crean solas desde /registro.
+  await paso(resultados, "Agregar descripcion y aprobado a usuarios", () =>
+    db.execute(sql`
+      ALTER TABLE usuarios
+        ADD COLUMN IF NOT EXISTS descripcion text,
+        ADD COLUMN IF NOT EXISTS aprobado boolean NOT NULL DEFAULT true
     `)
   );
 
