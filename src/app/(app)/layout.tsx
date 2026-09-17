@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { obtenerSesion, cerrarSesion } from "@/lib/auth";
+import { obtenerSesion, cerrarSesion, esAdmin } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV = [
@@ -14,6 +14,8 @@ const NAV = [
   { href: "/coincidencias", label: "Coincidencias", icon: "🎯" },
   { href: "/ajustes", label: "Ajustes", icon: "⚙️" },
 ];
+
+const NAV_ADMIN = { href: "/admin/usuarios", label: "Usuarios", icon: "🛡️" };
 
 export default async function AppLayout({
   children,
@@ -46,6 +48,16 @@ export default async function AppLayout({
               <span>{item.label}</span>
             </Link>
           ))}
+          {esAdmin(sesion.rol) && (
+            <Link
+              key={NAV_ADMIN.href}
+              href={NAV_ADMIN.href}
+              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
+            >
+              <span>{NAV_ADMIN.icon}</span>
+              <span>{NAV_ADMIN.label}</span>
+            </Link>
+          )}
         </nav>
 
         <div className="border-t border-white/10 px-3 py-2">
