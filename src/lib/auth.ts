@@ -46,4 +46,11 @@ export async function cerrarSesion() {
   cookieStore.delete(COOKIE_NAME);
 }
 
+// Team Leader y Administrador tienen el mismo nivel de acceso "jefe":
+// crear/aprobar usuarios, ver la actividad del equipo y usar las
+// herramientas internas (como /admin/migrar).
+export function esAdmin(rol: SessionPayload["rol"] | undefined | null) {
+  return rol === "TEAM_LEADER" || rol === "ADMINISTRADOR";
+}
+
 export { COOKIE_NAME };
