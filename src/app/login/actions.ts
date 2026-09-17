@@ -47,6 +47,13 @@ export async function iniciarSesion(
     return { error: "Email o contraseña incorrectos" };
   }
 
+  if (!usuario.aprobado) {
+    return {
+      error:
+        "Tu cuenta todavía no fue aprobada por un administrador. Te van a avisar cuando puedas ingresar.",
+    };
+  }
+
   await crearSesion({
     userId: usuario.id,
     nombre: usuario.nombre,

@@ -79,8 +79,14 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-gray-400">
-          Usuario de prueba: rosario@crmorion.com
+        <p className="mt-6 text-center text-sm text-gray-500">
+          ¿Sos nuevo en el equipo?{" "}
+          <a
+            href="/registro"
+            className="font-semibold text-orion-navy hover:underline"
+          >
+            Crear cuenta
+          </a>
         </p>
       </div>
     </div>
