@@ -10,6 +10,7 @@ const NAV = [
   { href: "/contactos", label: "Contactos", icon: "👤" },
   { href: "/propiedades", label: "Propiedades", icon: "🏢" },
   { href: "/busquedas", label: "Búsquedas", icon: "🔍" },
+  { href: "/agenda", label: "Agenda", icon: "📅" },
 ];
 
 export default async function AppLayout({
