@@ -2,9 +2,9 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { count, eq, sql } from "drizzle-orm";
+import { count, eq, sql, and } from "drizzle-orm";
 import { db } from "@/db";
-import { propiedades } from "@/db/schema";
+import { propiedades, portalesPublicados } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { ESTADOS_PROPIEDAD } from "@/lib/propiedades";
 
@@ -231,4 +231,70 @@ export async function actualizarEstado(propiedadId: string, estado: string) {
 
       revalidatePath(`/propiedades/${propiedadId}`);
       revalidatePath("/propiedades");
+}
+
+const PortalSchema = z.object({
+      portal: z.string().min(2, "Elegi el portal"),
+      url: z.string().url("Ingresa un link valido (con https://)"),
+});
+
+export type PortalState = { error?: string; ok?: number };
+
+async function requerirPropiedadDelAgente(propiedadId: string) {
+      const sesion = await obtenerSesion();
+      if (!sesion) throw new Error("Sesion expirada, volve a ingresar.");
+
+      const [propiedad] = await db
+        .select({ id: propiedades.id, agenteId: propiedades.agenteId })
+        .from(propiedades)
+        .where(eq(propiedades.id, propiedadId));
+
+      if (!propiedad || propiedad.agenteId !== sesion.userId) {
+        throw new Error("Propiedad no encontrada.");
+      }
+      return sesion;
+}
+
+export async function agregarPortalPublicado(
+      propiedadId: string,
+      _prevState: PortalState,
+      formData: FormData
+    ): Promise<PortalState> {
+      let sesion;
+      try {
+        sesion = await requerirPropiedadDelAgente(propiedadId);
+      } catch (e) {
+        return { error: e instanceof Error ? e.message : "No autorizado." };
+      }
+
+      const parsed = PortalSchema.safeParse({
+        portal: formData.get("portal"),
+        url: formData.get("url"),
+      });
+      if (!parsed.success) {
+        return { error: parsed.error.issues[0]?.message ?? "Datos invalidos" };
+      }
+
+      await db.insert(portalesPublicados).values({
+        propiedadId,
+        portal: parsed.data.portal,
+        url: parsed.data.url,
+        agenteId: sesion.userId,
+      });
+
+      revalidatePath(`/propiedades/${propiedadId}`);
+      return { ok: Date.now() };
+}
+
+export async function eliminarPortalPublicado(portalId: string, propiedadId: string) {
+      const sesion = await obtenerSesion();
+      if (!sesion) return;
+
+      await db
+        .delete(portalesPublicados)
+        .where(
+          and(eq(portalesPublicados.id, portalId), eq(portalesPublicados.agenteId, sesion.userId))
+        );
+
+      revalidatePath(`/propiedades/${propiedadId}`);
 }
