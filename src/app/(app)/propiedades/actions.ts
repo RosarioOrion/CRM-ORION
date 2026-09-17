@@ -298,3 +298,36 @@ export async function eliminarPortalPublicado(portalId: string, propiedadId: str
 
       revalidatePath(`/propiedades/${propiedadId}`);
 }
+
+const DescripcionSchema = z.object({
+      descripcion: z.string().min(1, "Escribi algo antes de guardar."),
+});
+
+export type DescripcionState = { error?: string; ok?: number };
+
+export async function actualizarDescripcion(
+      propiedadId: string,
+      _prevState: DescripcionState,
+      formData: FormData
+    ): Promise<DescripcionState> {
+      try {
+        await requerirPropiedadDelAgente(propiedadId);
+      } catch (e) {
+        return { error: e instanceof Error ? e.message : "No autorizado." };
+      }
+
+      const parsed = DescripcionSchema.safeParse({
+        descripcion: formData.get("descripcion"),
+      });
+      if (!parsed.success) {
+        return { error: parsed.error.issues[0]?.message ?? "Datos invalidos" };
+      }
+
+      await db
+        .update(propiedades)
+        .set({ descripcion: parsed.data.descripcion })
+        .where(eq(propiedades.id, propiedadId));
+
+      revalidatePath(`/propiedades/${propiedadId}`);
+      return { ok: Date.now() };
+}
