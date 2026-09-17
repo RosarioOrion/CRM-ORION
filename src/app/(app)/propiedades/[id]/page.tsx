@@ -1,12 +1,28 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { propiedades, contactos } from "@/db/schema";
+import {
+  propiedades,
+  contactos,
+  pipelineAcciones,
+  historialPrecios,
+  portalesPublicados,
+} from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { limpiarTitulo } from "@/lib/propiedades";
+import {
+  diasEnMercado,
+  semanaActual,
+  esSemanaFinal,
+  accionesDeLaSemana,
+  DURACION_CICLO,
+} from "@/lib/pipeline";
+import type { CategoriaPipeline } from "@/lib/pipeline";
 import { CambiarEstado } from "./cambiar-estado";
 import { SubirFotosForm } from "./subir-fotos-form";
+import { PipelineToggle } from "./pipeline-toggle";
+import { RegistroPortales } from "./registro-portales";
 import { eliminarFoto } from "../actions";
 
 type Propiedad = typeof propiedades.$inferSelect;
@@ -54,15 +70,71 @@ export default async function PropiedadDetallePage({
 
   if (!propiedad || propiedad.agenteId !== sesion.userId) notFound();
 
-  const [dueno] = await db
-    .select()
-    .from(contactos)
-    .where(eq(contactos.id, propiedad.duenoId));
+  const [dueno, portales] = await Promise.all([
+    db.select().from(contactos).where(eq(contactos.id, propiedad.duenoId)).then((r) => r[0]),
+    db
+      .select({
+        id: portalesPublicados.id,
+        portal: portalesPublicados.portal,
+        url: portalesPublicados.url,
+        creadoEn: portalesPublicados.creadoEn,
+      })
+      .from(portalesPublicados)
+      .where(eq(portalesPublicados.propiedadId, propiedad.id))
+      .orderBy(desc(portalesPublicados.creadoEn)),
+  ]);
 
   const ubicacion = [propiedad.direccion, propiedad.zona, propiedad.departamento, "Uruguay"]
     .filter(Boolean)
     .join(", ");
   const mapaSrc = `https://www.google.com/maps?q=${encodeURIComponent(ubicacion)}&output=embed`;
+
+  let datosPipeline: import("./pipeline-toggle").TarjetaPipelineProps | null = null;
+  if (propiedad.estado === "ACTIVA") {
+    const [acciones, ajustes] = await Promise.all([
+      db
+        .select()
+        .from(pipelineAcciones)
+        .where(eq(pipelineAcciones.propiedadId, propiedad.id))
+        .orderBy(desc(pipelineAcciones.creadoEn)),
+      db
+        .select()
+        .from(historialPrecios)
+        .where(eq(historialPrecios.propiedadId, propiedad.id))
+        .orderBy(desc(historialPrecios.creadoEn)),
+    ]);
+
+    const ahora = new Date();
+    const dias = diasEnMercado(propiedad.fechaInicioPipeline, ahora);
+    const semana = semanaActual(dias, propiedad.operacion);
+    const esFinal = esSemanaFinal(semana, propiedad.operacion);
+    const accionesSemana = accionesDeLaSemana(propiedad.operacion, semana);
+    const accionesDeEsta = acciones.filter((a) => a.semana === semana);
+    const hechasEstaSemana = accionesDeEsta.map((a) => a.categoria as CategoriaPipeline);
+    const ultimaAccion = acciones[0];
+    const diasSinContacto = ultimaAccion ? diasEnMercado(ultimaAccion.creadoEn, ahora) : null;
+    const ultimoAjuste = ajustes[0];
+
+    datosPipeline = {
+      propiedadId: propiedad.id,
+      codigo: propiedad.codigo,
+      titulo: limpiarTitulo(propiedad.titulo),
+      operacion: propiedad.operacion,
+      precio: propiedad.precio,
+      moneda: propiedad.moneda,
+      dias,
+      semana,
+      totalSemanas: DURACION_CICLO[propiedad.operacion],
+      esFinal,
+      acciones: accionesSemana,
+      hechasEstaSemana,
+      diasSinContacto,
+      ultimoAjustePrecio: ultimoAjuste
+        ? { fecha: ultimoAjuste.creadoEn.toISOString(), precioAnterior: ultimoAjuste.precioAnterior }
+        : null,
+      fechaInicioPipeline: propiedad.fechaInicioPipeline.toISOString(),
+    };
+  }
 
   const caracteristicas = CARACTERISTICAS.map((c) => ({
     ...c,
@@ -103,6 +175,8 @@ export default async function PropiedadDetallePage({
             {propiedad.moneda} {propiedad.precio.toLocaleString("es-UY")}
           </p>
         )}
+
+        {datosPipeline && <PipelineToggle {...datosPipeline} />}
 
         {caracteristicas.length > 0 && (
           <div className="mb-6">
@@ -187,6 +261,8 @@ export default async function PropiedadDetallePage({
             />
           </div>
         </div>
+
+        <RegistroPortales propiedadId={propiedad.id} portalesIniciales={portales} />
 
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
