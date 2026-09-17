@@ -178,6 +178,61 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
     `)
   );
 
+  // 7. Modulo de Pipeline (cadencia 14 semanas venta / 7 semanas alquiler).
+  await paso(
+    resultados,
+    "Agregar columna fecha_inicio_pipeline en propiedades",
+    () =>
+      db.execute(
+        sql`ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS fecha_inicio_pipeline timestamp NOT NULL DEFAULT now()`
+      )
+  );
+  await paso(
+    resultados,
+    "Backfill fecha_inicio_pipeline = creado_en para propiedades existentes",
+    () =>
+      db.execute(
+        sql`UPDATE propiedades SET fecha_inicio_pipeline = creado_en WHERE fecha_inicio_pipeline = creado_en OR fecha_inicio_pipeline > creado_en`
+      )
+  );
+  await paso(resultados, "Crear enum categoria_pipeline", () =>
+    db.execute(sql`
+      DO $$ BEGIN
+        CREATE TYPE categoria_pipeline AS ENUM ('SEGUIMIENTO_DUENO', 'MARKETING', 'VENTAS_NEGOCIACION', 'REPORTE');
+      EXCEPTION
+        WHEN duplicate_object THEN NULL;
+      END $$;
+    `)
+  );
+  await paso(resultados, "Crear tabla historial_precios", () =>
+    db.execute(sql`
+      CREATE TABLE IF NOT EXISTS historial_precios (
+        id text PRIMARY KEY,
+        propiedad_id text NOT NULL REFERENCES propiedades(id),
+        precio_anterior integer,
+        moneda_anterior text,
+        precio_nuevo integer NOT NULL,
+        moneda_nueva text NOT NULL,
+        agente_id text NOT NULL REFERENCES usuarios(id),
+        creado_en timestamp NOT NULL DEFAULT now()
+      )
+    `)
+  );
+  await paso(resultados, "Crear tabla pipeline_acciones", () =>
+    db.execute(sql`
+      CREATE TABLE IF NOT EXISTS pipeline_acciones (
+        id text PRIMARY KEY,
+        propiedad_id text NOT NULL REFERENCES propiedades(id),
+        agente_id text NOT NULL REFERENCES usuarios(id),
+        categoria categoria_pipeline NOT NULL,
+        semana integer NOT NULL,
+        descripcion text NOT NULL,
+        nota text,
+        creado_en timestamp NOT NULL DEFAULT now()
+      )
+    `)
+  );
+
   return resultados;
 }
 
