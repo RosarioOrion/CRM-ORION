@@ -331,6 +331,13 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
       `)
   );
 
+  // 13. Estado Activo/Inactivo por usuario (para desactivar sin borrar).
+  await paso(resultados, "Agregar columna activo a usuarios", () =>
+    db.execute(sql`
+      ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS activo boolean NOT NULL DEFAULT true
+    `)
+  );
+
   return resultados;
 }
 
