@@ -298,6 +298,39 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
     `)
   );
 
+  // 12. Configuración de la cuenta a nivel inmobiliaria (nombre del CRM,
+  // datos de la empresa, marca, logo, sistema de comisiones). Tabla
+  // singleton: se crea vacía con una única fila si todavía no existe.
+  await paso(resultados, "Crear tabla configuracion_empresa", () =>
+    db.execute(sql`
+      CREATE TABLE IF NOT EXISTS configuracion_empresa (
+        id text PRIMARY KEY,
+        nombre_crm text NOT NULL DEFAULT 'Orion',
+        nombre_empresa text,
+        filosofia text,
+        color_primario text,
+        color_secundario text,
+        logo text,
+        sistema_comisiones text,
+        telefono_empresa text,
+        email_empresa text,
+        direccion text,
+        actualizado_en timestamp NOT NULL DEFAULT now(),
+        actualizado_por_id text REFERENCES usuarios(id)
+      )
+    `)
+  );
+  await paso(
+    resultados,
+    "Sembrar fila singleton de configuracion_empresa",
+    () =>
+      db.execute(sql`
+        INSERT INTO configuracion_empresa (id, nombre_crm)
+        SELECT 'default', 'Orion'
+        WHERE NOT EXISTS (SELECT 1 FROM configuracion_empresa)
+      `)
+  );
+
   return resultados;
 }
 
