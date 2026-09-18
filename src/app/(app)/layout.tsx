@@ -12,6 +12,8 @@ const NAV = [
   { href: "/busquedas", label: "Búsquedas", icon: "🔍" },
   { href: "/agenda", label: "Agenda", icon: "📅" },
   { href: "/coincidencias", label: "Coincidencias", icon: "🎯" },
+  { href: "/reservas", label: "Reservas", icon: "🤝" },
+  { href: "/comisiones", label: "Comisiones", icon: "💵" },
   { href: "/novedades", label: "Novedades", icon: "📢" },
   { href: "/kaizen", label: "Kaizen 5S", icon: "🧹" },
 ];
