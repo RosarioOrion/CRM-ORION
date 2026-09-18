@@ -7,6 +7,7 @@ import {
       pgEnum,
       jsonb,
       unique,
+      doublePrecision,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
@@ -21,6 +22,14 @@ export const estadoPropiedadEnum = pgEnum("estado_propiedad", [
       "ALQUILADA",
     ]);
 export const operacionEnum = pgEnum("operacion", ["VENTA", "ALQUILER"]);
+// Nivel de comisión del agente (separado del rol/permiso). Define qué
+// porcentaje de la comisión de una operación le corresponde cuando la
+// cierra él. Ver src/lib/comisiones.ts para los porcentajes de cada nivel.
+export const nivelComisionEnum = pgEnum("nivel_comision", [
+      "AGENTE_JUNIOR",
+      "ASESOR",
+      "EJECUTIVO",
+]);
 export const estadoCaptacionEnum = pgEnum("estado_captacion", [
       "LLAMANDO",
       "TASANDO",
@@ -46,6 +55,9 @@ export const usuarios = pgTable("usuarios", {
       // sin borrar su historial ni sus datos. Un usuario inactivo no puede
       // iniciar sesión, pero sigue apareciendo en reportes e historial.
       activo: boolean("activo").notNull().default(true),
+      // Nivel de comisión (ver nivelComisionEnum arriba). Lo fija un
+      // admin/team leader desde Usuarios a medida que el agente progresa.
+      nivelComision: nivelComisionEnum("nivel_comision").notNull().default("AGENTE_JUNIOR"),
       creadoEn: timestamp("creado_en").notNull().defaultNow(),
 });
 
@@ -482,6 +494,150 @@ export const kaizenCompletadosRelations = relations(kaizenCompletados, ({ one })
       }),
       agente: one(usuarios, {
               fields: [kaizenCompletados.agenteId],
+              references: [usuarios.id],
+      }),
+}));
+
+// Reservas de Venta y de Alquiler — mismos campos que usa Lumen OS. Cuando
+// una reserva de venta pasa a BOLETO o ESCRITURADA (o una de alquiler pasa
+// a FIRMADA), se calculan y guardan las líneas de comisiones
+// correspondientes en la tabla `comisiones`.
+export const estadoReservaVentaEnum = pgEnum("estado_reserva_venta", [
+      "RESERVADA",
+      "BOLETO",
+      "ESCRITURADA",
+      "CANCELADA",
+]);
+
+export const reservasVenta = pgTable("reservas_venta", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      // Si la reserva corresponde a una propiedad ya cargada en Orion, se
+      // puede vincular acá — pero el nombre/dirección queda siempre como
+      // texto libre (igual que en Lumen OS), por si la propiedad todavía no
+      // está cargada como tal.
+      propiedadId: text("propiedad_id").references(() => propiedades.id),
+      nombrePropiedad: text("nombre_propiedad").notNull(),
+      codigoExterno: text("codigo_externo"),
+      linkPublicacion: text("link_publicacion"),
+      estado: estadoReservaVentaEnum("estado").notNull().default("RESERVADA"),
+      vendedorNombre: text("vendedor_nombre"),
+      vendedorTelefono: text("vendedor_telefono"),
+      vendedorCedula: text("vendedor_cedula"),
+      compradorNombre: text("comprador_nombre"),
+      compradorTelefono: text("comprador_telefono"),
+      compradorCedula: text("comprador_cedula"),
+      precioCierre: integer("precio_cierre").notNull(),
+      porcentajePorParte: doublePrecision("porcentaje_por_parte").notNull().default(3),
+      comisionVendedor: integer("comision_vendedor"),
+      comisionComprador: integer("comision_comprador"),
+      senaUsd: integer("sena_usd"),
+      fechaReserva: timestamp("fecha_reserva"),
+      fechaBoleto: timestamp("fecha_boleto"),
+      fechaEscritura: timestamp("fecha_escritura"),
+      escribanoVendedor: text("escribano_vendedor"),
+      escribanoComprador: text("escribano_comprador"),
+      notas: text("notas"),
+      // Marca si ya se generaron las líneas de comisiones para esta reserva,
+      // para no duplicarlas si el estado se vuelve a guardar.
+      comisionesGeneradas: boolean("comisiones_generadas").notNull().default(false),
+      agenteId: text("agente_id")
+        .notNull()
+        .references(() => usuarios.id),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});
+
+export const reservasVentaRelations = relations(reservasVenta, ({ one }) => ({
+      propiedad: one(propiedades, {
+              fields: [reservasVenta.propiedadId],
+              references: [propiedades.id],
+      }),
+      agente: one(usuarios, {
+              fields: [reservasVenta.agenteId],
+              references: [usuarios.id],
+      }),
+}));
+
+export const estadoReservaAlquilerEnum = pgEnum("estado_reserva_alquiler", [
+      "RESERVADA",
+      "FIRMADA",
+      "CANCELADA",
+]);
+
+export const reservasAlquiler = pgTable("reservas_alquiler", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      propiedadId: text("propiedad_id").references(() => propiedades.id),
+      nombrePropiedad: text("nombre_propiedad").notNull(),
+      codigoExterno: text("codigo_externo"),
+      linkPublicacion: text("link_publicacion"),
+      estado: estadoReservaAlquilerEnum("estado").notNull().default("RESERVADA"),
+      propietarioNombre: text("propietario_nombre"),
+      propietarioTelefono: text("propietario_telefono"),
+      propietarioCedula: text("propietario_cedula"),
+      inquilinoNombre: text("inquilino_nombre"),
+      inquilinoTelefono: text("inquilino_telefono"),
+      inquilinoCedula: text("inquilino_cedula"),
+      precioMensual: integer("precio_mensual"),
+      moneda: text("moneda").notNull().default("UYU"),
+      duracionMeses: integer("duracion_meses"),
+      fechaReserva: timestamp("fecha_reserva"),
+      fechaFirma: timestamp("fecha_firma"),
+      garantia: text("garantia"),
+      escribano: text("escribano"),
+      comisionTotalUsd: integer("comision_total_usd"),
+      notas: text("notas"),
+      comisionesGeneradas: boolean("comisiones_generadas").notNull().default(false),
+      agenteId: text("agente_id")
+        .notNull()
+        .references(() => usuarios.id),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});
+
+export const reservasAlquilerRelations = relations(reservasAlquiler, ({ one }) => ({
+      propiedad: one(propiedades, {
+              fields: [reservasAlquiler.propiedadId],
+              references: [propiedades.id],
+      }),
+      agente: one(usuarios, {
+              fields: [reservasAlquiler.agenteId],
+              references: [usuarios.id],
+      }),
+}));
+
+// Reparto de comisiones: una fila por beneficiario y por operación (el
+// agente que cerró +, si corresponde, el override del Team Leader). Ver
+// src/lib/comisiones.ts para cómo se calculan los montos.
+export const tipoOperacionComisionEnum = pgEnum("tipo_operacion_comision", [
+      "VENTA",
+      "ALQUILER",
+]);
+
+export const comisiones = pgTable("comisiones", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      tipoOperacion: tipoOperacionComisionEnum("tipo_operacion").notNull(),
+      reservaVentaId: text("reserva_venta_id").references(() => reservasVenta.id),
+      reservaAlquilerId: text("reserva_alquiler_id").references(() => reservasAlquiler.id),
+      beneficiarioId: text("beneficiario_id")
+        .notNull()
+        .references(() => usuarios.id),
+      concepto: text("concepto").notNull(),
+      porcentaje: doublePrecision("porcentaje").notNull(),
+      monto: integer("monto").notNull(),
+      pagada: boolean("pagada").notNull().default(false),
+      fechaPago: timestamp("fecha_pago"),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});
+
+export const comisionesRelations = relations(comisiones, ({ one }) => ({
+      reservaVenta: one(reservasVenta, {
+              fields: [comisiones.reservaVentaId],
+              references: [reservasVenta.id],
+      }),
+      reservaAlquiler: one(reservasAlquiler, {
+              fields: [comisiones.reservaAlquilerId],
+              references: [reservasAlquiler.id],
+      }),
+      beneficiario: one(usuarios, {
+              fields: [comisiones.beneficiarioId],
               references: [usuarios.id],
       }),
 }));
