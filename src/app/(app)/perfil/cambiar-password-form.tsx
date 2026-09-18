@@ -20,6 +20,17 @@ export function CambiarPasswordForm() {
     <form id="form-cambiar-password" action={formAction} className="flex flex-col gap-3 max-w-sm">
       <label className="flex flex-col gap-1 text-sm">
         <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+          Contraseña actual
+        </span>
+        <input
+          type={mostrar ? "text" : "password"}
+          name="passwordActual"
+          required
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy dark:border-gray-600 dark:bg-gray-800"
+        />
+      </label>
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
           Nueva contraseña
         </span>
         <input

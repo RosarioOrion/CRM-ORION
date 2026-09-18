@@ -48,6 +48,7 @@ export async function actualizarPerfil(
 
 const PasswordSchema = z
   .object({
+    passwordActual: z.string().min(1, "Ingresá tu contraseña actual"),
     password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
     confirmar: z.string(),
   })
@@ -66,11 +67,23 @@ export async function cambiarPassword(
   if (!sesion) return { error: "Sesión expirada, volvé a ingresar." };
 
   const parsed = PasswordSchema.safeParse({
+    passwordActual: formData.get("passwordActual"),
     password: formData.get("password"),
     confirmar: formData.get("confirmar"),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  const [usuario] = await db
+    .select({ passwordHash: usuarios.passwordHash })
+    .from(usuarios)
+    .where(eq(usuarios.id, sesion.userId));
+  if (!usuario) return { error: "Sesión expirada, volvé a ingresar." };
+
+  const actualOk = await bcrypt.compare(parsed.data.passwordActual, usuario.passwordHash);
+  if (!actualOk) {
+    return { error: "La contraseña actual no es correcta." };
   }
 
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
