@@ -3,8 +3,9 @@
 import sharp from "sharp";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { propiedades } from "@/db/schema";
+import { propiedades, kaizenTareas } from "@/db/schema";
 import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { SEED_KAIZEN_TAREAS } from "@/lib/kaizen";
 
 export type PasoMigracion = {
   paso: string;
@@ -336,6 +337,70 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
     db.execute(sql`
       ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS activo boolean NOT NULL DEFAULT true
     `)
+  );
+
+  // 14. Cartelera de Novedades.
+  await paso(resultados, "Crear tabla novedades", () =>
+    db.execute(sql`
+      CREATE TABLE IF NOT EXISTS novedades (
+        id text PRIMARY KEY,
+        titulo text NOT NULL,
+        cuerpo text NOT NULL,
+        destacada boolean NOT NULL DEFAULT false,
+        autor_id text NOT NULL REFERENCES usuarios(id),
+        creado_en timestamp NOT NULL DEFAULT now()
+      )
+    `)
+  );
+
+  // 15. Kaizen 5S: checklist semanal de mejora continua.
+  await paso(resultados, "Crear enum dia_kaizen", () =>
+    db.execute(sql`
+      DO $$ BEGIN
+        CREATE TYPE dia_kaizen AS ENUM ('LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES');
+      EXCEPTION
+        WHEN duplicate_object THEN NULL;
+      END $$;
+    `)
+  );
+  await paso(resultados, "Crear tabla kaizen_tareas", () =>
+    db.execute(sql`
+      CREATE TABLE IF NOT EXISTS kaizen_tareas (
+        id text PRIMARY KEY,
+        dia dia_kaizen NOT NULL,
+        orden integer NOT NULL DEFAULT 0,
+        texto text NOT NULL,
+        activa boolean NOT NULL DEFAULT true,
+        creado_en timestamp NOT NULL DEFAULT now()
+      )
+    `)
+  );
+  await paso(resultados, "Crear tabla kaizen_completados", () =>
+    db.execute(sql`
+      CREATE TABLE IF NOT EXISTS kaizen_completados (
+        id text PRIMARY KEY,
+        tarea_id text NOT NULL REFERENCES kaizen_tareas(id),
+        agente_id text NOT NULL REFERENCES usuarios(id),
+        semana_inicio text NOT NULL,
+        creado_en timestamp NOT NULL DEFAULT now(),
+        UNIQUE(tarea_id, agente_id, semana_inicio)
+      )
+    `)
+  );
+  await paso(
+    resultados,
+    "Sembrar tareas iniciales de Kaizen 5S (solo si la tabla está vacía)",
+    async () => {
+      const existentes = await db
+        .select({ id: kaizenTareas.id })
+        .from(kaizenTareas)
+        .limit(1);
+      if (existentes.length > 0) return [];
+      return db
+        .insert(kaizenTareas)
+        .values(SEED_KAIZEN_TAREAS)
+        .returning({ id: kaizenTareas.id });
+    }
   );
 
   return resultados;
