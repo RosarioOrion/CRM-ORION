@@ -353,6 +353,22 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
     `)
   );
 
+  // 14b. Nivel de comisión por agente (Agente Junior / Asesor / Ejecutivo).
+  await paso(resultados, "Crear enum nivel_comision", () =>
+    db.execute(sql`
+      DO $$ BEGIN
+        CREATE TYPE nivel_comision AS ENUM ('AGENTE_JUNIOR', 'ASESOR', 'EJECUTIVO');
+      EXCEPTION
+        WHEN duplicate_object THEN NULL;
+      END $$;
+    `)
+  );
+  await paso(resultados, "Agregar columna nivel_comision a usuarios", () =>
+    db.execute(sql`
+      ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS nivel_comision nivel_comision NOT NULL DEFAULT 'AGENTE_JUNIOR'
+    `)
+  );
+
   // 15. Kaizen 5S: checklist semanal de mejora continua.
   await paso(resultados, "Crear enum dia_kaizen", () =>
     db.execute(sql`
@@ -401,6 +417,118 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
         .values(SEED_KAIZEN_TAREAS)
         .returning({ id: kaizenTareas.id });
     }
+  );
+
+  // 16. Reservas de Venta.
+  await paso(resultados, "Crear enum estado_reserva_venta", () =>
+    db.execute(sql`
+      DO $$ BEGIN
+        CREATE TYPE estado_reserva_venta AS ENUM ('RESERVADA', 'BOLETO', 'ESCRITURADA', 'CANCELADA');
+      EXCEPTION
+        WHEN duplicate_object THEN NULL;
+      END $$;
+    `)
+  );
+  await paso(resultados, "Crear tabla reservas_venta", () =>
+    db.execute(sql`
+      CREATE TABLE IF NOT EXISTS reservas_venta (
+        id text PRIMARY KEY,
+        propiedad_id text REFERENCES propiedades(id),
+        nombre_propiedad text NOT NULL,
+        codigo_externo text,
+        link_publicacion text,
+        estado estado_reserva_venta NOT NULL DEFAULT 'RESERVADA',
+        vendedor_nombre text,
+        vendedor_telefono text,
+        vendedor_cedula text,
+        comprador_nombre text,
+        comprador_telefono text,
+        comprador_cedula text,
+        precio_cierre integer NOT NULL,
+        porcentaje_por_parte double precision NOT NULL DEFAULT 3,
+        comision_vendedor integer,
+        comision_comprador integer,
+        sena_usd integer,
+        fecha_reserva timestamp,
+        fecha_boleto timestamp,
+        fecha_escritura timestamp,
+        escribano_vendedor text,
+        escribano_comprador text,
+        notas text,
+        comisiones_generadas boolean NOT NULL DEFAULT false,
+        agente_id text NOT NULL REFERENCES usuarios(id),
+        creado_en timestamp NOT NULL DEFAULT now()
+      )
+    `)
+  );
+
+  // 17. Reservas de Alquiler.
+  await paso(resultados, "Crear enum estado_reserva_alquiler", () =>
+    db.execute(sql`
+      DO $$ BEGIN
+        CREATE TYPE estado_reserva_alquiler AS ENUM ('RESERVADA', 'FIRMADA', 'CANCELADA');
+      EXCEPTION
+        WHEN duplicate_object THEN NULL;
+      END $$;
+    `)
+  );
+  await paso(resultados, "Crear tabla reservas_alquiler", () =>
+    db.execute(sql`
+      CREATE TABLE IF NOT EXISTS reservas_alquiler (
+        id text PRIMARY KEY,
+        propiedad_id text REFERENCES propiedades(id),
+        nombre_propiedad text NOT NULL,
+        codigo_externo text,
+        link_publicacion text,
+        estado estado_reserva_alquiler NOT NULL DEFAULT 'RESERVADA',
+        propietario_nombre text,
+        propietario_telefono text,
+        propietario_cedula text,
+        inquilino_nombre text,
+        inquilino_telefono text,
+        inquilino_cedula text,
+        precio_mensual integer,
+        moneda text NOT NULL DEFAULT 'UYU',
+        duracion_meses integer,
+        fecha_reserva timestamp,
+        fecha_firma timestamp,
+        garantia text,
+        escribano text,
+        comision_total_usd integer,
+        notas text,
+        comisiones_generadas boolean NOT NULL DEFAULT false,
+        agente_id text NOT NULL REFERENCES usuarios(id),
+        creado_en timestamp NOT NULL DEFAULT now()
+      )
+    `)
+  );
+
+  // 18. Reparto de comisiones.
+  await paso(resultados, "Crear enum tipo_operacion_comision", () =>
+    db.execute(sql`
+      DO $$ BEGIN
+        CREATE TYPE tipo_operacion_comision AS ENUM ('VENTA', 'ALQUILER');
+      EXCEPTION
+        WHEN duplicate_object THEN NULL;
+      END $$;
+    `)
+  );
+  await paso(resultados, "Crear tabla comisiones", () =>
+    db.execute(sql`
+      CREATE TABLE IF NOT EXISTS comisiones (
+        id text PRIMARY KEY,
+        tipo_operacion tipo_operacion_comision NOT NULL,
+        reserva_venta_id text REFERENCES reservas_venta(id),
+        reserva_alquiler_id text REFERENCES reservas_alquiler(id),
+        beneficiario_id text NOT NULL REFERENCES usuarios(id),
+        concepto text NOT NULL,
+        porcentaje double precision NOT NULL,
+        monto integer NOT NULL,
+        pagada boolean NOT NULL DEFAULT false,
+        fecha_pago timestamp,
+        creado_en timestamp NOT NULL DEFAULT now()
+      )
+    `)
   );
 
   return resultados;
