@@ -1,50 +1,38 @@
-import { notFound } from "next/navigation";
-import { db } from "@/db";
-import { usuarios } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { obtenerSesion } from "@/lib/auth";
-import { CambiarPasswordForm } from "./cambiar-password-form";
-import { EditarPerfilForm } from "./editar-perfil-form";
+import { notFound, redirect } from "next/navigation";
+import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerConfiguracion } from "./actions";
+import { EditarConfiguracionForm } from "./editar-configuracion-form";
 
 export default async function AjustesPage() {
   const sesion = await obtenerSesion();
   if (!sesion) notFound();
+  if (!esAdmin(sesion.rol)) redirect("/perfil");
 
-  const [usuario] = await db
-    .select({
-      nombre: usuarios.nombre,
-      email: usuarios.email,
-      telefono: usuarios.telefono,
-      descripcion: usuarios.descripcion,
-    })
-    .from(usuarios)
-    .where(eq(usuarios.id, sesion.userId));
-
-  if (!usuario) notFound();
+  const config = await obtenerConfiguracion();
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="mb-6 text-xl font-bold text-orion-navy dark:text-white">Mi perfil</h1>
+      <h1 className="mb-1 text-xl font-bold text-orion-navy dark:text-white">
+        Ajustes de la cuenta
+      </h1>
+      <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
+        Configuración general de la inmobiliaria dentro de {config.nombreCrm}: nombre, marca,
+        datos de contacto y sistema de comisiones. Esto se ve reflejado para todo el equipo.
+      </p>
 
       <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:bg-gray-800 dark:border-gray-700">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Datos del perfil
-        </p>
-        <p className="mb-4 text-sm text-gray-700 dark:text-gray-200">
-          Email (tu usuario para entrar a Orion): <span className="font-semibold">{usuario.email}</span>
-        </p>
-        <EditarPerfilForm
-          nombre={usuario.nombre}
-          telefono={usuario.telefono}
-          descripcion={usuario.descripcion}
+        <EditarConfiguracionForm
+          nombreCrm={config.nombreCrm}
+          nombreEmpresa={config.nombreEmpresa}
+          filosofia={config.filosofia}
+          colorPrimario={config.colorPrimario}
+          colorSecundario={config.colorSecundario}
+          logo={config.logo}
+          sistemaComisiones={config.sistemaComisiones}
+          telefonoEmpresa={config.telefonoEmpresa}
+          emailEmpresa={config.emailEmpresa}
+          direccion={config.direccion}
         />
-      </div>
-
-      <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:bg-gray-800 dark:border-gray-700">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Cambiar contraseña
-        </p>
-        <CambiarPasswordForm />
       </div>
     </div>
   );
