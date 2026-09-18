@@ -54,6 +54,12 @@ export async function iniciarSesion(
     };
   }
 
+  if (!usuario.activo) {
+    return {
+      error: "Tu cuenta está desactivada. Consultá con tu team leader o administrador.",
+    };
+  }
+
   await crearSesion({
     userId: usuario.id,
     nombre: usuario.nombre,
