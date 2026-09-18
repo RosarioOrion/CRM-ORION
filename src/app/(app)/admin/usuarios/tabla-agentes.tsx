@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { cambiarRolUsuario } from "./actions";
 
@@ -55,7 +56,12 @@ export function TablaAgentes({
           {agentes.map((a) => (
             <tr key={a.id} className="border-b border-gray-100 last:border-0 dark:border-gray-700">
               <td className="px-4 py-3">
-                <p className="font-semibold text-gray-700 dark:text-gray-200">{a.nombre}</p>
+                <Link
+                  href={`/admin/usuarios/${a.id}`}
+                  className="font-semibold text-orion-navy hover:underline dark:text-white"
+                >
+                  {a.nombre}
+                </Link>
                 <p className="text-xs text-gray-400">
                   {a.email}
                   {a.telefono ? ` · ${a.telefono}` : ""}
