@@ -6,6 +6,7 @@ import {
       boolean,
       pgEnum,
       jsonb,
+      unique,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
@@ -408,6 +409,79 @@ export const configuracionEmpresa = pgTable("configuracion_empresa", {
 export const configuracionEmpresaRelations = relations(configuracionEmpresa, ({ one }) => ({
       actualizadoPor: one(usuarios, {
               fields: [configuracionEmpresa.actualizadoPorId],
+              references: [usuarios.id],
+      }),
+}));
+
+// Cartelera de novedades del equipo: avisos y anuncios que publica un
+// team leader/administrador y que ve todo el equipo.
+export const novedades = pgTable("novedades", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      titulo: text("titulo").notNull(),
+      cuerpo: text("cuerpo").notNull(),
+      destacada: boolean("destacada").notNull().default(false),
+      autorId: text("autor_id")
+        .notNull()
+        .references(() => usuarios.id),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});
+
+export const novedadesRelations = relations(novedades, ({ one }) => ({
+      autor: one(usuarios, {
+              fields: [novedades.autorId],
+              references: [usuarios.id],
+      }),
+}));
+
+// Kaizen 5S: checklist semanal de mejora continua, con un foco distinto
+// cada día de la semana. El catálogo de tareas (kaizenTareas) es editable
+// por un admin; kaizenCompletados registra, por agente y por semana, qué
+// tareas se marcaron como hechas (se reinicia cada semana).
+export const diaKaizenEnum = pgEnum("dia_kaizen", [
+      "LUNES",
+      "MARTES",
+      "MIERCOLES",
+      "JUEVES",
+      "VIERNES",
+]);
+
+export const kaizenTareas = pgTable("kaizen_tareas", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      dia: diaKaizenEnum("dia").notNull(),
+      orden: integer("orden").notNull().default(0),
+      texto: text("texto").notNull(),
+      // Desactivar en vez de borrar, para no perder el historial de
+      // completados de semanas anteriores (mismo patrón que usuarios.activo).
+      activa: boolean("activa").notNull().default(true),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});
+
+export const kaizenCompletados = pgTable(
+  "kaizen_completados",
+  {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      tareaId: text("tarea_id")
+        .notNull()
+        .references(() => kaizenTareas.id),
+      agenteId: text("agente_id")
+        .notNull()
+        .references(() => usuarios.id),
+      // Lunes de la semana en formato "YYYY-MM-DD" — clave de "qué semana es".
+      semanaInicio: text("semana_inicio").notNull(),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+  },
+  (table) => ({
+        unicoPorSemana: unique().on(table.tareaId, table.agenteId, table.semanaInicio),
+  })
+);
+
+export const kaizenCompletadosRelations = relations(kaizenCompletados, ({ one }) => ({
+      tarea: one(kaizenTareas, {
+              fields: [kaizenCompletados.tareaId],
+              references: [kaizenTareas.id],
+      }),
+      agente: one(usuarios, {
+              fields: [kaizenCompletados.agenteId],
               references: [usuarios.id],
       }),
 }));
