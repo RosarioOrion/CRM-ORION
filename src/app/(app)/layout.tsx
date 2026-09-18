@@ -65,8 +65,10 @@ export default async function AppLayout({
         </div>
 
         <div className="border-t border-white/10 px-4 py-4">
-          <p className="text-sm font-medium">{sesion.nombre}</p>
-          <p className="text-xs text-white/50">{rolLegible(sesion.rol)}</p>
+          <Link href="/ajustes" className="block rounded-lg -mx-1 px-1 py-0.5 transition hover:bg-white/10">
+            <p className="text-sm font-medium">{sesion.nombre}</p>
+            <p className="text-xs text-white/50">{rolLegible(sesion.rol)}</p>
+          </Link>
           <form action={cerrarYRedirigir}>
             <button
               type="submit"
