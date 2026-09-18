@@ -531,24 +531,6 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
     `)
   );
 
-  // 19. Limpieza puntual de datos de prueba usados para verificar el
-  // despliegue de Reservas + Comisiones (fase 3). Paso temporal, se retira
-  // después de ejecutarse una vez.
-  await paso(resultados, "Limpiar datos de prueba (TEST %)", async () => {
-    await db.execute(
-      sql`DELETE FROM comisiones WHERE reserva_venta_id IN (SELECT id FROM reservas_venta WHERE nombre_propiedad LIKE 'TEST %')`
-    );
-    await db.execute(
-      sql`DELETE FROM comisiones WHERE reserva_alquiler_id IN (SELECT id FROM reservas_alquiler WHERE nombre_propiedad LIKE 'TEST %')`
-    );
-    await db.execute(
-      sql`DELETE FROM reservas_venta WHERE nombre_propiedad LIKE 'TEST %'`
-    );
-    return db.execute(
-      sql`DELETE FROM reservas_alquiler WHERE nombre_propiedad LIKE 'TEST %'`
-    );
-  });
-
   return resultados;
 }
 
