@@ -49,6 +49,19 @@ export async function cambiarRolUsuario(usuarioId: string, rol: string) {
   revalidatePath("/admin/usuarios");
 }
 
+export async function cambiarEstadoUsuario(usuarioId: string, activo: boolean) {
+  const sesion = await requerirAdmin();
+  if (usuarioId === sesion.userId) {
+    // No te podés desactivar a vos misma por accidente desde acá.
+    return;
+  }
+  await db
+    .update(usuarios)
+    .set({ activo })
+    .where(eq(usuarios.id, usuarioId));
+  revalidatePath("/admin/usuarios");
+}
+
 const NuevoUsuarioSchema = z.object({
   nombre: z.string().min(2, "Ingresá el nombre"),
   email: z.string().email("Ingresá un email válido"),

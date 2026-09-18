@@ -34,6 +34,7 @@ export default async function UsuariosPage() {
           email: usuarios.email,
           telefono: usuarios.telefono,
           rol: usuarios.rol,
+          activo: usuarios.activo,
         })
         .from(usuarios)
         .where(eq(usuarios.aprobado, true))

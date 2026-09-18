@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { cambiarRolUsuario } from "./actions";
+import { cambiarRolUsuario, cambiarEstadoUsuario } from "./actions";
 
 type Agente = {
   id: string;
@@ -10,6 +10,7 @@ type Agente = {
   email: string;
   telefono: string | null;
   rol: "AGENTE" | "TEAM_LEADER" | "ADMINISTRADOR";
+  activo: boolean;
   propiedadesActivas: number;
   captaciones: number;
   visitasProgramadas: number;
@@ -32,11 +33,21 @@ export function TablaAgentes({
   const [roles, setRoles] = useState<Record<string, Agente["rol"]>>(
     Object.fromEntries(agentes.map((a) => [a.id, a.rol]))
   );
+  const [estados, setEstados] = useState<Record<string, boolean>>(
+    Object.fromEntries(agentes.map((a) => [a.id, a.activo]))
+  );
 
   function handleRolChange(id: string, rol: Agente["rol"]) {
     setRoles((r) => ({ ...r, [id]: rol }));
     startTransition(() => {
       cambiarRolUsuario(id, rol);
+    });
+  }
+
+  function handleEstadoToggle(id: string, activo: boolean) {
+    setEstados((e) => ({ ...e, [id]: activo }));
+    startTransition(() => {
+      cambiarEstadoUsuario(id, activo);
     });
   }
 
@@ -47,6 +58,7 @@ export function TablaAgentes({
           <tr>
             <th className="px-4 py-3 font-semibold">Agente</th>
             <th className="px-4 py-3 font-semibold">Rol</th>
+            <th className="px-4 py-3 font-semibold">Estado</th>
             <th className="px-4 py-3 font-semibold text-right">Propiedades activas</th>
             <th className="px-4 py-3 font-semibold text-right">Captaciones</th>
             <th className="px-4 py-3 font-semibold text-right">Visitas programadas</th>
@@ -80,6 +92,25 @@ export function TablaAgentes({
                     <option value="TEAM_LEADER">Team Leader</option>
                     <option value="ADMINISTRADOR">Administrador</option>
                   </select>
+                )}
+              </td>
+              <td className="px-4 py-3">
+                {a.id === usuarioActualId ? (
+                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700 dark:bg-green-900/40 dark:text-green-400">
+                    Activo
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleEstadoToggle(a.id, !estados[a.id])}
+                    className={`rounded-full px-2 py-0.5 text-xs font-semibold transition ${
+                      estados[a.id]
+                        ? "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/40 dark:text-green-400"
+                        : "bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300"
+                    }`}
+                  >
+                    {estados[a.id] ? "Activo" : "Inactivo"}
+                  </button>
                 )}
               </td>
               <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">
