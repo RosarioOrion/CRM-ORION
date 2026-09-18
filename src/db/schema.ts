@@ -41,6 +41,10 @@ export const usuarios = pgTable("usuarios", {
       // crean solas desde /registro quedan en false hasta que un
       // administrador o team leader las aprueba.
       aprobado: boolean("aprobado").notNull().default(true),
+      // Permite desactivar a un agente (licencia, se va del equipo, etc.)
+      // sin borrar su historial ni sus datos. Un usuario inactivo no puede
+      // iniciar sesión, pero sigue apareciendo en reportes e historial.
+      activo: boolean("activo").notNull().default(true),
       creadoEn: timestamp("creado_en").notNull().defaultNow(),
 });
 
