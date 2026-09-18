@@ -12,10 +12,12 @@ const NAV = [
   { href: "/busquedas", label: "Búsquedas", icon: "🔍" },
   { href: "/agenda", label: "Agenda", icon: "📅" },
   { href: "/coincidencias", label: "Coincidencias", icon: "🎯" },
-  { href: "/ajustes", label: "Ajustes", icon: "⚙️" },
 ];
 
-const NAV_ADMIN = { href: "/admin/usuarios", label: "Usuarios", icon: "🛡️" };
+const NAV_ADMIN = [
+  { href: "/admin/usuarios", label: "Usuarios", icon: "🛡️" },
+  { href: "/ajustes", label: "Ajustes", icon: "⚙️" },
+];
 
 export default async function AppLayout({
   children,
@@ -48,16 +50,17 @@ export default async function AppLayout({
               <span>{item.label}</span>
             </Link>
           ))}
-          {esAdmin(sesion.rol) && (
-            <Link
-              key={NAV_ADMIN.href}
-              href={NAV_ADMIN.href}
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
-            >
-              <span>{NAV_ADMIN.icon}</span>
-              <span>{NAV_ADMIN.label}</span>
-            </Link>
-          )}
+          {esAdmin(sesion.rol) &&
+            NAV_ADMIN.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/80 transition hover:bg-white/10 hover:text-white"
+              >
+                <span>{item.icon}</span>
+                <span>{item.label}</span>
+              </Link>
+            ))}
         </nav>
 
         <div className="border-t border-white/10 px-3 py-2">
@@ -65,7 +68,7 @@ export default async function AppLayout({
         </div>
 
         <div className="border-t border-white/10 px-4 py-4">
-          <Link href="/ajustes" className="block rounded-lg -mx-1 px-1 py-0.5 transition hover:bg-white/10">
+          <Link href="/perfil" className="block rounded-lg -mx-1 px-1 py-0.5 transition hover:bg-white/10">
             <p className="text-sm font-medium">{sesion.nombre}</p>
             <p className="text-xs text-white/50">{rolLegible(sesion.rol)}</p>
           </Link>
