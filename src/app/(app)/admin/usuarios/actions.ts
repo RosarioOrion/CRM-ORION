@@ -49,6 +49,18 @@ export async function cambiarRolUsuario(usuarioId: string, rol: string) {
   revalidatePath("/admin/usuarios");
 }
 
+const NIVELES_COMISION = ["AGENTE_JUNIOR", "ASESOR", "EJECUTIVO"] as const;
+
+export async function cambiarNivelComisionUsuario(usuarioId: string, nivel: string) {
+  await requerirAdmin();
+  if (!NIVELES_COMISION.includes(nivel as (typeof NIVELES_COMISION)[number])) return;
+  await db
+    .update(usuarios)
+    .set({ nivelComision: nivel as (typeof NIVELES_COMISION)[number] })
+    .where(eq(usuarios.id, usuarioId));
+  revalidatePath("/admin/usuarios");
+}
+
 export async function cambiarEstadoUsuario(usuarioId: string, activo: boolean) {
   const sesion = await requerirAdmin();
   if (usuarioId === sesion.userId) {

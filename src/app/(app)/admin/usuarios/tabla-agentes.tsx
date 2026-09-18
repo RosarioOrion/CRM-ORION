@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { cambiarRolUsuario, cambiarEstadoUsuario } from "./actions";
+import { cambiarRolUsuario, cambiarEstadoUsuario, cambiarNivelComisionUsuario } from "./actions";
+import { NIVEL_COMISION_LABEL, NIVELES_COMISION, type NivelComision } from "@/lib/comisiones";
 
 type Agente = {
   id: string;
@@ -11,6 +12,7 @@ type Agente = {
   telefono: string | null;
   rol: "AGENTE" | "TEAM_LEADER" | "ADMINISTRADOR";
   activo: boolean;
+  nivelComision: NivelComision;
   propiedadesActivas: number;
   captaciones: number;
   visitasProgramadas: number;
@@ -36,6 +38,9 @@ export function TablaAgentes({
   const [estados, setEstados] = useState<Record<string, boolean>>(
     Object.fromEntries(agentes.map((a) => [a.id, a.activo]))
   );
+  const [niveles, setNiveles] = useState<Record<string, NivelComision>>(
+    Object.fromEntries(agentes.map((a) => [a.id, a.nivelComision]))
+  );
 
   function handleRolChange(id: string, rol: Agente["rol"]) {
     setRoles((r) => ({ ...r, [id]: rol }));
@@ -51,6 +56,13 @@ export function TablaAgentes({
     });
   }
 
+  function handleNivelChange(id: string, nivel: NivelComision) {
+    setNiveles((n) => ({ ...n, [id]: nivel }));
+    startTransition(() => {
+      cambiarNivelComisionUsuario(id, nivel);
+    });
+  }
+
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700">
       <table className="w-full text-left text-sm">
@@ -59,6 +71,7 @@ export function TablaAgentes({
             <th className="px-4 py-3 font-semibold">Agente</th>
             <th className="px-4 py-3 font-semibold">Rol</th>
             <th className="px-4 py-3 font-semibold">Estado</th>
+            <th className="px-4 py-3 font-semibold">Nivel comisión</th>
             <th className="px-4 py-3 font-semibold text-right">Propiedades activas</th>
             <th className="px-4 py-3 font-semibold text-right">Captaciones</th>
             <th className="px-4 py-3 font-semibold text-right">Visitas programadas</th>
@@ -112,6 +125,19 @@ export function TablaAgentes({
                     {estados[a.id] ? "Activo" : "Inactivo"}
                   </button>
                 )}
+              </td>
+              <td className="px-4 py-3">
+                <select
+                  value={niveles[a.id]}
+                  onChange={(e) => handleNivelChange(a.id, e.target.value as NivelComision)}
+                  className="rounded border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
+                >
+                  {NIVELES_COMISION.map((n) => (
+                    <option key={n} value={n}>
+                      {NIVEL_COMISION_LABEL[n]}
+                    </option>
+                  ))}
+                </select>
               </td>
               <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">
                 {a.propiedadesActivas}

@@ -35,6 +35,7 @@ export default async function UsuariosPage() {
           telefono: usuarios.telefono,
           rol: usuarios.rol,
           activo: usuarios.activo,
+          nivelComision: usuarios.nivelComision,
         })
         .from(usuarios)
         .where(eq(usuarios.aprobado, true))
