@@ -375,3 +375,35 @@ export const captacionesRelations = relations(captaciones, ({ one }) => ({
               references: [propiedades.id],
       }),
 }));
+
+// Configuración de la cuenta a nivel inmobiliaria (no personal): nombre del
+// CRM, datos de la empresa, filosofía, colores de marca, logo y sistema de
+// comisiones. Es una tabla singleton — siempre hay una sola fila, la primera
+// que se crea (o se crea de forma perezosa la primera vez que se guarda).
+export const configuracionEmpresa = pgTable("configuracion_empresa", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      nombreCrm: text("nombre_crm").notNull().default("Orion"),
+      nombreEmpresa: text("nombre_empresa"),
+      filosofia: text("filosofia"),
+      colorPrimario: text("color_primario"),
+      colorSecundario: text("color_secundario"),
+      // Logo guardado como data URI base64, mismo patrón que las fotos de
+      // propiedades (sin storage externo).
+      logo: text("logo"),
+      // Por ahora texto libre; si Rosario define reglas/tramos concretos más
+      // adelante conviene pasar esto a una estructura propia (tabla o jsonb
+      // con porcentajes por rol/nivel).
+      sistemaComisiones: text("sistema_comisiones"),
+      telefonoEmpresa: text("telefono_empresa"),
+      emailEmpresa: text("email_empresa"),
+      direccion: text("direccion"),
+      actualizadoEn: timestamp("actualizado_en").notNull().defaultNow(),
+      actualizadoPorId: text("actualizado_por_id").references(() => usuarios.id),
+});
+
+export const configuracionEmpresaRelations = relations(configuracionEmpresa, ({ one }) => ({
+      actualizadoPor: one(usuarios, {
+              fields: [configuracionEmpresa.actualizadoPorId],
+              references: [usuarios.id],
+      }),
+}));
