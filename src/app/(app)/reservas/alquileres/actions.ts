@@ -7,7 +7,7 @@ import { db } from "@/db";
 import { reservasAlquiler, usuarios, comisiones } from "@/db/schema";
 import { obtenerSesion, esAdmin } from "@/lib/auth";
 import { ESTADOS_RESERVA_ALQUILER, type EstadoReservaAlquiler } from "@/lib/reservas";
-import { calcularReparto } from "@/lib/comisiones";
+import { calcularReparto, obtenerNivelesComision, resolverNivel } from "@/lib/comisiones";
 
 const ReservaAlquilerSchema = z.object({
   nombrePropiedad: z.string().min(2, "Ingresá el nombre o dirección de la propiedad"),
@@ -143,12 +143,18 @@ export async function cambiarEstadoReservaAlquiler(
       .where(eq(usuarios.id, reserva.agenteId));
 
     if (agente) {
-      const lineas = calcularReparto({
-        comisionTotal: reserva.comisionTotalUsd,
-        agenteId: agente.id,
-        agenteNivel: agente.nivelComision,
-        teamLeaderId: agente.teamLeaderId,
-      });
+      const niveles = await obtenerNivelesComision();
+      const nivel = resolverNivel(agente.nivelComision, niveles);
+
+      const lineas = nivel
+        ? calcularReparto({
+            comisionTotal: reserva.comisionTotalUsd,
+            agenteId: agente.id,
+            pctAgente: nivel.porcentaje,
+            nivelLabel: nivel.nombre,
+            teamLeaderId: agente.teamLeaderId,
+          })
+        : [];
 
       if (lineas.length > 0) {
         await db.insert(comisiones).values(
