@@ -3,7 +3,7 @@
 import sharp from "sharp";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { propiedades, kaizenTareas } from "@/db/schema";
+import { propiedades, kaizenTareas, nivelesComision } from "@/db/schema";
 import { obtenerSesion, esAdmin } from "@/lib/auth";
 import { SEED_KAIZEN_TAREAS } from "@/lib/kaizen";
 
@@ -570,6 +570,44 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
         creado_en timestamp NOT NULL DEFAULT now()
       )
     `)
+  );
+
+  // 21. Escalafón de comisiones (niveles configurables, ya no un enum fijo).
+  await paso(resultados, "Pasar usuarios.nivel_comision de enum a texto", () =>
+    db.execute(sql`
+      ALTER TABLE usuarios ALTER COLUMN nivel_comision TYPE text USING nivel_comision::text
+    `)
+  );
+
+  await paso(resultados, "Crear tabla niveles_comision", () =>
+    db.execute(sql`
+      CREATE TABLE IF NOT EXISTS niveles_comision (
+        id text PRIMARY KEY,
+        clave text NOT NULL UNIQUE,
+        nombre text NOT NULL,
+        facturacion_minima integer NOT NULL DEFAULT 0,
+        porcentaje double precision NOT NULL,
+        creado_en timestamp NOT NULL DEFAULT now()
+      )
+    `)
+  );
+
+  await paso(
+    resultados,
+    "Sembrar escalafón inicial de comisiones (solo si la tabla está vacía)",
+    async () => {
+      const existentes = await db.select({ id: nivelesComision.id }).from(nivelesComision).limit(1);
+      if (existentes.length > 0) return [];
+      return db
+        .insert(nivelesComision)
+        .values([
+          { clave: "AGENTE_JUNIOR", nombre: "Agente Junior", facturacionMinima: 0, porcentaje: 40 },
+          { clave: "AGENTE", nombre: "Agente", facturacionMinima: 3000, porcentaje: 40 },
+          { clave: "ASESOR", nombre: "Asesor", facturacionMinima: 10000, porcentaje: 45 },
+          { clave: "EJECUTIVO", nombre: "Ejecutivo", facturacionMinima: 20000, porcentaje: 50 },
+        ])
+        .returning({ id: nivelesComision.id });
+    }
   );
 
   return resultados;
