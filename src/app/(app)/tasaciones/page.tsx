@@ -42,7 +42,7 @@ export default async function TasacionesPage() {
             Tasaciones
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {filas.length} tasación{filas.length === 1 ? "" : "es"}
+            {filas.length === 1 ? "1 tasación" : `${filas.length} tasaciones`}
           </p>
         </div>
         <Link
