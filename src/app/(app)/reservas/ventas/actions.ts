@@ -11,7 +11,7 @@ import {
   ESTADOS_VENTA_QUE_GENERAN_COMISION,
   type EstadoReservaVenta,
 } from "@/lib/reservas";
-import { calcularReparto } from "@/lib/comisiones";
+import { calcularReparto, obtenerNivelesComision, resolverNivel } from "@/lib/comisiones";
 
 const ReservaVentaSchema = z.object({
   nombrePropiedad: z.string().min(2, "Ingresá el nombre o dirección de la propiedad"),
@@ -159,12 +159,18 @@ export async function cambiarEstadoReservaVenta(
         Math.round((reserva.precioCierre * reserva.porcentajePorParte) / 100);
       const total = comVendedor + comComprador;
 
-      const lineas = calcularReparto({
-        comisionTotal: total,
-        agenteId: agente.id,
-        agenteNivel: agente.nivelComision,
-        teamLeaderId: agente.teamLeaderId,
-      });
+      const niveles = await obtenerNivelesComision();
+      const nivel = resolverNivel(agente.nivelComision, niveles);
+
+      const lineas = nivel
+        ? calcularReparto({
+            comisionTotal: total,
+            agenteId: agente.id,
+            pctAgente: nivel.porcentaje,
+            nivelLabel: nivel.nombre,
+            teamLeaderId: agente.teamLeaderId,
+          })
+        : [];
 
       if (lineas.length > 0) {
         await db.insert(comisiones).values(
