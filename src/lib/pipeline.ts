@@ -179,6 +179,26 @@ export const DURACION_CICLO: Record<"VENTA" | "ALQUILER", number> = {
   ALQUILER: 7,
 };
 
+// --- Alertas automáticas (igual que en Lumen OS) ------------------------
+
+/** Mínimo objetivo de propiedades activas por agente (confirmado en Lumen OS). */
+export const MINIMO_PROPIEDADES_ACTIVAS = 20;
+
+/**
+ * Días sin ajustar el precio a partir de los cuales se sugiere revisarlo.
+ * Lumen OS lo marca a partir de ~3 semanas sin movimiento; no expone el
+ * número exacto en pantalla, así que este umbral es una aproximación.
+ */
+export const UMBRAL_REVISAR_PRECIO_DIAS = 21;
+
+/** Días sin seguimiento a partir de los cuales una propiedad se considera "estancada". */
+export const UMBRAL_ESTANCADA_DIAS = 7;
+
+/** Vencida: ya pasó todo el ciclo de cadencia (14 o 7 semanas) sin cerrar. */
+export function estaVencido(dias: number, operacion: "VENTA" | "ALQUILER"): boolean {
+  return dias > DURACION_CICLO[operacion] * 7;
+}
+
 export function diasEnMercado(fechaInicio: Date, ahora: Date = new Date()): number {
   const ms = ahora.getTime() - new Date(fechaInicio).getTime();
   return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
