@@ -4,8 +4,9 @@ import { z } from "zod";
 import { eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { configuracionEmpresa } from "@/db/schema";
+import { configuracionEmpresa, nivelesComision } from "@/db/schema";
 import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerNivelesComision } from "@/lib/comisiones";
 
 const LOGO_MAX_BYTES = 5 * 1024 * 1024;
 
@@ -103,4 +104,93 @@ export async function guardarConfiguracion(
   revalidatePath("/ajustes");
   revalidatePath("/", "layout");
   return { ok: Date.now() };
+}
+
+// Escalafón de comisiones (niveles_comision) — a propósito editable acá en
+// vez de un enum fijo en el código, para que se puedan agregar escalones y
+// metas nuevas sin pedir un cambio de código. Ver src/lib/comisiones.ts.
+
+function claveDesdeNombre(nombre: string, existentes: string[]): string {
+  const base = nombre
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // sacar acentos
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  let clave = base || "NIVEL";
+  let i = 2;
+  while (existentes.includes(clave)) {
+    clave = `${base}_${i}`;
+    i++;
+  }
+  return clave;
+}
+
+export type NivelState = { error?: string; ok?: number };
+
+export async function crearNivelComision(
+  _prevState: NivelState,
+  formData: FormData
+): Promise<NivelState> {
+  const sesion = await obtenerSesion();
+  if (!sesion || !esAdmin(sesion.rol)) return { error: "No autorizado." };
+
+  const nombre = String(formData.get("nombre") || "").trim();
+  const facturacionMinima = Math.round(Number(formData.get("facturacionMinima")) || 0);
+  const porcentaje = Number(formData.get("porcentaje"));
+
+  if (!nombre) return { error: "Ingresá el nombre del escalón." };
+  if (!porcentaje || porcentaje <= 0 || porcentaje > 100) {
+    return { error: "El porcentaje tiene que ser un número entre 1 y 100." };
+  }
+
+  const existentes = await db.select({ clave: nivelesComision.clave }).from(nivelesComision);
+  const clave = claveDesdeNombre(nombre, existentes.map((e) => e.clave));
+
+  await db.insert(nivelesComision).values({
+    clave,
+    nombre,
+    facturacionMinima: Math.max(0, facturacionMinima),
+    porcentaje,
+  });
+
+  revalidatePath("/ajustes");
+  revalidatePath("/admin/usuarios");
+  return { ok: Date.now() };
+}
+
+export async function actualizarNivelComision(
+  nivelId: string,
+  datos: { nombre: string; facturacionMinima: number; porcentaje: number }
+) {
+  const sesion = await obtenerSesion();
+  if (!sesion || !esAdmin(sesion.rol)) throw new Error("No autorizado.");
+
+  await db
+    .update(nivelesComision)
+    .set({
+      nombre: datos.nombre,
+      facturacionMinima: Math.max(0, Math.round(datos.facturacionMinima)),
+      porcentaje: datos.porcentaje,
+    })
+    .where(eq(nivelesComision.id, nivelId));
+
+  revalidatePath("/ajustes");
+  revalidatePath("/admin/usuarios");
+}
+
+export async function eliminarNivelComision(nivelId: string) {
+  const sesion = await obtenerSesion();
+  if (!sesion || !esAdmin(sesion.rol)) throw new Error("No autorizado.");
+
+  const restantes = await obtenerNivelesComision();
+  if (restantes.length <= 1) {
+    // Siempre tiene que quedar al menos un escalón — si no, ningún agente
+    // nuevo tendría nivel de comisión válido para asignar.
+    return;
+  }
+
+  await db.delete(nivelesComision).where(eq(nivelesComision.id, nivelId));
+  revalidatePath("/ajustes");
+  revalidatePath("/admin/usuarios");
 }

@@ -2,13 +2,18 @@ import { notFound, redirect } from "next/navigation";
 import { obtenerSesion, esAdmin } from "@/lib/auth";
 import { obtenerConfiguracion } from "./actions";
 import { EditarConfiguracionForm } from "./editar-configuracion-form";
+import { NivelesComision } from "./niveles-comision";
+import { obtenerNivelesComision } from "@/lib/comisiones";
 
 export default async function AjustesPage() {
   const sesion = await obtenerSesion();
   if (!sesion) notFound();
   if (!esAdmin(sesion.rol)) redirect("/perfil");
 
-  const config = await obtenerConfiguracion();
+  const [config, niveles] = await Promise.all([
+    obtenerConfiguracion(),
+    obtenerNivelesComision(),
+  ]);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -33,6 +38,13 @@ export default async function AjustesPage() {
           emailEmpresa={config.emailEmpresa}
           direccion={config.direccion}
         />
+      </div>
+
+      <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:bg-gray-800 dark:border-gray-700">
+        <h2 className="mb-1 text-lg font-semibold text-orion-navy dark:text-white">
+          Escalafón de comisiones
+        </h2>
+        <NivelesComision niveles={niveles} />
       </div>
     </div>
   );
