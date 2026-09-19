@@ -668,3 +668,47 @@ export const documentosCapacitacionRelations = relations(documentosCapacitacion,
               references: [usuarios.id],
       }),
 }));
+
+// Tasaciones: Método Comparativo de Mercado. Se carga la propiedad a tasar
+// más un mínimo de 4 comparables (cada uno con su propio precio, m²,
+// estado 1-4 y ubicación 1-4); el cálculo pondera cada comparable según
+// qué tan parecido es a la propiedad sujeto (ver src/lib/tasaciones.ts)
+// para llegar a un USD/m² y un valor estimado. El "Análisis Inteligente"
+// (score de liquidez, riesgo de sobreprecio, rango mínimo/máximo con
+// comentario) que tiene Lumen OS todavía no está — depende de la misma
+// decisión de proveedor de IA que Capacitación / Carta Semanal.
+export const tasaciones = pgTable("tasaciones", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      tipo: text("tipo").notNull(),
+      direccion: text("direccion"),
+      zona: text("zona"),
+      link: text("link"),
+      m2: doublePrecision("m2").notNull(),
+      estado: integer("estado").notNull(),
+      ubicacion: integer("ubicacion").notNull(),
+      comparables: jsonb("comparables").notNull().$type<
+        {
+          link: string;
+          m2: number;
+          precio: number;
+          esCierre: boolean;
+          estado: number;
+          ubicacion: number;
+        }[]
+      >(),
+      promedioUsdM2: doublePrecision("promedio_usd_m2").notNull(),
+      valorEstimado: integer("valor_estimado").notNull(),
+      ajusteManual: integer("ajuste_manual"),
+      notas: text("notas"),
+      agenteId: text("agente_id")
+        .notNull()
+        .references(() => usuarios.id),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});
+
+export const tasacionesRelations = relations(tasaciones, ({ one }) => ({
+      agente: one(usuarios, {
+              fields: [tasaciones.agenteId],
+              references: [usuarios.id],
+      }),
+}));
