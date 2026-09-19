@@ -22,14 +22,6 @@ export const estadoPropiedadEnum = pgEnum("estado_propiedad", [
       "ALQUILADA",
     ]);
 export const operacionEnum = pgEnum("operacion", ["VENTA", "ALQUILER"]);
-// Nivel de comisión del agente (separado del rol/permiso). Define qué
-// porcentaje de la comisión de una operación le corresponde cuando la
-// cierra él. Ver src/lib/comisiones.ts para los porcentajes de cada nivel.
-export const nivelComisionEnum = pgEnum("nivel_comision", [
-      "AGENTE_JUNIOR",
-      "ASESOR",
-      "EJECUTIVO",
-]);
 export const estadoCaptacionEnum = pgEnum("estado_captacion", [
       "LLAMANDO",
       "TASANDO",
@@ -55,9 +47,12 @@ export const usuarios = pgTable("usuarios", {
       // sin borrar su historial ni sus datos. Un usuario inactivo no puede
       // iniciar sesión, pero sigue apareciendo en reportes e historial.
       activo: boolean("activo").notNull().default(true),
-      // Nivel de comisión (ver nivelComisionEnum arriba). Lo fija un
-      // admin/team leader desde Usuarios a medida que el agente progresa.
-      nivelComision: nivelComisionEnum("nivel_comision").notNull().default("AGENTE_JUNIOR"),
+      // Nivel de comisión (clave de niveles_comision.clave, ver más abajo).
+      // Es texto libre — no un enum — justamente para poder agregar
+      // escalones nuevos sin migración. Lo fija un admin/team leader desde
+      // Usuarios a medida que el agente progresa, guiado por la
+      // facturación acumulada que se calcula en src/lib/comisiones.ts.
+      nivelComision: text("nivel_comision").notNull().default("AGENTE_JUNIOR"),
       creadoEn: timestamp("creado_en").notNull().defaultNow(),
 });
 
@@ -712,3 +707,18 @@ export const tasacionesRelations = relations(tasaciones, ({ one }) => ({
               references: [usuarios.id],
       }),
 }));
+
+// Escalafón de comisiones: los "escalones" (Agente Junior, Agente, Asesor,
+// Ejecutivo, y los que se agreguen a futuro) con la facturación acumulada
+// necesaria para alcanzar cada uno y el % de comisión que corresponde.
+// Editable desde /ajustes — a propósito no es un enum fijo en el código,
+// para que Rosario pueda agregar escalones nuevos sin pedir un cambio de
+// código. `clave` es lo que se guarda en usuarios.nivel_comision.
+export const nivelesComision = pgTable("niveles_comision", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      clave: text("clave").notNull().unique(),
+      nombre: text("nombre").notNull(),
+      facturacionMinima: integer("facturacion_minima").notNull().default(0),
+      porcentaje: doublePrecision("porcentaje").notNull(),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});
