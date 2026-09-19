@@ -549,6 +549,29 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
     `)
   );
 
+  // 20. Tasaciones (Método Comparativo de Mercado).
+  await paso(resultados, "Crear tabla tasaciones", () =>
+    db.execute(sql`
+      CREATE TABLE IF NOT EXISTS tasaciones (
+        id text PRIMARY KEY,
+        tipo text NOT NULL,
+        direccion text,
+        zona text,
+        link text,
+        m2 double precision NOT NULL,
+        estado integer NOT NULL,
+        ubicacion integer NOT NULL,
+        comparables jsonb NOT NULL,
+        promedio_usd_m2 double precision NOT NULL,
+        valor_estimado integer NOT NULL,
+        ajuste_manual integer,
+        notas text,
+        agente_id text NOT NULL REFERENCES usuarios(id),
+        creado_en timestamp NOT NULL DEFAULT now()
+      )
+    `)
+  );
+
   return resultados;
 }
 
