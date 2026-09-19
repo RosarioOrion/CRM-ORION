@@ -19,6 +19,7 @@ const NAV = [
 ];
 
 const NAV_ADMIN = [
+  { href: "/productividad", label: "Productividad", icon: "📈" },
   { href: "/admin/usuarios", label: "Usuarios", icon: "🛡️" },
   { href: "/ajustes", label: "Ajustes", icon: "⚙️" },
 ];
