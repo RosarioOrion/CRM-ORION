@@ -610,6 +610,17 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
     }
   );
 
+  // TEMP: limpiar datos de prueba (TEST %) usados para verificar el
+  // escalafón de comisiones en producción. Se sacan de acá después.
+  await paso(resultados, "Limpiar datos de prueba (TEST %)", async () => {
+    await db.execute(sql`
+      DELETE FROM comisiones WHERE reserva_venta_id IN (
+        SELECT id FROM reservas_venta WHERE nombre_propiedad LIKE 'TEST %'
+      )
+    `);
+    return db.execute(sql`DELETE FROM reservas_venta WHERE nombre_propiedad LIKE 'TEST %'`);
+  });
+
   return resultados;
 }
 
