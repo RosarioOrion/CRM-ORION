@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { usuarios } from "@/db/schema";
+import { usuarios, nivelesComision } from "@/db/schema";
 import { obtenerSesion, esAdmin } from "@/lib/auth";
 
 async function requerirAdmin() {
@@ -49,14 +49,16 @@ export async function cambiarRolUsuario(usuarioId: string, rol: string) {
   revalidatePath("/admin/usuarios");
 }
 
-const NIVELES_COMISION = ["AGENTE_JUNIOR", "ASESOR", "EJECUTIVO"] as const;
-
 export async function cambiarNivelComisionUsuario(usuarioId: string, nivel: string) {
   await requerirAdmin();
-  if (!NIVELES_COMISION.includes(nivel as (typeof NIVELES_COMISION)[number])) return;
+  const [existe] = await db
+    .select({ clave: nivelesComision.clave })
+    .from(nivelesComision)
+    .where(eq(nivelesComision.clave, nivel));
+  if (!existe) return;
   await db
     .update(usuarios)
-    .set({ nivelComision: nivel as (typeof NIVELES_COMISION)[number] })
+    .set({ nivelComision: nivel })
     .where(eq(usuarios.id, usuarioId));
   revalidatePath("/admin/usuarios");
 }

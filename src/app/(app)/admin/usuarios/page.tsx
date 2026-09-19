@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { usuarios, propiedades, captaciones, visitas } from "@/db/schema";
+import { usuarios, propiedades, captaciones, visitas, comisiones } from "@/db/schema";
 import { obtenerSesion, esAdmin } from "@/lib/auth";
-import { eq, and, count, isNull } from "drizzle-orm";
+import { obtenerNivelesComision } from "@/lib/comisiones";
+import { eq, and, count, isNull, sql } from "drizzle-orm";
 import { Pendientes } from "./pendientes";
 import { TablaAgentes } from "./tabla-agentes";
 import { NuevoUsuarioForm } from "./nuevo-usuario-form";
@@ -13,8 +14,15 @@ export default async function UsuariosPage() {
     redirect("/dashboard");
   }
 
-  const [pendientes, activos, propiedadesActivas, captacionesEnCurso, visitasProgramadas] =
-    await Promise.all([
+  const [
+    pendientes,
+    activos,
+    propiedadesActivas,
+    captacionesEnCurso,
+    visitasProgramadas,
+    facturacionPorAgente,
+    niveles,
+  ] = await Promise.all([
       db
         .select({
           id: usuarios.id,
@@ -55,17 +63,29 @@ export default async function UsuariosPage() {
         .from(visitas)
         .where(eq(visitas.estado, "PROGRAMADA"))
         .groupBy(visitas.agenteId),
+      db
+        .select({
+          beneficiarioId: comisiones.beneficiarioId,
+          total: sql<string>`coalesce(sum(${comisiones.monto}), 0)`,
+        })
+        .from(comisiones)
+        .groupBy(comisiones.beneficiarioId),
+      obtenerNivelesComision(),
     ]);
 
   const mapaPropiedades = new Map(propiedadesActivas.map((p) => [p.agenteId, p.total]));
   const mapaCaptaciones = new Map(captacionesEnCurso.map((c) => [c.agenteId, c.total]));
   const mapaVisitas = new Map(visitasProgramadas.map((v) => [v.agenteId, v.total]));
+  const mapaFacturacion = new Map(
+    facturacionPorAgente.map((f) => [f.beneficiarioId, Number(f.total)])
+  );
 
   const agentes = activos.map((a) => ({
     ...a,
     propiedadesActivas: mapaPropiedades.get(a.id) ?? 0,
     captaciones: mapaCaptaciones.get(a.id) ?? 0,
     visitasProgramadas: mapaVisitas.get(a.id) ?? 0,
+    facturacionAcumulada: mapaFacturacion.get(a.id) ?? 0,
   }));
 
   return (
@@ -86,7 +106,7 @@ export default async function UsuariosPage() {
       </div>
 
       <NuevoUsuarioForm />
-      <TablaAgentes agentes={agentes} usuarioActualId={sesion.userId} />
+      <TablaAgentes agentes={agentes} usuarioActualId={sesion.userId} niveles={niveles} />
     </div>
   );
 }
