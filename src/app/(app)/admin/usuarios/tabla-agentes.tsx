@@ -107,7 +107,12 @@ export function TablaAgentes({
           {agentes.map((a) => {
             const sugerido = nivelSugerido(a.facturacionAcumulada, niveles);
             const nivelActual = nivelesPorAgente[a.id];
-            const sugerirCambio = sugerido && sugerido.clave !== nivelActual;
+            // El escalafón es para agentes en progresión. Un Team Leader o
+            // Administrador puede estar fijo en Ejecutivo por su rol, sin
+            // importar su propia facturación — no tiene sentido sugerirle
+            // "bajar" de nivel.
+            const sugerirCambio =
+              a.rol === "AGENTE" && sugerido && sugerido.clave !== nivelActual;
             return (
               <tr key={a.id} className="border-b border-gray-100 last:border-0 dark:border-gray-700">
                 <td className="px-4 py-3">
