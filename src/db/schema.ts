@@ -641,3 +641,30 @@ export const comisionesRelations = relations(comisiones, ({ one }) => ({
               references: [usuarios.id],
       }),
 }));
+
+// Biblioteca de Capacitación: documentos de entrenamiento (PDF subido acá,
+// o un link externo cuando el archivo es muy pesado para guardarlo en la
+// base). El buscador inteligente con IA (preguntar en lenguaje natural)
+// todavía no está — ver nota en /capacitacion — así que por ahora esto es
+// solo la biblioteca con filtro por texto.
+export const documentosCapacitacion = pgTable("documentos_capacitacion", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      titulo: text("titulo").notNull(),
+      descripcion: text("descripcion"),
+      archivo: text("archivo"), // data URI base64 (PDF chico) o null si se usa link
+      archivoNombre: text("archivo_nombre"),
+      archivoPesoBytes: integer("archivo_peso_bytes"),
+      link: text("link"), // alternativa a subir el archivo (ej. Google Drive)
+      paginas: integer("paginas"),
+      subidoPorId: text("subido_por_id")
+        .notNull()
+        .references(() => usuarios.id),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});
+
+export const documentosCapacitacionRelations = relations(documentosCapacitacion, ({ one }) => ({
+      subidoPor: one(usuarios, {
+              fields: [documentosCapacitacion.subidoPorId],
+              references: [usuarios.id],
+      }),
+}));
