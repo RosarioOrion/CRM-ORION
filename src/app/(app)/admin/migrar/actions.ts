@@ -531,6 +531,24 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
     `)
   );
 
+  // 19. Biblioteca de Capacitación.
+  await paso(resultados, "Crear tabla documentos_capacitacion", () =>
+    db.execute(sql`
+      CREATE TABLE IF NOT EXISTS documentos_capacitacion (
+        id text PRIMARY KEY,
+        titulo text NOT NULL,
+        descripcion text,
+        archivo text,
+        archivo_nombre text,
+        archivo_peso_bytes integer,
+        link text,
+        paginas integer,
+        subido_por_id text NOT NULL REFERENCES usuarios(id),
+        creado_en timestamp NOT NULL DEFAULT now()
+      )
+    `)
+  );
+
   return resultados;
 }
 
