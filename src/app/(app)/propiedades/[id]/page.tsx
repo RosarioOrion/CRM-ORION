@@ -16,7 +16,10 @@ import {
   semanaActual,
   esSemanaFinal,
   accionesDeLaSemana,
+  estaVencido,
   DURACION_CICLO,
+  UMBRAL_REVISAR_PRECIO_DIAS,
+  UMBRAL_ESTANCADA_DIAS,
 } from "@/lib/pipeline";
 import type { CategoriaPipeline } from "@/lib/pipeline";
 import { CambiarEstado } from "./cambiar-estado";
@@ -115,6 +118,7 @@ export default async function PropiedadDetallePage({
     const ultimaAccion = acciones[0];
     const diasSinContacto = ultimaAccion ? diasEnMercado(ultimaAccion.creadoEn, ahora) : null;
     const ultimoAjuste = ajustes[0];
+    const diasSinAjuste = ultimoAjuste ? diasEnMercado(ultimoAjuste.creadoEn, ahora) : dias;
 
     datosPipeline = {
       propiedadId: propiedad.id,
@@ -127,6 +131,9 @@ export default async function PropiedadDetallePage({
       semana,
       totalSemanas: DURACION_CICLO[propiedad.operacion],
       esFinal,
+      vencido: estaVencido(dias, propiedad.operacion),
+      revisarPrecio: diasSinAjuste >= UMBRAL_REVISAR_PRECIO_DIAS,
+      estancada: diasSinContacto === null || diasSinContacto >= UMBRAL_ESTANCADA_DIAS,
       acciones: accionesSemana,
       hechasEstaSemana,
       diasSinContacto,
