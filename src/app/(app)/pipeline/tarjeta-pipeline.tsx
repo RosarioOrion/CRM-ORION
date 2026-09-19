@@ -26,11 +26,15 @@ export type TarjetaPipelineProps = {
   semana: number;
   totalSemanas: number;
   esFinal: boolean;
+  vencido: boolean;
+  revisarPrecio: boolean;
+  estancada: boolean;
   acciones: AccionesSemana;
   hechasEstaSemana: CategoriaPipeline[];
   diasSinContacto: number | null;
   ultimoAjustePrecio: { fecha: string; precioAnterior: number | null } | null;
   fechaInicioPipeline: string;
+  soloLectura?: boolean;
 };
 
 export function TarjetaPipeline(p: TarjetaPipelineProps) {
@@ -89,6 +93,16 @@ export function TarjetaPipeline(p: TarjetaPipelineProps) {
                 🎯 Entrevista crítica
               </span>
             )}
+            {p.vencido && (
+              <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                ⚠️ VENCIDO
+              </span>
+            )}
+            {p.revisarPrecio && (
+              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                ⚠️ Revisar precio
+              </span>
+            )}
             {urgente && !p.esFinal && (
               <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-300">
                 {p.diasSinContacto === null
@@ -131,23 +145,27 @@ export function TarjetaPipeline(p: TarjetaPipelineProps) {
             📉 último ajuste {new Date(p.ultimoAjustePrecio.fecha).toLocaleDateString("es-UY")}
           </span>
         )}
-        <button
-          type="button"
-          onClick={() => setMostrarPrecio((v) => !v)}
-          className="text-orion-navy hover:underline dark:text-orion-gold"
-        >
-          Ajustar precio
-        </button>
-        <button
-          type="button"
-          onClick={() => setMostrarFecha((v) => !v)}
-          className="text-orion-navy hover:underline dark:text-orion-gold"
-        >
-          Corregir inicio
-        </button>
+        {!p.soloLectura && (
+          <>
+            <button
+              type="button"
+              onClick={() => setMostrarPrecio((v) => !v)}
+              className="text-orion-navy hover:underline dark:text-orion-gold"
+            >
+              Ajustar precio
+            </button>
+            <button
+              type="button"
+              onClick={() => setMostrarFecha((v) => !v)}
+              className="text-orion-navy hover:underline dark:text-orion-gold"
+            >
+              Corregir inicio
+            </button>
+          </>
+        )}
       </div>
 
-      {mostrarPrecio && (
+      {!p.soloLectura && mostrarPrecio && (
         <form
           action={handleAjustePrecio}
           className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-orion-bg p-2 dark:bg-gray-900"
@@ -176,7 +194,7 @@ export function TarjetaPipeline(p: TarjetaPipelineProps) {
         </form>
       )}
 
-      {mostrarFecha && (
+      {!p.soloLectura && mostrarFecha && (
         <form
           action={handleFecha}
           className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-orion-bg p-2 dark:bg-gray-900"
@@ -216,7 +234,7 @@ export function TarjetaPipeline(p: TarjetaPipelineProps) {
                 </p>
                 <p className="text-gray-500 dark:text-gray-400">{p.acciones[cat]}</p>
               </div>
-              {!p.esFinal && p.acciones[cat] !== "—" && (
+              {!p.soloLectura && !p.esFinal && p.acciones[cat] !== "—" && (
                 <button
                   type="button"
                   disabled={hecha || pending}
