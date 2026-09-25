@@ -631,6 +631,14 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
     `)
   );
 
+  // Duración estimada de visitas y actividades (para ver superposiciones).
+  await paso(resultados, "Agregar duración a actividades", () =>
+    db.execute(sql`ALTER TABLE actividades ADD COLUMN IF NOT EXISTS duracion_min integer`)
+  );
+  await paso(resultados, "Agregar duración a visitas", () =>
+    db.execute(sql`ALTER TABLE visitas ADD COLUMN IF NOT EXISTS duracion_min integer`)
+  );
+
   return resultados;
 }
 
