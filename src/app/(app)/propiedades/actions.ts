@@ -6,6 +6,7 @@ import { count, eq, sql, and } from "drizzle-orm";
 import { db } from "@/db";
 import { propiedades, portalesPublicados } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
+import { dependenciasPropiedad, borrarPropiedad } from "@/lib/eliminar";
 import { ESTADOS_PROPIEDAD } from "@/lib/propiedades";
 
 const PropiedadSchema = z.object({
@@ -344,4 +345,35 @@ export async function actualizarDescripcion(
 
       revalidatePath(`/propiedades/${propiedadId}`);
       return { ok: Date.now() };
+}
+
+// ---------------------------------------------------------------------------
+// Eliminar propiedad (definitivo). Solo el agente a cargo.
+
+/** Qué se va a borrar o desvincular junto con la propiedad (para confirmar). */
+export async function resumenEliminarPropiedad(propiedadId: string) {
+      await requerirPropiedadDelAgente(propiedadId);
+      return dependenciasPropiedad(propiedadId);
+}
+
+export async function eliminarPropiedad(
+      propiedadId: string
+): Promise<{ ok: boolean; error?: string }> {
+      try {
+        await requerirPropiedadDelAgente(propiedadId);
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : "No autorizado." };
+      }
+      try {
+        await borrarPropiedad(propiedadId);
+      } catch (e) {
+        return {
+          ok: false,
+          error: `No se pudo eliminar: ${e instanceof Error ? e.message : String(e)}`,
+        };
+      }
+      revalidatePath("/propiedades");
+      revalidatePath("/agenda");
+      revalidatePath("/dashboard");
+      return { ok: true };
 }
