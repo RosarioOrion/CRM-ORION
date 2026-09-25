@@ -722,3 +722,26 @@ export const nivelesComision = pgTable("niveles_comision", {
       porcentaje: doublePrecision("porcentaje").notNull(),
       creadoEn: timestamp("creado_en").notNull().defaultNow(),
 });
+
+// Agenda completa: todo lo que no es una "visita a propiedad" (esas siguen
+// en `visitas`, con su flujo de Realizada / No se presentó). Acá entran
+// visitas de captación, reuniones, reuniones de equipo, tasaciones, firmas,
+// creación de material gráfico y otros. Propiedad y contacto son opcionales.
+// `tipo` y `estado` son texto (no enum) para poder sumar tipos nuevos sin
+// migrar la base. Ver src/lib/calendario.ts.
+export const actividades = pgTable("actividades", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      tipo: text("tipo").notNull(),
+      titulo: text("titulo").notNull(),
+      fecha: timestamp("fecha").notNull(),
+      lugar: text("lugar"),
+      notas: text("notas"),
+      resultado: text("resultado"),
+      estado: text("estado").notNull().default("PENDIENTE"),
+      propiedadId: text("propiedad_id").references(() => propiedades.id),
+      contactoId: text("contacto_id").references(() => contactos.id),
+      agenteId: text("agente_id")
+        .notNull()
+        .references(() => usuarios.id),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});
