@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { archivarContacto, eliminarContacto } from "../actions";
+import { archivarContacto, eliminarContacto, resumenEliminarContacto } from "../actions";
 
 export function AccionesContacto({
   contactoId,
@@ -22,22 +22,37 @@ export function AccionesContacto({
     });
   }
 
-  function handleEliminar() {
-    const confirmado = window.confirm(
-      "¿Seguro que querés eliminar este contacto? Esta acción no se puede deshacer."
-    );
-    if (!confirmado) return;
-
+  async function handleEliminar() {
     setError(null);
     setEliminando(true);
-    eliminarContacto(contactoId).then((res) => {
-      setEliminando(false);
-      if (res.ok) {
-        router.push("/contactos");
-      } else {
-        setError(res.error ?? "No se pudo eliminar el contacto.");
+    try {
+      const d = await resumenEliminarContacto(contactoId);
+      if (d.propiedadesComoDueno.length > 0) {
+        setError(
+          `No se puede eliminar: es dueño de ${d.propiedadesComoDueno.join(", ")}. Eliminá esa propiedad primero (o asignale otro dueño).`
+        );
+        return;
       }
-    });
+      const seBorra = [
+        d.visitas && `${d.visitas} visita(s)`,
+        d.busquedas && `${d.busquedas} búsqueda(s)`,
+        d.captaciones && `${d.captaciones} captación(es)`,
+      ].filter(Boolean);
+      let texto =
+        "¿Seguro que querés eliminar este contacto? Esta acción no se puede deshacer.";
+      if (seBorra.length) texto += `\n\nTambién se borran: ${seBorra.join(", ")}.`;
+      if (d.actividades)
+        texto += `\n\n${d.actividades} actividad(es) de la Agenda quedan sin contacto.`;
+      if (!window.confirm(texto)) return;
+
+      const res = await eliminarContacto(contactoId);
+      if (res.ok) router.push("/contactos");
+      else setError(res.error ?? "No se pudo eliminar el contacto.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo eliminar el contacto.");
+    } finally {
+      setEliminando(false);
+    }
   }
 
   return (
