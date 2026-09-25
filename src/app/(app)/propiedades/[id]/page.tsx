@@ -30,6 +30,7 @@ import { RegistroPortales } from "./registro-portales";
 import { EditarDescripcion } from "./editar-descripcion";
 import { eliminarFoto } from "../actions";
 import { EliminarPropiedad } from "./eliminar-propiedad";
+import { MostrarEnWeb } from "./mostrar-en-web";
 
 type Propiedad = typeof propiedades.$inferSelect;
 
@@ -213,6 +214,15 @@ export default async function PropiedadDetallePage({
           <p className="mb-4 text-2xl font-bold text-orion-navy dark:text-orion-gold">
             {propiedad.moneda} {propiedad.precio.toLocaleString("es-UY")}
           </p>
+        )}
+
+        {esPropia && (
+          <MostrarEnWeb
+            propiedadId={propiedad.id}
+            codigo={propiedad.codigo}
+            publicada={propiedad.publicadaWeb}
+            visibleSegunEstado={propiedad.estado === "ACTIVA" || propiedad.estado === "RESERVADA"}
+          />
         )}
 
         {datosPipeline && <PipelineToggle {...datosPipeline} />}
