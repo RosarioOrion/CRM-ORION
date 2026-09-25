@@ -1,19 +1,54 @@
 import Link from "next/link";
 import { db } from "@/db";
-import { captaciones, contactos } from "@/db/schema";
+import { captaciones, contactos, actividades } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import {
   ESTADOS_CAPTACION,
   ESTADO_CAPTACION_LABEL,
   ESTADO_CAPTACION_ICONO,
 } from "@/lib/captaciones";
 import { ORIGEN_LABEL, type OrigenContacto } from "@/lib/contactos";
-import { NuevaCaptacionForm } from "./nueva-captacion-form";
+import { NuevaCaptacionForm, type CaptacionInicial } from "./nueva-captacion-form";
 import { AccionesCaptacion } from "./acciones-captacion";
 
-export default async function CaptacionesPage() {
+export default async function CaptacionesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ desde?: string }>;
+}) {
   const sesion = await obtenerSesion();
+
+  // "🚀 Crear captación" desde una visita de captación de la Agenda:
+  // /captaciones?desde=<id de la actividad> → el formulario se abre precargado.
+  const { desde } = await searchParams;
+  let inicial: CaptacionInicial | undefined;
+  if (desde) {
+    try {
+      const [act] = await db
+        .select({
+          titulo: actividades.titulo,
+          contactoId: actividades.contactoId,
+          lugar: actividades.lugar,
+          notas: actividades.notas,
+          resultado: actividades.resultado,
+        })
+        .from(actividades)
+        .where(and(eq(actividades.id, desde), eq(actividades.agenteId, sesion!.userId)));
+      if (act) {
+        inicial = {
+          titulo: act.titulo,
+          contactoId: act.contactoId,
+          direccion: act.lugar,
+          notas: [act.notas, act.resultado ? `Resultado de la visita: ${act.resultado}` : null]
+            .filter(Boolean)
+            .join("\n"),
+        };
+      }
+    } catch {
+      // sin tabla de actividades: se ignora
+    }
+  }
 
   const misContactos = await db
     .select({ id: contactos.id, nombre: contactos.nombre })
@@ -57,7 +92,7 @@ export default async function CaptacionesPage() {
       </div>
 
       <div className="mb-6">
-        <NuevaCaptacionForm contactos={misContactos} />
+        <NuevaCaptacionForm key={desde ?? "nueva"} contactos={misContactos} inicial={inicial} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

@@ -9,15 +9,29 @@ const initialState: CaptacionState = {};
 
 type Contacto = { id: string; nombre: string };
 
+/** Datos para precargar el formulario (ej. desde una visita de captación de la Agenda). */
+export type CaptacionInicial = {
+  titulo?: string;
+  contactoId?: string | null;
+  direccion?: string | null;
+  notas?: string | null;
+};
+
 const inputClass =
   "rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy dark:border-gray-700 dark:bg-gray-800 dark:text-white";
 
-export function NuevaCaptacionForm({ contactos }: { contactos: Contacto[] }) {
+export function NuevaCaptacionForm({
+  contactos,
+  inicial,
+}: {
+  contactos: Contacto[];
+  inicial?: CaptacionInicial;
+}) {
   const [state, formAction, pending] = useActionState(
     crearCaptacion,
     initialState
   );
-  const [abierto, setAbierto] = useState(false);
+  const [abierto, setAbierto] = useState(Boolean(inicial));
 
   if (contactos.length === 0) {
     return (
@@ -58,6 +72,7 @@ export function NuevaCaptacionForm({ contactos }: { contactos: Contacto[] }) {
         error={state?.error}
         onSuccess={() => setAbierto(false)}
         okFlag={state?.ok}
+        inicial={inicial}
       />
     </div>
   );
@@ -70,7 +85,9 @@ function CaptacionFormFields({
   error,
   okFlag,
   onSuccess,
+  inicial,
 }: {
+  inicial?: CaptacionInicial;
   contactos: Contacto[];
   formAction: (formData: FormData) => void;
   pending: boolean;
@@ -103,10 +120,16 @@ function CaptacionFormFields({
         name="titulo"
         placeholder="Título (ej. Apartamento 2 dorm. en Pocitos)"
         required
+        defaultValue={inicial?.titulo ?? ""}
         className="sm:col-span-2 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy dark:border-gray-700 dark:bg-gray-800 dark:text-white"
       />
 
-      <select name="contactoId" required defaultValue="" className={inputClass}>
+      <select
+        name="contactoId"
+        required
+        defaultValue={inicial?.contactoId ?? ""}
+        className={inputClass}
+      >
         <option value="" disabled>
           Elegí el propietario…
         </option>
@@ -139,6 +162,7 @@ function CaptacionFormFields({
       <input
         name="direccion"
         placeholder="Dirección (opcional)"
+        defaultValue={inicial?.direccion ?? ""}
         className={inputClass}
       />
 
@@ -166,6 +190,7 @@ function CaptacionFormFields({
         name="notas"
         placeholder="Notas (opcional)"
         rows={2}
+        defaultValue={inicial?.notas ?? ""}
         className={`sm:col-span-2 ${inputClass}`}
       />
 
