@@ -377,3 +377,15 @@ export async function eliminarPropiedad(
       revalidatePath("/dashboard");
       return { ok: true };
 }
+
+/** Mostrar u ocultar la propiedad en la página web pública. */
+export async function cambiarPublicadaWeb(propiedadId: string, publicada: boolean) {
+      await requerirPropiedadDelAgente(propiedadId);
+      await db
+        .update(propiedades)
+        .set({ publicadaWeb: publicada })
+        .where(eq(propiedades.id, propiedadId));
+      revalidatePath(`/propiedades/${propiedadId}`);
+      revalidatePath("/inmuebles");
+      revalidatePath("/");
+}
