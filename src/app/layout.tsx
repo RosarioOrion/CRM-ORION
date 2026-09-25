@@ -1,9 +1,24 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "CRM Orion",
   description: "CRM Orion — sistema de gestión inmobiliaria",
+  applicationName: "Orion",
+  icons: {
+    icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  // iPhone: al agregarla a la pantalla de inicio se abre como app, sin barra de Safari.
+  appleWebApp: {
+    capable: true,
+    title: "Orion",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0f1f45",
 };
 
 const THEME_SCRIPT = `
