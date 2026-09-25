@@ -118,3 +118,63 @@ export function aDiaHora(fecha: Date, conHora = true): { dia: string; hora: stri
   // Fechas cargadas sin hora quedan a las 00:00 — no mostramos esa hora.
   return { dia, hora: h === 0 && m === 0 ? null : `${dos(h)}:${dos(m)}` };
 }
+
+/** Opciones de duración para el formulario (en minutos). */
+export const DURACIONES: { valor: number; label: string }[] = [
+  { valor: 15, label: "15 min" },
+  { valor: 30, label: "30 min" },
+  { valor: 45, label: "45 min" },
+  { valor: 60, label: "1 hora" },
+  { valor: 90, label: "1 h 30" },
+  { valor: 120, label: "2 horas" },
+  { valor: 180, label: "3 horas" },
+  { valor: 240, label: "4 horas" },
+  { valor: 480, label: "Todo el día" },
+];
+
+/** Duración que se asume para calcular superposiciones si no se cargó. */
+export const DURACION_POR_DEFECTO = 60;
+
+export function textoDuracion(min: number | null | undefined): string | null {
+  if (!min) return null;
+  const op = DURACIONES.find((d) => d.valor === min);
+  if (op) return op.label;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h ? `${h} h${m ? ` ${m}` : ""}` : `${m} min`;
+}
+
+/**
+ * "Ahora" con la hora de Montevideo, expresada igual que las fechas guardadas
+ * (que se cargan como hora local de Uruguay). Así "vencida" y "Hoy" funcionan
+ * bien aunque el servidor esté en otra zona horaria.
+ */
+export function ahoraUY(): Date {
+  const partes = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Montevideo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+      .formatToParts(new Date())
+      .map((p) => [p.type, p.value])
+  );
+  return new Date(
+    Number(partes.year),
+    Number(partes.month) - 1,
+    Number(partes.day),
+    Number(partes.hour),
+    Number(partes.minute)
+  );
+}
+
+/** Fecha guardada → valor para <input type="datetime-local">. */
+export function aInputFechaHora(fecha: Date): string {
+  return `${fecha.getFullYear()}-${dos(fecha.getMonth() + 1)}-${dos(fecha.getDate())}T${dos(
+    fecha.getHours()
+  )}:${dos(fecha.getMinutes())}`;
+}
