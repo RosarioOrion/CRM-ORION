@@ -8,7 +8,6 @@ import {
   ESTADO_VISITA_LABEL,
   ESTADO_VISITA_COLOR,
   baldeFecha,
-  ORDEN_BALDES,
   type EstadoVisita,
 } from "@/lib/visitas";
 import {
@@ -17,12 +16,19 @@ import {
   TIPO_EVENTO_ETIQUETA,
   ESTADO_ACTIVIDAD_LABEL,
   esTipoEvento,
+  ahoraUY,
+  aInputFechaHora,
+  textoDuracion,
+  DURACION_POR_DEFECTO,
   type TipoEvento,
   type EstadoActividad,
 } from "@/lib/calendario";
 import { AgendarForm } from "./agendar-form";
 import { AccionesVisita } from "./acciones-visita";
 import { AccionesActividad } from "./acciones-actividad";
+import { TarjetaEditable } from "./tarjeta-editable";
+
+const ORDEN_BALDES = ["Vencidas", "Hoy", "Mañana", "Esta semana", "Más adelante"];
 
 // Un ítem de la agenda: o una visita a propiedad (tabla `visitas`) o una
 // actividad (tabla `actividades`). Se muestran juntos, ordenados por fecha.
@@ -32,6 +38,7 @@ type Item =
       id: string;
       tipo: TipoEvento;
       fecha: Date;
+      duracionMin: number | null;
       estado: EstadoVisita;
       pendiente: boolean;
       notas: string | null;
@@ -48,6 +55,7 @@ type Item =
       tipo: TipoEvento;
       titulo: string;
       fecha: Date;
+      duracionMin: number | null;
       estado: EstadoActividad;
       pendiente: boolean;
       notas: string | null;
@@ -65,9 +73,19 @@ const COLOR_ESTADO_ACTIVIDAD: Record<EstadoActividad, string> = {
   CANCELADA: "bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-300",
 };
 
-export default async function AgendaPage() {
+export default async function AgendaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ fecha?: string }>;
+}) {
   const sesion = await obtenerSesion();
   const agenteId = sesion!.userId;
+  const ahora = ahoraUY();
+
+  // "+ Agendar este día" desde el calendario de Inicio → /agenda?fecha=YYYY-MM-DD
+  const { fecha: fechaParam } = await searchParams;
+  const fechaInicial =
+    fechaParam && /^\d{4}-\d{2}-\d{2}$/.test(fechaParam) ? `${fechaParam}T09:00` : undefined;
 
   const misPropiedades = await db
     .select({ id: propiedades.id, codigo: propiedades.codigo, titulo: propiedades.titulo })
@@ -85,6 +103,7 @@ export default async function AgendaPage() {
     .select({
       id: visitas.id,
       fecha: visitas.fecha,
+      duracionMin: visitas.duracionMin,
       estado: visitas.estado,
       notas: visitas.notas,
       resultado: visitas.resultado,
@@ -108,6 +127,7 @@ export default async function AgendaPage() {
     tipo: string;
     titulo: string;
     fecha: Date;
+    duracionMin: number | null;
     lugar: string | null;
     notas: string | null;
     resultado: string | null;
@@ -123,6 +143,7 @@ export default async function AgendaPage() {
         tipo: actividades.tipo,
         titulo: actividades.titulo,
         fecha: actividades.fecha,
+        duracionMin: actividades.duracionMin,
         lugar: actividades.lugar,
         notas: actividades.notas,
         resultado: actividades.resultado,
@@ -162,6 +183,7 @@ export default async function AgendaPage() {
         id: v.id,
         tipo: "VISITA",
         fecha: v.fecha,
+        duracionMin: v.duracionMin,
         estado: v.estado,
         pendiente: v.estado === "PROGRAMADA",
         notas: v.notas,
@@ -180,6 +202,7 @@ export default async function AgendaPage() {
         tipo: esTipoEvento(a.tipo) ? a.tipo : "OTRO",
         titulo: a.titulo,
         fecha: a.fecha,
+        duracionMin: a.duracionMin,
         estado: (a.estado as EstadoActividad) ?? "PENDIENTE",
         pendiente: a.estado === "PENDIENTE",
         notas: a.notas,
@@ -200,11 +223,52 @@ export default async function AgendaPage() {
     .filter((i) => !i.pendiente)
     .sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
 
+  const finDe = (i: Item) =>
+    i.fecha.getTime() + (i.duracionMin ?? DURACION_POR_DEFECTO) * 60000;
+  const nombreDe = (i: Item) =>
+    i.clase === "actividad" ? i.titulo : i.propiedadTexto ?? TIPO_EVENTO_LABEL[i.tipo];
+
+  // Vencida: estaba pendiente y ya terminó (según la hora de Uruguay).
+  const vencidas = new Set(
+    pendientes.filter((i) => finDe(i) < ahora.getTime()).map((i) => `${i.clase}-${i.id}`)
+  );
+
+  // Superposiciones entre pendientes (si no tiene duración se asume 1 hora).
+  const superpuestas = new Map<string, string[]>();
+  for (let a = 0; a < pendientes.length; a++) {
+    for (let b = a + 1; b < pendientes.length; b++) {
+      const x = pendientes[a];
+      const y = pendientes[b];
+      if (y.fecha.getTime() >= finDe(x)) break; // ordenadas por fecha
+      const kx = `${x.clase}-${x.id}`;
+      const ky = `${y.clase}-${y.id}`;
+      superpuestas.set(kx, [...(superpuestas.get(kx) ?? []), nombreDe(y)]);
+      superpuestas.set(ky, [...(superpuestas.get(ky) ?? []), nombreDe(x)]);
+    }
+  }
+
   const grupos = new Map<string, Item[]>();
   for (const f of pendientes) {
-    const balde = baldeFecha(f.fecha);
+    const balde = vencidas.has(`${f.clase}-${f.id}`)
+      ? "Vencidas"
+      : baldeFecha(f.fecha, ahora) === "Pasadas"
+        ? "Hoy"
+        : baldeFecha(f.fecha, ahora);
     if (!grupos.has(balde)) grupos.set(balde, []);
     grupos.get(balde)!.push(f);
+  }
+
+  // Para editar: la lista de propiedades/contactos tiene que incluir los que
+  // ya están vinculados aunque la propiedad ya no esté activa.
+  const propiedadesEdicion = [...misPropiedades];
+  for (const it of items) {
+    if (it.propiedadId && !propiedadesEdicion.some((p) => p.id === it.propiedadId)) {
+      propiedadesEdicion.push({
+        id: it.propiedadId,
+        codigo: "",
+        titulo: it.propiedadTexto ?? "(propiedad)",
+      });
+    }
   }
 
   return (
@@ -225,7 +289,12 @@ export default async function AgendaPage() {
       )}
 
       <div className="mb-6">
-        <AgendarForm propiedades={misPropiedades} contactos={misContactos} />
+        <AgendarForm
+          key={fechaInicial ?? "normal"}
+          propiedades={misPropiedades}
+          contactos={misContactos}
+          fechaInicial={fechaInicial}
+        />
       </div>
 
       {pendientes.length === 0 && (
@@ -236,70 +305,121 @@ export default async function AgendaPage() {
 
       {ORDEN_BALDES.filter((b) => grupos.has(b)).map((balde) => (
         <div key={balde} className="mb-6">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-            {balde} — {grupos.get(balde)!.length}
+          <h2
+            className={`mb-3 text-sm font-semibold uppercase tracking-wide ${
+              balde === "Vencidas" ? "text-red-600 dark:text-red-400" : "text-gray-500 dark:text-gray-400"
+            }`}
+          >
+            {balde === "Vencidas" ? "⚠️ Vencidas — ¿se hicieron?" : balde} — {grupos.get(balde)!.length}
           </h2>
           <div className="flex flex-col gap-3">
-            {grupos.get(balde)!.map((it) => (
-              <div
-                key={`${it.clase}-${it.id}`}
-                className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:bg-gray-800 dark:border-gray-700"
-              >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded bg-orion-navy px-1.5 py-0.5 text-[10px] font-bold text-white">
-                      {it.fecha.toLocaleString("es-UY", {
-                        weekday: "short",
-                        day: "2-digit",
-                        month: "2-digit",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${TIPO_EVENTO_ETIQUETA[it.tipo]}`}>
-                      {TIPO_EVENTO_ICONO[it.tipo]} {TIPO_EVENTO_LABEL[it.tipo]}
-                    </span>
-                  </div>
+            {grupos.get(balde)!.map((it) => {
+              const clave = `${it.clase}-${it.id}`;
+              const choques = superpuestas.get(clave);
+              const duracion = textoDuracion(it.duracionMin);
+              return (
+                <TarjetaEditable
+                  key={clave}
+                  clase={it.clase}
+                  resaltada={vencidas.has(clave)}
+                  propiedades={propiedadesEdicion}
+                  contactos={misContactos}
+                  valoresVisita={
+                    it.clase === "visita"
+                      ? {
+                          id: it.id,
+                          propiedadId: it.propiedadId,
+                          contactoId: it.contactoId,
+                          fecha: aInputFechaHora(it.fecha),
+                          duracionMin: it.duracionMin,
+                          notas: it.notas,
+                        }
+                      : undefined
+                  }
+                  valoresActividad={
+                    it.clase === "actividad"
+                      ? {
+                          id: it.id,
+                          tipo: it.tipo === "VISITA" ? "OTRO" : it.tipo,
+                          titulo: it.titulo,
+                          fecha: aInputFechaHora(it.fecha),
+                          duracionMin: it.duracionMin,
+                          lugar: it.lugar,
+                          propiedadId: it.propiedadId,
+                          contactoId: it.contactoId,
+                          notas: it.notas,
+                        }
+                      : undefined
+                  }
+                  acciones={
+                    it.clase === "visita" ? (
+                      <AccionesVisita visitaId={it.id} estado={it.estado} />
+                    ) : (
+                      <AccionesActividad actividadId={it.id} estado={it.estado} />
+                    )
+                  }
+                  contenido={
+                    <>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded bg-orion-navy px-1.5 py-0.5 text-[10px] font-bold text-white">
+                          {it.fecha.toLocaleString("es-UY", {
+                            weekday: "short",
+                            day: "2-digit",
+                            month: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                        {duracion && (
+                          <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">
+                            ⏱ {duracion}
+                          </span>
+                        )}
+                        <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${TIPO_EVENTO_ETIQUETA[it.tipo]}`}>
+                          {TIPO_EVENTO_ICONO[it.tipo]} {TIPO_EVENTO_LABEL[it.tipo]}
+                        </span>
+                      </div>
 
-                  {it.clase === "actividad" && (
-                    <p className="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100">
-                      {it.titulo}
-                    </p>
-                  )}
-                  {it.lugar && (
-                    <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">📍 {it.lugar}</p>
-                  )}
-                  {it.propiedadId && it.propiedadTexto && (
-                    <Link
-                      href={`/propiedades/${it.propiedadId}`}
-                      className={
-                        it.clase === "visita"
-                          ? "mt-1 block text-sm font-semibold text-gray-800 hover:underline dark:text-gray-100"
-                          : "mt-0.5 block text-xs text-gray-600 hover:underline dark:text-gray-300"
-                      }
-                    >
-                      {it.clase === "actividad" ? "🏢 " : ""}
-                      {it.propiedadTexto}
-                    </Link>
-                  )}
-                  {it.contactoId && it.contactoTexto && (
-                    <Link
-                      href={`/contactos/${it.contactoId}`}
-                      className="mt-0.5 block text-xs font-medium text-orion-navy hover:underline dark:text-orion-gold"
-                    >
-                      👤 {it.contactoTexto}
-                    </Link>
-                  )}
-                  {it.notas && <p className="mt-1 text-xs italic text-gray-400">{it.notas}</p>}
-                </div>
-
-                {it.clase === "visita" ? (
-                  <AccionesVisita visitaId={it.id} estado={it.estado} />
-                ) : (
-                  <AccionesActividad actividadId={it.id} estado={it.estado} />
-                )}
-              </div>
-            ))}
+                      {it.clase === "actividad" && (
+                        <p className="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100">
+                          {it.titulo}
+                        </p>
+                      )}
+                      {it.lugar && (
+                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">📍 {it.lugar}</p>
+                      )}
+                      {it.propiedadId && it.propiedadTexto && (
+                        <Link
+                          href={`/propiedades/${it.propiedadId}`}
+                          className={
+                            it.clase === "visita"
+                              ? "mt-1 block text-sm font-semibold text-gray-800 hover:underline dark:text-gray-100"
+                              : "mt-0.5 block text-xs text-gray-600 hover:underline dark:text-gray-300"
+                          }
+                        >
+                          {it.clase === "actividad" ? "🏢 " : ""}
+                          {it.propiedadTexto}
+                        </Link>
+                      )}
+                      {it.contactoId && it.contactoTexto && (
+                        <Link
+                          href={`/contactos/${it.contactoId}`}
+                          className="mt-0.5 block text-xs font-medium text-orion-navy hover:underline dark:text-orion-gold"
+                        >
+                          👤 {it.contactoTexto}
+                        </Link>
+                      )}
+                      {it.notas && <p className="mt-1 text-xs italic text-gray-400">{it.notas}</p>}
+                      {choques && (
+                        <p className="mt-1 rounded bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+                          ⚠️ Se superpone con: {choques.join(", ")}
+                        </p>
+                      )}
+                    </>
+                  }
+                />
+              );
+            })}
           </div>
         </div>
       ))}

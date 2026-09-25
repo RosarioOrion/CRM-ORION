@@ -22,6 +22,11 @@ const VisitaSchema = z.object({
 
 export type VisitaState = { error?: string; ok?: boolean };
 
+function leerDuracion(formData: FormData): number | null {
+  const v = Number(formData.get("duracionMin"));
+  return Number.isFinite(v) && v > 0 && v <= 24 * 60 ? Math.round(v) : null;
+}
+
 async function requerirVisitaDelAgente(visitaId: string) {
   const sesion = await obtenerSesion();
   if (!sesion) throw new Error("Sesión expirada, volvé a ingresar.");
@@ -75,6 +80,7 @@ export async function crearVisita(
     contactoId: parsed.data.contactoId,
     agenteId: sesion.userId,
     fecha,
+    duracionMin: leerDuracion(formData),
     notas: parsed.data.notas ?? null,
   });
 
@@ -186,6 +192,7 @@ export async function crearActividad(
       tipo: parsed.data.tipo,
       titulo: parsed.data.titulo,
       fecha,
+      duracionMin: leerDuracion(formData),
       lugar: parsed.data.lugar || null,
       propiedadId: parsed.data.propiedadId || null,
       contactoId: parsed.data.contactoId || null,
@@ -230,4 +237,91 @@ export async function eliminarActividad(actividadId: string) {
 
   revalidatePath("/agenda");
   revalidatePath("/dashboard");
+}
+
+// ---------------------------------------------------------------------------
+// Edición (reprogramar / corregir datos).
+
+export async function editarVisita(
+  _prev: VisitaState,
+  formData: FormData
+): Promise<VisitaState> {
+  const visitaId = String(formData.get("id") ?? "");
+  try {
+    await requerirVisitaDelAgente(visitaId);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No autorizado." };
+  }
+
+  const parsed = VisitaSchema.safeParse({
+    propiedadId: formData.get("propiedadId"),
+    contactoId: formData.get("contactoId"),
+    fecha: formData.get("fecha"),
+    notas: formData.get("notas") || undefined,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const fecha = new Date(parsed.data.fecha);
+  if (isNaN(fecha.getTime())) return { error: "Fecha inválida." };
+
+  await db
+    .update(visitas)
+    .set({
+      propiedadId: parsed.data.propiedadId,
+      contactoId: parsed.data.contactoId,
+      fecha,
+      duracionMin: leerDuracion(formData),
+      notas: parsed.data.notas ?? null,
+    })
+    .where(eq(visitas.id, visitaId));
+
+  revalidatePath("/agenda");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+export async function editarActividad(
+  _prev: ActividadState,
+  formData: FormData
+): Promise<ActividadState> {
+  const actividadId = String(formData.get("id") ?? "");
+  try {
+    await requerirActividadDelAgente(actividadId);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No autorizado." };
+  }
+
+  const parsed = ActividadSchema.safeParse({
+    tipo: formData.get("tipo"),
+    titulo: formData.get("titulo") ?? "",
+    fecha: formData.get("fecha") ?? "",
+    lugar: formData.get("lugar") || undefined,
+    propiedadId: formData.get("propiedadId") || undefined,
+    contactoId: formData.get("contactoId") || undefined,
+    notas: formData.get("notas") || undefined,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const fecha = new Date(parsed.data.fecha);
+  if (isNaN(fecha.getTime())) return { error: "Fecha inválida." };
+
+  await db
+    .update(actividades)
+    .set({
+      tipo: parsed.data.tipo,
+      titulo: parsed.data.titulo,
+      fecha,
+      duracionMin: leerDuracion(formData),
+      lugar: parsed.data.lugar || null,
+      propiedadId: parsed.data.propiedadId || null,
+      contactoId: parsed.data.contactoId || null,
+      notas: parsed.data.notas || null,
+    })
+    .where(eq(actividades.id, actividadId));
+
+  revalidatePath("/agenda");
+  revalidatePath("/dashboard");
+  return { ok: true };
 }
