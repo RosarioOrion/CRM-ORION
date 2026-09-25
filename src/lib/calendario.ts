@@ -4,42 +4,91 @@
 
 export const TIPOS_EVENTO = [
   "VISITA",
+  "VISITA_CAPTACION",
   "REUNION",
+  "REUNION_EQUIPO",
   "TASACION",
   "FIRMA",
-  "CAPTACION",
+  "MATERIAL_GRAFICO",
   "OTRO",
 ] as const;
 
 export type TipoEvento = (typeof TIPOS_EVENTO)[number];
 
+/** Tipos que se agendan como "actividad" (todo menos la visita a propiedad). */
+export const TIPOS_ACTIVIDAD = TIPOS_EVENTO.filter(
+  (t) => t !== "VISITA"
+) as Exclude<TipoEvento, "VISITA">[];
+
+export function esTipoEvento(v: unknown): v is TipoEvento {
+  return typeof v === "string" && (TIPOS_EVENTO as readonly string[]).includes(v);
+}
+
 export const TIPO_EVENTO_LABEL: Record<TipoEvento, string> = {
-  VISITA: "Visita",
+  VISITA: "Visita a propiedad",
+  VISITA_CAPTACION: "Visita de captación",
   REUNION: "Reunión",
+  REUNION_EQUIPO: "Reunión de equipo",
   TASACION: "Tasación",
   FIRMA: "Firma",
-  CAPTACION: "Captación",
+  MATERIAL_GRAFICO: "Material gráfico",
   OTRO: "Otro",
+};
+
+export const TIPO_EVENTO_ICONO: Record<TipoEvento, string> = {
+  VISITA: "🏠",
+  VISITA_CAPTACION: "🚀",
+  REUNION: "🤝",
+  REUNION_EQUIPO: "👥",
+  TASACION: "📐",
+  FIRMA: "✍️",
+  MATERIAL_GRAFICO: "🎨",
+  OTRO: "📌",
+};
+
+/** Ayuda para el campo "Título" según el tipo elegido. */
+export const TIPO_EVENTO_EJEMPLO: Record<TipoEvento, string> = {
+  VISITA: "",
+  VISITA_CAPTACION: "Ej: Chacra en Santa Rosa — conocer al propietario",
+  REUNION: "Ej: Reunión con propietario para firmar autorización",
+  REUNION_EQUIPO: "Ej: Reunión semanal del equipo",
+  TASACION: "Ej: Tasar casa en Malvín",
+  FIRMA: "Ej: Firma de boleto — Apto 501",
+  MATERIAL_GRAFICO: "Ej: Fotos y video de la casa de Carrasco",
+  OTRO: "Ej: Trámite en la Intendencia",
 };
 
 /** Color del puntito en el calendario. */
 export const TIPO_EVENTO_PUNTO: Record<TipoEvento, string> = {
   VISITA: "bg-blue-500",
+  VISITA_CAPTACION: "bg-violet-500",
   REUNION: "bg-orion-gold",
+  REUNION_EQUIPO: "bg-orange-500",
   TASACION: "bg-emerald-500",
   FIRMA: "bg-rose-600",
-  CAPTACION: "bg-violet-500",
+  MATERIAL_GRAFICO: "bg-pink-400",
   OTRO: "bg-gray-400",
 };
 
-/** Color de la etiqueta en la lista del día. */
+/** Color de la etiqueta en listas. */
 export const TIPO_EVENTO_ETIQUETA: Record<TipoEvento, string> = {
   VISITA: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  VISITA_CAPTACION: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
   REUNION: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+  REUNION_EQUIPO: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
   TASACION: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
   FIRMA: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",
-  CAPTACION: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
+  MATERIAL_GRAFICO: "bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300",
   OTRO: "bg-gray-200 text-gray-600 dark:bg-gray-800 dark:text-gray-300",
+};
+
+export const ESTADOS_ACTIVIDAD = ["PENDIENTE", "REALIZADA", "CANCELADA"] as const;
+export type EstadoActividad = (typeof ESTADOS_ACTIVIDAD)[number];
+
+export const ESTADO_ACTIVIDAD_LABEL: Record<EstadoActividad, string> = {
+  PENDIENTE: "Pendiente",
+  REALIZADA: "Realizada",
+  CANCELADA: "Cancelada",
 };
 
 export type EventoCalendario = {
