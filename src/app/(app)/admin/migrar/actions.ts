@@ -610,6 +610,27 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
     }
   );
 
+  // Agenda completa: actividades que no son visitas a propiedad
+  // (reuniones, visitas de captación, tasaciones, firmas, material gráfico...).
+  await paso(resultados, "Crear tabla actividades (Agenda)", () =>
+    db.execute(sql`
+      CREATE TABLE IF NOT EXISTS actividades (
+        id text PRIMARY KEY,
+        tipo text NOT NULL,
+        titulo text NOT NULL,
+        fecha timestamp NOT NULL,
+        lugar text,
+        notas text,
+        resultado text,
+        estado text NOT NULL DEFAULT 'PENDIENTE',
+        propiedad_id text REFERENCES propiedades(id),
+        contacto_id text REFERENCES contactos(id),
+        agente_id text NOT NULL REFERENCES usuarios(id),
+        creado_en timestamp NOT NULL DEFAULT now()
+      )
+    `)
+  );
+
   return resultados;
 }
 
