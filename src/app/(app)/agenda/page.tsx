@@ -28,6 +28,7 @@ import { AccionesVisita } from "./acciones-visita";
 import { AccionesActividad } from "./acciones-actividad";
 import { TarjetaEditable } from "./tarjeta-editable";
 import { SelectorAgente } from "./selector-agente";
+import { ActivarRecordatorios } from "@/components/activar-recordatorios";
 
 const ORDEN_BALDES = ["Vencidas", "Hoy", "Mañana", "Esta semana", "Más adelante"];
 
@@ -338,6 +339,10 @@ export default async function AgendaPage({
             />
           </div>
         )}
+      </div>
+
+      <div className="mb-4">
+        <ActivarRecordatorios compacto />
       </div>
 
       {faltaMigracion && (
