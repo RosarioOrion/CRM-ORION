@@ -1,7 +1,111 @@
 import { db } from "@/db";
-import { contactos, propiedades } from "@/db/schema";
+import {
+  contactos,
+  propiedades,
+  visitas,
+  reservasVenta,
+  reservasAlquiler,
+} from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
-import { eq, and, count } from "drizzle-orm";
+import { eq, and, count, ne } from "drizzle-orm";
+import { limpiarTitulo } from "@/lib/propiedades";
+import { aDiaHora, type EventoCalendario } from "@/lib/calendario";
+import { Calendario } from "./calendario";
+
+async function cargarEventos(agenteId: string): Promise<EventoCalendario[]> {
+  const eventos: EventoCalendario[] = [];
+
+  // Visitas (menos las canceladas).
+  const filasVisitas = await db
+    .select({
+      id: visitas.id,
+      fecha: visitas.fecha,
+      estado: visitas.estado,
+      notas: visitas.notas,
+      propiedadCodigo: propiedades.codigo,
+      propiedadTitulo: propiedades.titulo,
+      contactoNombre: contactos.nombre,
+    })
+    .from(visitas)
+    .innerJoin(propiedades, eq(visitas.propiedadId, propiedades.id))
+    .innerJoin(contactos, eq(visitas.contactoId, contactos.id))
+    .where(and(eq(visitas.agenteId, agenteId), ne(visitas.estado, "CANCELADA")));
+
+  for (const v of filasVisitas) {
+    eventos.push({
+      id: `v-${v.id}`,
+      tipo: "VISITA",
+      ...aDiaHora(v.fecha),
+      titulo: `${v.propiedadCodigo} — ${limpiarTitulo(v.propiedadTitulo)}`,
+      detalle: `👤 ${v.contactoNombre}${v.notas ? ` · ${v.notas}` : ""}`,
+      href: "/agenda",
+    });
+  }
+
+  // Firmas de reservas de venta: reserva, boleto y escritura.
+  const filasVenta = await db
+    .select({
+      id: reservasVenta.id,
+      nombre: reservasVenta.nombrePropiedad,
+      fechaReserva: reservasVenta.fechaReserva,
+      fechaBoleto: reservasVenta.fechaBoleto,
+      fechaEscritura: reservasVenta.fechaEscritura,
+      escribano: reservasVenta.escribanoVendedor,
+    })
+    .from(reservasVenta)
+    .where(and(eq(reservasVenta.agenteId, agenteId), ne(reservasVenta.estado, "CANCELADA")));
+
+  for (const r of filasVenta) {
+    const hitos: [string, Date | null][] = [
+      ["Firma de reserva", r.fechaReserva],
+      ["Firma de boleto", r.fechaBoleto],
+      ["Escritura", r.fechaEscritura],
+    ];
+    for (const [nombre, fecha] of hitos) {
+      if (!fecha) continue;
+      eventos.push({
+        id: `rv-${r.id}-${nombre}`,
+        tipo: "FIRMA",
+        ...aDiaHora(fecha),
+        titulo: `${nombre} — ${r.nombre}`,
+        detalle: r.escribano ? `Escribano: ${r.escribano}` : "Reserva de venta",
+        href: "/reservas/ventas",
+      });
+    }
+  }
+
+  // Firmas de reservas de alquiler: reserva y contrato.
+  const filasAlquiler = await db
+    .select({
+      id: reservasAlquiler.id,
+      nombre: reservasAlquiler.nombrePropiedad,
+      fechaReserva: reservasAlquiler.fechaReserva,
+      fechaFirma: reservasAlquiler.fechaFirma,
+      inquilino: reservasAlquiler.inquilinoNombre,
+    })
+    .from(reservasAlquiler)
+    .where(and(eq(reservasAlquiler.agenteId, agenteId), ne(reservasAlquiler.estado, "CANCELADA")));
+
+  for (const r of filasAlquiler) {
+    const hitos: [string, Date | null][] = [
+      ["Firma de reserva (alquiler)", r.fechaReserva],
+      ["Firma de contrato (alquiler)", r.fechaFirma],
+    ];
+    for (const [nombre, fecha] of hitos) {
+      if (!fecha) continue;
+      eventos.push({
+        id: `ra-${r.id}-${nombre}`,
+        tipo: "FIRMA",
+        ...aDiaHora(fecha),
+        titulo: `${nombre} — ${r.nombre}`,
+        detalle: r.inquilino ? `Inquilino: ${r.inquilino}` : "Reserva de alquiler",
+        href: "/reservas/alquileres",
+      });
+    }
+  }
+
+  return eventos;
+}
 
 export default async function DashboardPage() {
   const sesion = await obtenerSesion();
@@ -21,17 +125,22 @@ export default async function DashboardPage() {
       )
     );
 
+  const eventos = await cargarEventos(sesion!.userId);
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-orion-navy">
         Hola, {sesion?.nombre?.split(" ")[0]} 👋
       </h1>
-      <p className="mt-1 text-sm text-gray-500">
-        Este es el primer bloque de CRM Orion: Contactos y Propiedades ya
-        funcionando de verdad, conectados a una base de datos real.
+      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        Tocá un día del calendario para ver lo que tenés agendado.
       </p>
 
-      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="mt-6">
+        <Calendario eventos={eventos} />
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
             Mis contactos
@@ -50,15 +159,6 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="mt-8 rounded-xl border border-dashed border-orion-gold/50 bg-orion-gold/5 p-5">
-        <p className="text-sm font-semibold text-orion-navy">
-          Próximo en la hoja de ruta
-        </p>
-        <p className="mt-1 text-sm text-gray-600">
-          Pipeline semanal, Agenda de visitas, Captaciones y el motor de
-          coincidencias (Fases 2 a 4).
-        </p>
-      </div>
     </div>
   );
 }
