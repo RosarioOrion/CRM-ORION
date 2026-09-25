@@ -127,6 +127,9 @@ export const propiedades = pgTable("propiedades", {
       extras: jsonb("extras").$type<string[]>().notNull().default([]),
       fotos: jsonb("fotos").$type<string[]>().notNull().default([]),
       descripcion: text("descripcion"),
+      // Si aparece en la página web pública (Orion Propiedades). Por defecto
+      // sí; el agente la puede ocultar desde la ficha.
+      publicadaWeb: boolean("publicada_web").notNull().default(true),
       estado: estadoPropiedadEnum("estado").notNull().default("ACTIVA"),
       // Fecha desde la que corre la cadencia del Pipeline (semana 1 de 14 en
       // venta / semana 1 de 7 en alquiler). Por defecto es cuando se cargó en
