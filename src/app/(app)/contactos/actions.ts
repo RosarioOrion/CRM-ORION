@@ -4,8 +4,9 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { contactos, propiedades, busquedas } from "@/db/schema";
+import { contactos } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
+import { dependenciasContacto, borrarContacto } from "@/lib/eliminar";
 import {
   CATEGORIAS_CONTACTO,
   ORIGENES_CONTACTO,
@@ -129,37 +130,38 @@ export async function archivarContacto(contactoId: string, archivado: boolean) {
 
 export type EliminarState = { ok: boolean; error?: string };
 
-export async function eliminarContacto(contactoId: string): Promise<EliminarState> {
+/** Qué se va a borrar junto con el contacto (para la confirmación). */
+export async function resumenEliminarContacto(contactoId: string) {
   await requerirPropietario(contactoId);
+  return dependenciasContacto(contactoId);
+}
 
-  const [tienePropiedad] = await db
-    .select({ id: propiedades.id })
-    .from(propiedades)
-    .where(eq(propiedades.duenoId, contactoId))
-    .limit(1);
-  if (tienePropiedad) {
+export async function eliminarContacto(contactoId: string): Promise<EliminarState> {
+  try {
+    await requerirPropietario(contactoId);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "No autorizado." };
+  }
+
+  const dep = await dependenciasContacto(contactoId);
+  if (dep.propiedadesComoDueno.length > 0) {
     return {
       ok: false,
-      error:
-        "No se puede eliminar: este contacto figura como dueño de al menos una propiedad. Reasigná esa propiedad a otro contacto o archivá este contacto en vez de borrarlo.",
+      error: `No se puede eliminar: es dueño de ${dep.propiedadesComoDueno.join(", ")}. Eliminá esa propiedad primero (o asignale otro dueño).`,
     };
   }
 
-  const [tieneBusqueda] = await db
-    .select({ id: busquedas.id })
-    .from(busquedas)
-    .where(eq(busquedas.contactoId, contactoId))
-    .limit(1);
-  if (tieneBusqueda) {
+  try {
+    await borrarContacto(contactoId);
+  } catch (e) {
     return {
       ok: false,
-      error:
-        "No se puede eliminar: este contacto tiene búsquedas asociadas. Archivalo en vez de borrarlo.",
+      error: `No se pudo eliminar: ${e instanceof Error ? e.message : String(e)}`,
     };
   }
-
-  await db.delete(contactos).where(eq(contactos.id, contactoId));
 
   revalidatePath("/contactos");
+  revalidatePath("/agenda");
+  revalidatePath("/dashboard");
   return { ok: true };
 }
