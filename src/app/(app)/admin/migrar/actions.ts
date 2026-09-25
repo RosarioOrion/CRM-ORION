@@ -639,6 +639,37 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
     db.execute(sql`ALTER TABLE visitas ADD COLUMN IF NOT EXISTS duracion_min integer`)
   );
 
+  // Recordatorios en el celular (notificaciones push).
+  await paso(resultados, "Crear tabla push_suscripciones", () =>
+    db.execute(sql`
+      CREATE TABLE IF NOT EXISTS push_suscripciones (
+        id text PRIMARY KEY,
+        usuario_id text NOT NULL REFERENCES usuarios(id),
+        endpoint text NOT NULL UNIQUE,
+        p256dh text NOT NULL,
+        auth text NOT NULL,
+        creado_en timestamp NOT NULL DEFAULT now()
+      )
+    `)
+  );
+  await paso(resultados, "Crear tabla push_enviados", () =>
+    db.execute(sql`
+      CREATE TABLE IF NOT EXISTS push_enviados (
+        clave text PRIMARY KEY,
+        enviado_en timestamp NOT NULL DEFAULT now()
+      )
+    `)
+  );
+  await paso(resultados, "Crear tabla push_config", () =>
+    db.execute(sql`
+      CREATE TABLE IF NOT EXISTS push_config (
+        id text PRIMARY KEY,
+        public_key text NOT NULL,
+        private_key text NOT NULL
+      )
+    `)
+  );
+
   return resultados;
 }
 
