@@ -670,6 +670,13 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
     `)
   );
 
+  // Página web pública: qué propiedades se muestran.
+  await paso(resultados, "Agregar publicada_web a propiedades", () =>
+    db.execute(
+      sql`ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS publicada_web boolean NOT NULL DEFAULT true`
+    )
+  );
+
   return resultados;
 }
 
