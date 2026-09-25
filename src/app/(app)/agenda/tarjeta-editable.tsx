@@ -24,6 +24,7 @@ export function TarjetaEditable({
   propiedades,
   contactos,
   resaltada,
+  editable = true,
 }: {
   contenido: React.ReactNode;
   acciones: React.ReactNode;
@@ -33,6 +34,8 @@ export function TarjetaEditable({
   propiedades: Propiedad[];
   contactos: Contacto[];
   resaltada?: boolean;
+  /** false = de otro agente (vista del equipo / reunión de equipo ajena): solo lectura. */
+  editable?: boolean;
 }) {
   const [editando, setEditando] = useState(false);
 
@@ -79,13 +82,15 @@ export function TarjetaEditable({
       <div className="min-w-0">{contenido}</div>
       <div className="flex flex-col items-end gap-1.5">
         {acciones}
-        <button
-          type="button"
-          onClick={() => setEditando(true)}
-          className="text-xs font-semibold text-orion-navy hover:underline dark:text-orion-gold"
-        >
-          ✏️ Editar
-        </button>
+        {editable && (
+          <button
+            type="button"
+            onClick={() => setEditando(true)}
+            className="text-xs font-semibold text-orion-navy hover:underline dark:text-orion-gold"
+          >
+            ✏️ Editar
+          </button>
+        )}
       </div>
     </div>
   );

@@ -1,16 +1,21 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { cambiarEstadoActividad, eliminarActividad } from "./actions";
 import type { EstadoActividad } from "@/lib/calendario";
 
 export function AccionesActividad({
   actividadId,
   estado,
+  esCaptacion = false,
 }: {
   actividadId: string;
   estado: EstadoActividad;
+  /** Visita de captación: al marcarla realizada ofrece crear la captación. */
+  esCaptacion?: boolean;
 }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [eliminando, setEliminando] = useState(false);
   const [oculta, setOculta] = useState(false);
@@ -22,10 +27,19 @@ export function AccionesActividad({
     if (nuevoEstado === "REALIZADA") {
       resultado = window.prompt("¿Cómo salió? (opcional)") ?? undefined;
     }
-    startTransition(() => {
-      cambiarEstadoActividad(actividadId, nuevoEstado, resultado).catch((e) =>
-        setError(e instanceof Error ? e.message : "No se pudo actualizar.")
-      );
+    startTransition(async () => {
+      try {
+        await cambiarEstadoActividad(actividadId, nuevoEstado, resultado);
+        if (
+          esCaptacion &&
+          nuevoEstado === "REALIZADA" &&
+          window.confirm("¿Querés cargar la captación ahora con estos datos?")
+        ) {
+          router.push(`/captaciones?desde=${actividadId}`);
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "No se pudo actualizar.");
+      }
     });
   }
 

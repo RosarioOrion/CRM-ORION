@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { db } from "@/db";
-import { visitas, propiedades, contactos, actividades } from "@/db/schema";
-import { obtenerSesion } from "@/lib/auth";
-import { eq, and, asc } from "drizzle-orm";
+import { visitas, propiedades, contactos, actividades, usuarios } from "@/db/schema";
+import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { eq, and, asc, inArray, or } from "drizzle-orm";
 import { limpiarTitulo } from "@/lib/propiedades";
 import {
   ESTADO_VISITA_LABEL,
@@ -27,6 +27,7 @@ import { AgendarForm } from "./agendar-form";
 import { AccionesVisita } from "./acciones-visita";
 import { AccionesActividad } from "./acciones-actividad";
 import { TarjetaEditable } from "./tarjeta-editable";
+import { SelectorAgente } from "./selector-agente";
 
 const ORDEN_BALDES = ["Vencidas", "Hoy", "Mañana", "Esta semana", "Más adelante"];
 
@@ -36,6 +37,7 @@ type Item =
   | {
       clase: "visita";
       id: string;
+      agenteId: string;
       tipo: TipoEvento;
       fecha: Date;
       duracionMin: number | null;
@@ -52,6 +54,7 @@ type Item =
   | {
       clase: "actividad";
       id: string;
+      agenteId: string;
       tipo: TipoEvento;
       titulo: string;
       fecha: Date;
@@ -76,14 +79,37 @@ const COLOR_ESTADO_ACTIVIDAD: Record<EstadoActividad, string> = {
 export default async function AgendaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ fecha?: string }>;
+  searchParams: Promise<{ fecha?: string; agente?: string }>;
 }) {
   const sesion = await obtenerSesion();
   const agenteId = sesion!.userId;
   const ahora = ahoraUY();
+  const jefe = esAdmin(sesion!.rol);
 
   // "+ Agendar este día" desde el calendario de Inicio → /agenda?fecha=YYYY-MM-DD
-  const { fecha: fechaParam } = await searchParams;
+  const { fecha: fechaParam, agente: agenteParam } = await searchParams;
+
+  // Team Leader / Administrador pueden ver la agenda de otro agente o la de
+  // todo el equipo (?agente=todos | ?agente=<id>). Solo lectura: cada uno
+  // edita lo suyo.
+  const equipo = jefe
+    ? await db
+        .select({ id: usuarios.id, nombre: usuarios.nombre })
+        .from(usuarios)
+        .where(and(eq(usuarios.activo, true), eq(usuarios.aprobado, true)))
+        .orderBy(usuarios.nombre)
+    : [];
+  const nombreAgente = new Map(equipo.map((u) => [u.id, u.nombre]));
+  let idsVista = [agenteId];
+  let vista = "yo";
+  if (jefe && agenteParam === "todos") {
+    idsVista = equipo.map((u) => u.id);
+    vista = "todos";
+  } else if (jefe && agenteParam && nombreAgente.has(agenteParam)) {
+    idsVista = [agenteParam];
+    vista = agenteParam;
+  }
+  const viendoOtro = vista !== "yo";
   const fechaInicial =
     fechaParam && /^\d{4}-\d{2}-\d{2}$/.test(fechaParam) ? `${fechaParam}T09:00` : undefined;
 
@@ -102,6 +128,7 @@ export default async function AgendaPage({
   const filasVisitas = await db
     .select({
       id: visitas.id,
+      agenteId: visitas.agenteId,
       fecha: visitas.fecha,
       duracionMin: visitas.duracionMin,
       estado: visitas.estado,
@@ -117,13 +144,14 @@ export default async function AgendaPage({
     .from(visitas)
     .innerJoin(propiedades, eq(visitas.propiedadId, propiedades.id))
     .innerJoin(contactos, eq(visitas.contactoId, contactos.id))
-    .where(eq(visitas.agenteId, agenteId))
+    .where(inArray(visitas.agenteId, idsVista))
     .orderBy(asc(visitas.fecha));
 
   // Si la tabla `actividades` todavía no existe (falta correr la migración),
   // la Agenda sigue funcionando solo con visitas.
   let filasActividades: {
     id: string;
+    agenteId: string;
     tipo: string;
     titulo: string;
     fecha: Date;
@@ -140,6 +168,7 @@ export default async function AgendaPage({
     filasActividades = await db
       .select({
         id: actividades.id,
+        agenteId: actividades.agenteId,
         tipo: actividades.tipo,
         titulo: actividades.titulo,
         fecha: actividades.fecha,
@@ -152,27 +181,44 @@ export default async function AgendaPage({
         contactoId: actividades.contactoId,
       })
       .from(actividades)
-      .where(eq(actividades.agenteId, agenteId))
+      // Las reuniones de equipo las ve todo el equipo, las haya agendado quien sea.
+      .where(
+        or(inArray(actividades.agenteId, idsVista), eq(actividades.tipo, "REUNION_EQUIPO"))
+      )
       .orderBy(asc(actividades.fecha));
   } catch {
     faltaMigracion = true;
   }
 
+  // Nombres de quién organiza (para reuniones de equipo y vista del equipo).
+  const idsAutores = [
+    ...new Set([...filasVisitas.map((v) => v.agenteId), ...filasActividades.map((a) => a.agenteId)]),
+  ].filter((id) => !nombreAgente.has(id));
+  if (idsAutores.length > 0) {
+    const us = await db
+      .select({ id: usuarios.id, nombre: usuarios.nombre })
+      .from(usuarios)
+      .where(inArray(usuarios.id, idsAutores));
+    for (const u of us) nombreAgente.set(u.id, u.nombre);
+  }
+
   // Nombres de propiedades/contactos vinculados a actividades.
   const propPorId = new Map<string, string>();
   const contPorId = new Map<string, string>();
-  if (filasActividades.some((a) => a.propiedadId)) {
+  const idsProp = [...new Set(filasActividades.map((a) => a.propiedadId).filter(Boolean))] as string[];
+  const idsCont = [...new Set(filasActividades.map((a) => a.contactoId).filter(Boolean))] as string[];
+  if (idsProp.length > 0) {
     const ps = await db
       .select({ id: propiedades.id, codigo: propiedades.codigo, titulo: propiedades.titulo })
       .from(propiedades)
-      .where(eq(propiedades.agenteId, agenteId));
+      .where(inArray(propiedades.id, idsProp));
     for (const p of ps) propPorId.set(p.id, `${p.codigo} — ${limpiarTitulo(p.titulo)}`);
   }
-  if (filasActividades.some((a) => a.contactoId)) {
+  if (idsCont.length > 0) {
     const cs = await db
       .select({ id: contactos.id, nombre: contactos.nombre, telefono: contactos.telefono })
       .from(contactos)
-      .where(eq(contactos.agenteId, agenteId));
+      .where(inArray(contactos.id, idsCont));
     for (const c of cs) contPorId.set(c.id, `${c.nombre}${c.telefono ? ` · ${c.telefono}` : ""}`);
   }
 
@@ -181,6 +227,7 @@ export default async function AgendaPage({
       (v): Item => ({
         clase: "visita",
         id: v.id,
+        agenteId: v.agenteId,
         tipo: "VISITA",
         fecha: v.fecha,
         duracionMin: v.duracionMin,
@@ -199,6 +246,7 @@ export default async function AgendaPage({
       (a): Item => ({
         clase: "actividad",
         id: a.id,
+        agenteId: a.agenteId,
         tipo: esTipoEvento(a.tipo) ? a.tipo : "OTRO",
         titulo: a.titulo,
         fecha: a.fecha,
@@ -240,6 +288,9 @@ export default async function AgendaPage({
       const x = pendientes[a];
       const y = pendientes[b];
       if (y.fecha.getTime() >= finDe(x)) break; // ordenadas por fecha
+      const mismoAgente =
+        x.agenteId === y.agenteId || x.tipo === "REUNION_EQUIPO" || y.tipo === "REUNION_EQUIPO";
+      if (!mismoAgente) continue;
       const kx = `${x.clase}-${x.id}`;
       const ky = `${y.clase}-${y.id}`;
       superpuestas.set(kx, [...(superpuestas.get(kx) ?? []), nombreDe(y)]);
@@ -279,6 +330,14 @@ export default async function AgendaPage({
           {pendientes.length} actividad(es) pendiente(s) — visitas, reuniones,
           captaciones, tasaciones, firmas y más.
         </p>
+        {jefe && (
+          <div className="mt-3">
+            <SelectorAgente
+              valor={vista}
+              agentes={equipo.filter((u) => u.id !== agenteId)}
+            />
+          </div>
+        )}
       </div>
 
       {faltaMigracion && (
@@ -288,6 +347,7 @@ export default async function AgendaPage({
         </p>
       )}
 
+      {vista !== "yo" && vista !== "todos" ? null : (
       <div className="mb-6">
         <AgendarForm
           key={fechaInicial ?? "normal"}
@@ -296,10 +356,11 @@ export default async function AgendaPage({
           fechaInicial={fechaInicial}
         />
       </div>
+      )}
 
       {pendientes.length === 0 && (
         <p className="mb-8 rounded-xl border border-dashed border-gray-200 bg-white p-6 text-center text-sm text-gray-400 dark:bg-gray-800 dark:border-gray-700">
-          No tenés nada agendado.
+          {viendoOtro ? "No hay nada agendado." : "No tenés nada agendado."}
         </p>
       )}
 
@@ -317,9 +378,12 @@ export default async function AgendaPage({
               const clave = `${it.clase}-${it.id}`;
               const choques = superpuestas.get(clave);
               const duracion = textoDuracion(it.duracionMin);
+              const propio = it.agenteId === agenteId;
+              const autor = propio ? null : nombreAgente.get(it.agenteId) ?? "Otro agente";
               return (
                 <TarjetaEditable
                   key={clave}
+                  editable={propio}
                   clase={it.clase}
                   resaltada={vencidas.has(clave)}
                   propiedades={propiedadesEdicion}
@@ -352,10 +416,14 @@ export default async function AgendaPage({
                       : undefined
                   }
                   acciones={
-                    it.clase === "visita" ? (
+                    !propio ? null : it.clase === "visita" ? (
                       <AccionesVisita visitaId={it.id} estado={it.estado} />
                     ) : (
-                      <AccionesActividad actividadId={it.id} estado={it.estado} />
+                      <AccionesActividad
+                        actividadId={it.id}
+                        estado={it.estado}
+                        esCaptacion={it.tipo === "VISITA_CAPTACION"}
+                      />
                     )
                   }
                   contenido={
@@ -378,6 +446,11 @@ export default async function AgendaPage({
                         <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${TIPO_EVENTO_ETIQUETA[it.tipo]}`}>
                           {TIPO_EVENTO_ICONO[it.tipo]} {TIPO_EVENTO_LABEL[it.tipo]}
                         </span>
+                        {autor && (
+                          <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                            {it.tipo === "REUNION_EQUIPO" ? "Organiza" : "Agente"}: {autor}
+                          </span>
+                        )}
                       </div>
 
                       {it.clase === "actividad" && (
@@ -410,6 +483,14 @@ export default async function AgendaPage({
                         </Link>
                       )}
                       {it.notas && <p className="mt-1 text-xs italic text-gray-400">{it.notas}</p>}
+                      {propio && it.tipo === "VISITA_CAPTACION" && (
+                        <Link
+                          href={`/captaciones?desde=${it.id}`}
+                          className="mt-2 inline-block rounded-lg border border-violet-300 px-2 py-1 text-xs font-semibold text-violet-700 transition hover:bg-violet-50 dark:border-violet-800 dark:text-violet-300 dark:hover:bg-violet-900/20"
+                        >
+                          🚀 Crear captación con estos datos
+                        </Link>
+                      )}
                       {choques && (
                         <p className="mt-1 rounded bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
                           ⚠️ Se superpone con: {choques.join(", ")}
@@ -461,6 +542,16 @@ export default async function AgendaPage({
                     &quot;{it.resultado}&quot;
                   </p>
                 )}
+                {it.agenteId === agenteId &&
+                  it.tipo === "VISITA_CAPTACION" &&
+                  it.estado === "REALIZADA" && (
+                    <Link
+                      href={`/captaciones?desde=${it.id}`}
+                      className="mt-1 inline-block font-semibold text-violet-700 hover:underline dark:text-violet-300"
+                    >
+                      🚀 Crear captación
+                    </Link>
+                  )}
               </div>
             ))}
           </div>
