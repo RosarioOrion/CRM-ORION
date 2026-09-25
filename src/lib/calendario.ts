@@ -101,6 +101,8 @@ export type EventoCalendario = {
   titulo: string;
   detalle: string | null;
   href: string;
+  /** Nombre del agente si no es del usuario (vista del equipo / reunión de equipo). */
+  agente?: string;
 };
 
 const dos = (n: number) => String(n).padStart(2, "0");
