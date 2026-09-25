@@ -204,6 +204,11 @@ export function Calendario({ eventos }: { eventos: EventoCalendario[] }) {
                     <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${TIPO_EVENTO_ETIQUETA[e.tipo]}`}>
                       {TIPO_EVENTO_LABEL[e.tipo]}
                     </span>
+                    {e.agente && (
+                      <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                        {e.tipo === "REUNION_EQUIPO" ? "Organiza" : "Agente"}: {e.agente}
+                      </span>
+                    )}
                   </div>
                   <p className="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100">
                     {e.titulo}
