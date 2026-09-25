@@ -149,8 +149,11 @@ export async function agregarFotos(
       _prevState: FotosState,
       formData: FormData
     ): Promise<FotosState> {
-      const sesion = await obtenerSesion();
-      if (!sesion) return { error: "Sesion expirada, volve a ingresar." };
+      try {
+        await requerirPropiedadDelAgente(propiedadId);
+      } catch (e) {
+        return { error: e instanceof Error ? e.message : "No autorizado." };
+      }
 
       const archivos = formData
         .getAll("fotos")
@@ -195,8 +198,12 @@ export async function agregarFotos(
 }
 
 export async function eliminarFoto(propiedadId: string, fotoUrl: string) {
-      const sesion = await obtenerSesion();
-      if (!sesion) return;
+      // Solo el agente a cargo puede tocar las fotos de su propiedad.
+      try {
+        await requerirPropiedadDelAgente(propiedadId);
+      } catch {
+        return;
+      }
 
       // Misma logica que agregarFotos: se filtra el elemento dentro de la
       // propia sentencia UPDATE (atomica), sin un select previo que pueda
@@ -217,8 +224,12 @@ export async function eliminarFoto(propiedadId: string, fotoUrl: string) {
 }
 
 export async function actualizarEstado(propiedadId: string, estado: string) {
-      const sesion = await obtenerSesion();
-      if (!sesion) return;
+      // Solo el agente a cargo puede cambiar el estado de su propiedad.
+      try {
+        await requerirPropiedadDelAgente(propiedadId);
+      } catch {
+        return;
+      }
 
       if (!ESTADOS_PROPIEDAD.includes(estado as (typeof ESTADOS_PROPIEDAD)[number])) {
         return;
@@ -240,6 +251,9 @@ const PortalSchema = z.object({
 
 export type PortalState = { error?: string; ok?: number };
 
+// Cualquier usuario puede VER las propiedades de otros agentes (solo lectura),
+// pero solo el agente a cargo puede modificarlas. Esto aplica a todos los
+// roles, incluidos Team Leader y Administrador.
 async function requerirPropiedadDelAgente(propiedadId: string) {
       const sesion = await obtenerSesion();
       if (!sesion) throw new Error("Sesion expirada, volve a ingresar.");

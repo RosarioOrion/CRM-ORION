@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/db";
-import { propiedades, contactos } from "@/db/schema";
+import { propiedades, contactos, usuarios } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { eq, desc, and, ilike, or } from "drizzle-orm";
 import { NuevaPropiedadForm } from "./nueva-propiedad-form";
@@ -39,7 +39,11 @@ export default async function PropiedadesPage({
 
   const sesion = await obtenerSesion();
 
-  const condiciones = [eq(propiedades.agenteId, sesion!.userId)];
+  // Sin búsqueda se muestran solo las propiedades propias. Con búsqueda se
+  // busca en las de TODOS los agentes (por código, título o nombre del
+  // agente), así se pueden ver las de un compañero escribiendo su nombre.
+  // Las ajenas se ven en solo lectura: solo el agente a cargo las edita.
+  const condiciones = q ? [] : [eq(propiedades.agenteId, sesion!.userId)];
   if (estadoActivo !== "todas") {
     condiciones.push(
       eq(propiedades.estado, estadoActivo as (typeof ESTADOS_PROPIEDAD)[number])
@@ -49,15 +53,17 @@ export default async function PropiedadesPage({
     condiciones.push(
       or(
         ilike(propiedades.codigo, `%${q}%`),
-        ilike(propiedades.titulo, `%${q}%`)
+        ilike(propiedades.titulo, `%${q}%`),
+        ilike(usuarios.nombre, `%${q}%`)
       )!
     );
   }
 
   const [misPropiedades, misContactos] = await Promise.all([
     db
-      .select()
+      .select({ p: propiedades, agenteNombre: usuarios.nombre })
       .from(propiedades)
+      .leftJoin(usuarios, eq(propiedades.agenteId, usuarios.id))
       .where(and(...condiciones))
       .orderBy(desc(propiedades.creadoEn)),
     db
@@ -81,6 +87,7 @@ export default async function PropiedadesPage({
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           {misPropiedades.length} propiedad(es)
+          {q ? ` · resultados de todos los agentes para "${q}"` : " · mis propiedades"}
         </p>
       </div>
 
@@ -113,7 +120,7 @@ export default async function PropiedadesPage({
             type="search"
             name="q"
             defaultValue={q}
-            placeholder="Buscar por código o título..."
+            placeholder="Buscar por código, título o agente..."
             className="w-64 rounded-lg border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-orion-navy dark:border-gray-700 dark:bg-gray-800 dark:text-white"
           />
           <button
@@ -131,7 +138,8 @@ export default async function PropiedadesPage({
             No hay propiedades para este filtro.
           </p>
         ) : (
-          misPropiedades.map((p) => {
+          misPropiedades.map(({ p, agenteNombre }) => {
+            const esPropia = p.agenteId === sesion!.userId;
             const primeraFoto = p.fotos?.[0];
             const resumen = resumenCaracteristicas(p);
             return (
@@ -174,6 +182,11 @@ export default async function PropiedadesPage({
                   {resumen && (
                     <p className="mt-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
                       {resumen}
+                    </p>
+                  )}
+                  {!esPropia && agenteNombre && (
+                    <p className="mt-1 truncate text-[11px] font-semibold text-orion-gold">
+                      👤 {agenteNombre}
                     </p>
                   )}
                   {p.precio ? (
