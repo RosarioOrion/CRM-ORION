@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { obtenerSesion, cerrarSesion, esAdmin } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { MenuLateral } from "@/components/menu-lateral";
 
 const NAV = [
   { href: "/dashboard", label: "Inicio", icon: "🏠" },
@@ -39,7 +40,7 @@ export default async function AppLayout({
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-60 shrink-0 flex-col bg-orion-navy text-white">
+      <MenuLateral>
         <div className="flex items-center gap-2 px-5 py-5 border-b border-white/10">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orion-gold text-orion-navy text-sm font-bold">
             O
@@ -89,10 +90,10 @@ export default async function AppLayout({
             </button>
           </form>
         </div>
-      </aside>
+      </MenuLateral>
 
-      <main className="flex-1 bg-orion-bg">
-        <div className="mx-auto max-w-6xl px-8 py-8">{children}</div>
+      <main className="min-w-0 flex-1 bg-orion-bg pt-14 md:pt-0">
+        <div className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-8">{children}</div>
       </main>
     </div>
   );
