@@ -5,11 +5,12 @@ import {
   visitas,
   reservasVenta,
   reservasAlquiler,
+  actividades,
 } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { eq, and, count, ne } from "drizzle-orm";
 import { limpiarTitulo } from "@/lib/propiedades";
-import { aDiaHora, type EventoCalendario } from "@/lib/calendario";
+import { aDiaHora, esTipoEvento, type EventoCalendario } from "@/lib/calendario";
 import { Calendario } from "./calendario";
 
 async function cargarEventos(agenteId: string): Promise<EventoCalendario[]> {
@@ -102,6 +103,36 @@ async function cargarEventos(agenteId: string): Promise<EventoCalendario[]> {
         href: "/reservas/alquileres",
       });
     }
+  }
+
+  // Actividades de la Agenda (reuniones, captaciones, tasaciones, firmas,
+  // material gráfico...). Si la tabla aún no existe, se omiten.
+  try {
+    const filasAct = await db
+      .select({
+        id: actividades.id,
+        tipo: actividades.tipo,
+        titulo: actividades.titulo,
+        fecha: actividades.fecha,
+        lugar: actividades.lugar,
+        notas: actividades.notas,
+      })
+      .from(actividades)
+      .where(and(eq(actividades.agenteId, agenteId), ne(actividades.estado, "CANCELADA")));
+
+    for (const a of filasAct) {
+      const detalle = [a.lugar ? `📍 ${a.lugar}` : null, a.notas].filter(Boolean).join(" · ");
+      eventos.push({
+        id: `a-${a.id}`,
+        tipo: esTipoEvento(a.tipo) ? a.tipo : "OTRO",
+        ...aDiaHora(a.fecha),
+        titulo: a.titulo,
+        detalle: detalle || null,
+        href: "/agenda",
+      });
+    }
+  } catch {
+    // tabla `actividades` todavía no migrada
   }
 
   return eventos;

@@ -168,7 +168,7 @@ export function Calendario({ eventos }: { eventos: EventoCalendario[] }) {
 
       {/* Detalle del día */}
       <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <h3 className="text-sm font-bold capitalize text-orion-navy dark:text-white">
+        <h3 className="text-sm font-bold first-letter:uppercase text-orion-navy dark:text-white">
           {tituloDia}
         </h3>
         <p className="mb-3 text-xs text-gray-400">
@@ -179,7 +179,7 @@ export function Calendario({ eventos }: { eventos: EventoCalendario[] }) {
 
         {eventosDia.length === 0 ? (
           <p className="rounded-lg border border-dashed border-gray-200 p-4 text-center text-xs text-gray-400 dark:border-gray-700">
-            Día libre. Podés agendar una visita desde{" "}
+            Día libre. Podés agendar algo desde{" "}
             <Link href="/agenda" className="font-semibold text-orion-navy underline dark:text-orion-gold">
               Agenda
             </Link>
