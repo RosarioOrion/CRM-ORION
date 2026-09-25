@@ -168,9 +168,17 @@ export function Calendario({ eventos }: { eventos: EventoCalendario[] }) {
 
       {/* Detalle del día */}
       <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <h3 className="text-sm font-bold first-letter:uppercase text-orion-navy dark:text-white">
-          {tituloDia}
-        </h3>
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-sm font-bold first-letter:uppercase text-orion-navy dark:text-white">
+            {tituloDia}
+          </h3>
+          <Link
+            href={`/agenda?fecha=${seleccionado}`}
+            className="shrink-0 rounded-lg bg-orion-navy px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-orion-navy-light dark:bg-orion-gold dark:text-orion-navy"
+          >
+            + Agendar este día
+          </Link>
+        </div>
         <p className="mb-3 text-xs text-gray-400">
           {eventosDia.length === 0
             ? "Nada agendado"
@@ -179,11 +187,7 @@ export function Calendario({ eventos }: { eventos: EventoCalendario[] }) {
 
         {eventosDia.length === 0 ? (
           <p className="rounded-lg border border-dashed border-gray-200 p-4 text-center text-xs text-gray-400 dark:border-gray-700">
-            Día libre. Podés agendar algo desde{" "}
-            <Link href="/agenda" className="font-semibold text-orion-navy underline dark:text-orion-gold">
-              Agenda
-            </Link>
-            .
+            Día libre.
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
