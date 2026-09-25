@@ -29,6 +29,7 @@ import { PipelineToggle } from "./pipeline-toggle";
 import { RegistroPortales } from "./registro-portales";
 import { EditarDescripcion } from "./editar-descripcion";
 import { eliminarFoto } from "../actions";
+import { EliminarPropiedad } from "./eliminar-propiedad";
 
 type Propiedad = typeof propiedades.$inferSelect;
 
@@ -196,9 +197,12 @@ export default async function PropiedadDetallePage({
           </span>
         </div>
 
-        <h1 className="mb-1 text-xl font-bold text-orion-navy dark:text-white">
-          {limpiarTitulo(propiedad.titulo)}
-        </h1>
+        <div className="mb-1 flex flex-wrap items-start justify-between gap-3">
+          <h1 className="text-xl font-bold text-orion-navy dark:text-white">
+            {limpiarTitulo(propiedad.titulo)}
+          </h1>
+          {esPropia && <EliminarPropiedad propiedadId={propiedad.id} codigo={propiedad.codigo} />}
+        </div>
         <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
           {propiedad.zona}
           {propiedad.departamento ? ` — ${propiedad.departamento}` : ""}
