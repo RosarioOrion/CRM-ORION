@@ -66,7 +66,7 @@ export function NuevaVisitaForm({
   );
 }
 
-function VisitaFormFields({
+export function VisitaFormFields({
   propiedades,
   contactos,
   formAction,
