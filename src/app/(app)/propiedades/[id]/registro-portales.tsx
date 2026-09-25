@@ -15,9 +15,11 @@ const initialState: PortalState = {};
 export function RegistroPortales({
   propiedadId,
   portalesIniciales,
+  soloLectura = false,
 }: {
   propiedadId: string;
   portalesIniciales: Portal[];
+  soloLectura?: boolean;
 }) {
   const accionConId = agregarPortalPublicado.bind(null, propiedadId);
   const [state, formAction, pending] = useActionState(accionConId, initialState);
@@ -49,6 +51,7 @@ export function RegistroPortales({
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
           Publicada en
         </p>
+        {!soloLectura && (
         <button
           type="button"
           onClick={() => setAbierto((v) => !v)}
@@ -56,10 +59,13 @@ export function RegistroPortales({
         >
           {abierto ? "Cancelar" : "+ Agregar link"}
         </button>
+        )}
       </div>
 
       {portales.length === 0 && !abierto && (
-        <p className="text-sm text-gray-400">Todavía no registraste dónde está publicada.</p>
+        <p className="text-sm text-gray-400">
+          {soloLectura ? "Sin portales registrados." : "Todavía no registraste dónde está publicada."}
+        </p>
       )}
 
       {portales.length > 0 && (
@@ -77,6 +83,7 @@ export function RegistroPortales({
               >
                 🔗 {p.portal}
               </a>
+              {!soloLectura && (
               <button
                 type="button"
                 disabled={eliminandoId === p.id}
@@ -85,12 +92,13 @@ export function RegistroPortales({
               >
                 {eliminandoId === p.id ? "…" : "Eliminar"}
               </button>
+              )}
             </div>
           ))}
         </div>
       )}
 
-      {abierto && (
+      {abierto && !soloLectura && (
         <form
           action={formAction}
           className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-orion-bg p-3 dark:border-gray-700 dark:bg-gray-900"

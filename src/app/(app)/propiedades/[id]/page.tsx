@@ -7,10 +7,11 @@ import {
   pipelineAcciones,
   historialPrecios,
   portalesPublicados,
+  usuarios,
 } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { eq, desc } from "drizzle-orm";
-import { limpiarTitulo } from "@/lib/propiedades";
+import { limpiarTitulo, ESTADO_LABEL, ESTADO_COLOR } from "@/lib/propiedades";
 import {
   diasEnMercado,
   semanaActual,
@@ -72,10 +73,22 @@ export default async function PropiedadDetallePage({
     .from(propiedades)
     .where(eq(propiedades.id, id));
 
-  if (!propiedad || propiedad.agenteId !== sesion.userId) notFound();
+  if (!propiedad) notFound();
 
-  const [dueno, portales] = await Promise.all([
-    db.select().from(contactos).where(eq(contactos.id, propiedad.duenoId)).then((r) => r[0]),
+  // Todos pueden ver cualquier propiedad, pero solo el agente a cargo la
+  // edita. En las ajenas se oculta el contacto del dueño y se muestra el
+  // agente a cargo para coordinar con él.
+  const esPropia = propiedad.agenteId === sesion.userId;
+
+  const [dueno, agenteACargo, portales] = await Promise.all([
+    esPropia
+      ? db.select().from(contactos).where(eq(contactos.id, propiedad.duenoId)).then((r) => r[0])
+      : Promise.resolve(undefined),
+    db
+      .select({ nombre: usuarios.nombre, telefono: usuarios.telefono, email: usuarios.email })
+      .from(usuarios)
+      .where(eq(usuarios.id, propiedad.agenteId))
+      .then((r) => r[0]),
     db
       .select({
         id: portalesPublicados.id,
@@ -94,7 +107,7 @@ export default async function PropiedadDetallePage({
   const mapaSrc = `https://www.google.com/maps?q=${encodeURIComponent(ubicacion)}&output=embed`;
 
   let datosPipeline: import("./pipeline-toggle").TarjetaPipelineProps | null = null;
-  if (propiedad.estado === "ACTIVA") {
+  if (esPropia && propiedad.estado === "ACTIVA") {
     const [acciones, ajustes] = await Promise.all([
       db
         .select()
@@ -158,12 +171,26 @@ export default async function PropiedadDetallePage({
         ← Volver a Propiedades
       </Link>
 
+      {!esPropia && (
+        <div className="mb-4 rounded-lg border border-orion-gold/40 bg-orion-gold/10 px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+          🔒 Propiedad de <strong>{agenteACargo?.nombre ?? "otro agente"}</strong> — solo lectura.
+        </div>
+      )}
+
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:bg-gray-800 dark:border-gray-700">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <span className="rounded bg-orion-navy px-2 py-0.5 text-xs font-bold text-white">
             {propiedad.codigo}
           </span>
-          <CambiarEstado propiedadId={propiedad.id} estadoActual={propiedad.estado} />
+          {esPropia ? (
+            <CambiarEstado propiedadId={propiedad.id} estadoActual={propiedad.estado} />
+          ) : (
+            <span
+              className={`rounded px-2 py-0.5 text-xs font-semibold ${ESTADO_COLOR[propiedad.estado]}`}
+            >
+              {ESTADO_LABEL[propiedad.estado]}
+            </span>
+          )}
           <span className="text-sm text-gray-500 dark:text-gray-400">
             {propiedad.operacion === "VENTA" ? "Venta" : "Alquiler"} · {propiedad.tipo}
           </span>
@@ -230,9 +257,26 @@ export default async function PropiedadDetallePage({
           </div>
         )}
 
-        <EditarDescripcion propiedadId={propiedad.id} descripcionInicial={propiedad.descripcion} />
+        <EditarDescripcion
+          propiedadId={propiedad.id}
+          descripcionInicial={propiedad.descripcion}
+          soloLectura={!esPropia}
+        />
 
-        {dueno && (
+        {!esPropia && agenteACargo && (
+          <div className="mb-6">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+              Agente a cargo
+            </p>
+            <p className="text-sm text-gray-700 dark:text-gray-200">
+              {agenteACargo.nombre}
+              {agenteACargo.telefono ? ` · ${agenteACargo.telefono}` : ""}
+              {agenteACargo.email ? ` · ${agenteACargo.email}` : ""}
+            </p>
+          </div>
+        )}
+
+        {esPropia && dueno && (
           <div className="mb-6">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
               Dueño
@@ -261,7 +305,11 @@ export default async function PropiedadDetallePage({
           </div>
         </div>
 
-        <RegistroPortales propiedadId={propiedad.id} portalesIniciales={portales} />
+        <RegistroPortales
+          propiedadId={propiedad.id}
+          portalesIniciales={portales}
+          soloLectura={!esPropia}
+        />
 
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
@@ -276,6 +324,7 @@ export default async function PropiedadDetallePage({
                     alt="Foto de la propiedad"
                     className="h-32 w-full object-cover"
                   />
+                  {esPropia && (
                   <form
                     action={async () => {
                       "use server";
@@ -290,11 +339,18 @@ export default async function PropiedadDetallePage({
                       ✕
                     </button>
                   </form>
+                  )}
                 </div>
               ))}
             </div>
           )}
-          <SubirFotosForm propiedadId={propiedad.id} />
+          {esPropia ? (
+            <SubirFotosForm propiedadId={propiedad.id} />
+          ) : (
+            propiedad.fotos.length === 0 && (
+              <p className="text-sm text-gray-400">Sin fotos cargadas.</p>
+            )
+          )}
         </div>
       </div>
     </div>

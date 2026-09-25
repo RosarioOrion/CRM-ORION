@@ -8,9 +8,11 @@ const initialState: DescripcionState = {};
 export function EditarDescripcion({
   propiedadId,
   descripcionInicial,
+  soloLectura = false,
 }: {
   propiedadId: string;
   descripcionInicial: string | null;
+  soloLectura?: boolean;
 }) {
   const accionConId = actualizarDescripcion.bind(null, propiedadId);
   const [state, formAction, pending] = useActionState(accionConId, initialState);
@@ -32,6 +34,7 @@ export function EditarDescripcion({
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
           Descripción
         </p>
+        {!soloLectura && (
         <button
           type="button"
           onClick={() => setAbierto((v) => !v)}
@@ -39,17 +42,20 @@ export function EditarDescripcion({
         >
           {abierto ? "Cancelar" : descripcion ? "Editar" : "+ Agregar descripción"}
         </button>
+        )}
       </div>
 
       {!abierto && (
         <p className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-200">
           {descripcion || (
-            <span className="text-gray-400">Todavía no cargaste una descripción.</span>
+            <span className="text-gray-400">
+              {soloLectura ? "Sin descripción." : "Todavía no cargaste una descripción."}
+            </span>
           )}
         </p>
       )}
 
-      {abierto && (
+      {abierto && !soloLectura && (
         <form action={formAction} className="flex flex-col gap-2">
           <textarea
             name="descripcion"
