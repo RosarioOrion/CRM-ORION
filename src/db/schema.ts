@@ -267,6 +267,8 @@ export const visitas = pgTable("visitas", {
         .notNull()
         .references(() => usuarios.id),
       fecha: timestamp("fecha").notNull(),
+      // Duración estimada en minutos (opcional) — para detectar superposiciones.
+      duracionMin: integer("duracion_min"),
       estado: estadoVisitaEnum("estado").notNull().default("PROGRAMADA"),
       notas: text("notas"),
       resultado: text("resultado"),
@@ -734,6 +736,7 @@ export const actividades = pgTable("actividades", {
       tipo: text("tipo").notNull(),
       titulo: text("titulo").notNull(),
       fecha: timestamp("fecha").notNull(),
+      duracionMin: integer("duracion_min"),
       lugar: text("lugar"),
       notas: text("notas"),
       resultado: text("resultado"),
