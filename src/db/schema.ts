@@ -748,3 +748,30 @@ export const actividades = pgTable("actividades", {
         .references(() => usuarios.id),
       creadoEn: timestamp("creado_en").notNull().defaultNow(),
 });
+
+// Recordatorios en el celular (notificaciones push).
+// Cada dispositivo donde un usuario activa los recordatorios guarda acá su
+// "suscripción" (a dónde mandarle la notificación).
+export const pushSuscripciones = pgTable("push_suscripciones", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      usuarioId: text("usuario_id")
+        .notNull()
+        .references(() => usuarios.id),
+      endpoint: text("endpoint").notNull().unique(),
+      p256dh: text("p256dh").notNull(),
+      auth: text("auth").notNull(),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});
+
+// Recordatorios ya enviados (para no mandar el mismo dos veces).
+export const pushEnviados = pgTable("push_enviados", {
+      clave: text("clave").primaryKey(),
+      enviadoEn: timestamp("enviado_en").notNull().defaultNow(),
+});
+
+// Claves VAPID del servidor (se generan solas la primera vez).
+export const pushConfig = pgTable("push_config", {
+      id: text("id").primaryKey(),
+      publicKey: text("public_key").notNull(),
+      privateKey: text("private_key").notNull(),
+});
