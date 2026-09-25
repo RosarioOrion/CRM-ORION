@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { obtenerSesion } from "@/lib/auth";
 import { CambiarPasswordForm } from "./cambiar-password-form";
 import { EditarPerfilForm } from "./editar-perfil-form";
+import { ActivarRecordatorios } from "@/components/activar-recordatorios";
 
 const ROL_LABEL: Record<"AGENTE" | "TEAM_LEADER" | "ADMINISTRADOR", string> = {
   AGENTE: "Agente",
@@ -32,6 +33,10 @@ export default async function PerfilPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="mb-6 text-xl font-bold text-orion-navy dark:text-white">Mi perfil</h1>
+
+      <div className="mb-8">
+        <ActivarRecordatorios />
+      </div>
 
       <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:bg-gray-800 dark:border-gray-700">
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
