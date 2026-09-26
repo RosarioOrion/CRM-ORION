@@ -6,5 +6,10 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     const { iniciarRecordatorios } = await import("./lib/recordatorios");
     iniciarRecordatorios();
+    // Papelera: borrar definitivamente lo que pasó los 30 días (cada 6 horas).
+    const { vaciarVencidos } = await import("./lib/papelera");
+    const vaciar = () => vaciarVencidos().catch(() => {});
+    setTimeout(vaciar, 60_000);
+    setInterval(vaciar, 6 * 3600_000);
   }
 }
