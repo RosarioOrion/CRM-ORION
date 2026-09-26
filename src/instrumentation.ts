@@ -4,6 +4,10 @@
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    // Primero, cambios de base de datos pendientes (ej. roles de contactos).
+    const { autoMigrar } = await import("./lib/auto-migrar");
+    await autoMigrar();
+
     const { iniciarRecordatorios } = await import("./lib/recordatorios");
     iniciarRecordatorios();
     // Papelera: borrar definitivamente lo que pasó los 30 días (cada 6 horas).
