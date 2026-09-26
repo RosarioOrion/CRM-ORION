@@ -14,9 +14,14 @@ import {
   reservasAlquiler,
   actividades,
 } from "@/db/schema";
+import {
+  asegurarTablaPapelera,
+  guardarContactoEnPapelera,
+  guardarPropiedadEnPapelera,
+} from "@/lib/papelera";
 
-// Borrado definitivo de propiedades y contactos (por ejemplo, datos de
-// prueba). Antes de borrar se cuenta todo lo que depende del registro para
+// Borrado de propiedades y contactos. Antes de borrar se guarda todo en la
+// Papelera (30 días, se puede restaurar — ver src/lib/papelera.ts). Antes de borrar se cuenta todo lo que depende del registro para
 // mostrarlo en la confirmación.
 //
 // Propiedad:
@@ -56,8 +61,10 @@ export async function dependenciasPropiedad(propiedadId: string) {
   };
 }
 
-export async function borrarPropiedad(propiedadId: string) {
+export async function borrarPropiedad(propiedadId: string, eliminadoPor: string) {
+  await asegurarTablaPapelera();
   await db.transaction(async (tx) => {
+    await guardarPropiedadEnPapelera(tx, propiedadId, eliminadoPor);
     await tx.delete(portalesPublicados).where(eq(portalesPublicados.propiedadId, propiedadId));
     await tx.delete(historialPrecios).where(eq(historialPrecios.propiedadId, propiedadId));
     await tx.delete(pipelineAcciones).where(eq(pipelineAcciones.propiedadId, propiedadId));
@@ -103,8 +110,10 @@ export async function dependenciasContacto(contactoId: string) {
   };
 }
 
-export async function borrarContacto(contactoId: string) {
+export async function borrarContacto(contactoId: string, eliminadoPor: string) {
+  await asegurarTablaPapelera();
   await db.transaction(async (tx) => {
+    await guardarContactoEnPapelera(tx, contactoId, eliminadoPor);
     const bs = await tx
       .select({ id: busquedas.id })
       .from(busquedas)
