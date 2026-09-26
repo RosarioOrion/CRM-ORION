@@ -20,6 +20,7 @@ const NAV = [
   { href: "/ranking", label: "Ranking", icon: "🏆" },
   { href: "/capacitacion", label: "Capacitación", icon: "📚" },
   { href: "/tasaciones", label: "Tasaciones", icon: "📐" },
+  { href: "/papelera", label: "Papelera", icon: "🗑️" },
 ];
 
 const NAV_ADMIN = [
