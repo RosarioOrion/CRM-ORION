@@ -677,6 +677,11 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
     )
   );
 
+  // Ficha única con varios roles.
+  await paso(resultados, "Agregar roles a contactos", () =>
+    db.execute(sql`ALTER TABLE contactos ADD COLUMN IF NOT EXISTS roles jsonb NOT NULL DEFAULT '[]'`)
+  );
+
   return resultados;
 }
 
