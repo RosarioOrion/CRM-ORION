@@ -778,3 +778,16 @@ export const pushConfig = pgTable("push_config", {
       publicKey: text("public_key").notNull(),
       privateKey: text("private_key").notNull(),
 });
+
+// Papelera: lo eliminado queda 30 días y se puede restaurar (ver
+// src/lib/papelera.ts). `datos` guarda el registro y todo lo que dependía
+// de él. La tabla se crea sola la primera vez que se usa.
+export const papelera = pgTable("papelera", {
+      id: text("id").primaryKey(),
+      tipo: text("tipo").notNull(),
+      titulo: text("titulo").notNull(),
+      agenteId: text("agente_id").notNull(),
+      eliminadoPor: text("eliminado_por"),
+      datos: jsonb("datos").notNull(),
+      eliminadoEn: timestamp("eliminado_en").notNull().defaultNow(),
+});
