@@ -4,9 +4,10 @@ import { db } from "@/db";
 import { contactos, propiedades } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { eq } from "drizzle-orm";
-import { ORIGEN_LABEL } from "@/lib/contactos";
+import { ORIGEN_LABEL, rolesDe } from "@/lib/contactos";
 import { limpiarTitulo } from "@/lib/propiedades";
-import { CambiarCategoria } from "./cambiar-categoria";
+import { RolesContacto } from "./roles-contacto";
+import { UnirContacto } from "./unir-contacto";
 import { AccionesContacto } from "./acciones-contacto";
 import { FormularioDetalles } from "./formulario-detalles";
 
@@ -61,7 +62,11 @@ export default async function ContactoDetallePage({
                 {contacto.nombre}
               </h1>
               <div className="mt-1 flex flex-wrap items-center gap-2">
-                <CambiarCategoria contactoId={contacto.id} categoriaActual={contacto.categoria} />
+                <RolesContacto
+                  key={rolesDe(contacto).join(",")}
+                  contactoId={contacto.id}
+                  roles={rolesDe(contacto)}
+                />
                 {contacto.archivado && (
                   <span className="rounded bg-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                     Archivado
@@ -72,6 +77,10 @@ export default async function ContactoDetallePage({
           </div>
 
           <AccionesContacto contactoId={contacto.id} archivado={contacto.archivado} />
+        </div>
+
+        <div className="-mt-2 mb-4">
+          <UnirContacto contactoId={contacto.id} nombre={contacto.nombre} />
         </div>
 
         <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
