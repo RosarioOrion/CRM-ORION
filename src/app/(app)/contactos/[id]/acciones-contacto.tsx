@@ -39,10 +39,10 @@ export function AccionesContacto({
         d.captaciones && `${d.captaciones} captación(es)`,
       ].filter(Boolean);
       let texto =
-        "¿Seguro que querés eliminar este contacto? Esta acción no se puede deshacer.";
-      if (seBorra.length) texto += `\n\nTambién se borran: ${seBorra.join(", ")}.`;
+        "¿Eliminar este contacto?\n\nQueda 30 días en la Papelera y lo podés restaurar con todo lo suyo.";
+      if (seBorra.length) texto += `\n\nTambién van a la Papelera: ${seBorra.join(", ")}.`;
       if (d.actividades)
-        texto += `\n\n${d.actividades} actividad(es) de la Agenda quedan sin contacto.`;
+        texto += `\n\n${d.actividades} actividad(es) de la Agenda quedan sin contacto hasta que lo restaures.`;
       if (!window.confirm(texto)) return;
 
       const res = await eliminarContacto(contactoId);
