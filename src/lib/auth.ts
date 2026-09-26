@@ -12,7 +12,9 @@ export type SessionPayload = {
   rol: "AGENTE" | "TEAM_LEADER" | "ADMINISTRADOR";
 };
 
-export async function crearSesion(payload: SessionPayload) {
+// recordar = true: la sesión dura 30 días en ese dispositivo.
+// recordar = false: la sesión se cierra al cerrar el navegador.
+export async function crearSesion(payload: SessionPayload, recordar = true) {
   const token = await new SignJWT({ ...payload })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -25,7 +27,7 @@ export async function crearSesion(payload: SessionPayload) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 30,
+    ...(recordar ? { maxAge: 60 * 60 * 24 * 30 } : {}),
   });
 }
 
