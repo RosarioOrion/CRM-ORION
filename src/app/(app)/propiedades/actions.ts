@@ -348,7 +348,7 @@ export async function actualizarDescripcion(
 }
 
 // ---------------------------------------------------------------------------
-// Eliminar propiedad (definitivo). Solo el agente a cargo.
+// Eliminar propiedad (va a la Papelera 30 días). Solo el agente a cargo.
 
 /** Qué se va a borrar o desvincular junto con la propiedad (para confirmar). */
 export async function resumenEliminarPropiedad(propiedadId: string) {
@@ -359,13 +359,14 @@ export async function resumenEliminarPropiedad(propiedadId: string) {
 export async function eliminarPropiedad(
       propiedadId: string
 ): Promise<{ ok: boolean; error?: string }> {
+      let quien: string;
       try {
-        await requerirPropiedadDelAgente(propiedadId);
+        quien = (await requerirPropiedadDelAgente(propiedadId)).userId;
       } catch (e) {
         return { ok: false, error: e instanceof Error ? e.message : "No autorizado." };
       }
       try {
-        await borrarPropiedad(propiedadId);
+        await borrarPropiedad(propiedadId, quien);
       } catch (e) {
         return {
           ok: false,
@@ -375,6 +376,7 @@ export async function eliminarPropiedad(
       revalidatePath("/propiedades");
       revalidatePath("/agenda");
       revalidatePath("/dashboard");
+      revalidatePath("/papelera");
       return { ok: true };
 }
 
