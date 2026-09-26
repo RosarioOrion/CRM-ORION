@@ -2,12 +2,13 @@ import Link from "next/link";
 import { db } from "@/db";
 import { contactos } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
-import { eq, desc, and, or, ilike, inArray } from "drizzle-orm";
+import { eq, desc, and, or, ilike, inArray, sql } from "drizzle-orm";
 import { NuevoContactoForm } from "./nuevo-contacto-form";
 import {
   CATEGORIA_LABEL,
   CATEGORIA_COLOR,
   GRUPOS_CATEGORIA,
+  rolesDe,
 } from "@/lib/contactos";
 
 const TABS: { key: string; label: string }[] = [
@@ -34,7 +35,16 @@ export default async function ContactosPage({
   } else {
     const grupo = GRUPOS_CATEGORIA.find((g) => g.key === tabActivo);
     if (grupo) {
-      condiciones.push(inArray(contactos.categoria, grupo.categorias));
+      // Por cualquiera de sus roles, no solo el principal.
+      condiciones.push(
+        or(
+          inArray(contactos.categoria, grupo.categorias),
+          sql`${contactos.roles} ?| array[${sql.join(
+            grupo.categorias.map((c) => sql`${c}`),
+            sql`, `
+          )}]::text[]`
+        )!
+      );
     }
   }
   if (q) {
@@ -120,7 +130,6 @@ export default async function ContactosPage({
         ) : (
           misContactos.map((c) => {
             const inicial = c.nombre.trim().charAt(0).toUpperCase() || "?";
-            const categoria = c.categoria as keyof typeof CATEGORIA_LABEL;
             return (
               <Link
                 key={c.id}
@@ -142,13 +151,16 @@ export default async function ContactosPage({
                 <p className="line-clamp-2 text-sm font-semibold leading-snug text-gray-800 dark:text-gray-100">
                   {c.nombre}
                 </p>
-                <span
-                  className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                    CATEGORIA_COLOR[categoria] ?? CATEGORIA_COLOR.OTRO
-                  }`}
-                >
-                  {CATEGORIA_LABEL[categoria] ?? c.categoria}
-                </span>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {rolesDe(c).map((r) => (
+                    <span
+                      key={r}
+                      className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${CATEGORIA_COLOR[r]}`}
+                    >
+                      {CATEGORIA_LABEL[r]}
+                    </span>
+                  ))}
+                </div>
                 <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">
                   {c.telefono || "Sin teléfono"}
                 </p>

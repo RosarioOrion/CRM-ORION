@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { crearContacto, revisarDuplicados, type ContactoState } from "./actions";
 import type { Duplicado } from "@/lib/duplicados";
 import {
@@ -23,11 +24,17 @@ export function NuevoContactoForm() {
   const [abierto, setAbierto] = useState(false);
   // Se cierra solo cuando el contacto se guardó (no cuando aparece el aviso
   // de repetido o un error).
+  const router = useRouter();
   const [ultimoOk, setUltimoOk] = useState<number | undefined>(undefined);
   if (state?.ok && state.ok !== ultimoOk) {
     setUltimoOk(state.ok);
     setAbierto(false);
   }
+  // Se le agregó el rol a una ficha existente: abrirla.
+  const irA = state?.irA;
+  useEffect(() => {
+    if (irA) router.push(irA);
+  }, [irA, router]);
 
   if (!abierto) {
     return (
@@ -75,12 +82,22 @@ function ListaDuplicados({ lista }: { lista: Duplicado[] }) {
             {d.archivado ? " · archivado" : ""}
           </span>
           {d.propio ? (
-            <Link
-              href={`/contactos/${d.id}`}
-              className="rounded border border-amber-400 px-2 py-0.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-900/40"
-            >
-              Abrir su ficha →
-            </Link>
+            <>
+              <button
+                type="submit"
+                name="agregarRolA"
+                value={d.id}
+                className="rounded bg-amber-600 px-2 py-0.5 text-xs font-semibold text-white hover:bg-amber-700"
+              >
+                Es la misma persona: agregarle este rol
+              </button>
+              <Link
+                href={`/contactos/${d.id}`}
+                className="rounded border border-amber-400 px-2 py-0.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-900/40"
+              >
+                Abrir su ficha →
+              </Link>
+            </>
           ) : (
             <span className="text-xs text-amber-700 dark:text-amber-300">
               lo tiene cargado {d.agente}
@@ -202,7 +219,7 @@ function ContactoFormFields({
         <div className="sm:col-span-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3 text-amber-900 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-100">
           <p className="text-sm font-semibold">⚠️ Ya existe un contacto con estos datos</p>
           <p className="text-xs">
-            Para no duplicar, abrí la ficha existente. Si es otra persona, podés guardarlo igual.
+            Si es la misma persona, agregale el rol elegido a su ficha (se completan los datos que falten). Si es otra persona, guardalo igual.
           </p>
           <ListaDuplicados lista={duplicados!} />
         </div>
