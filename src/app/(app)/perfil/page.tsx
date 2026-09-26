@@ -6,6 +6,8 @@ import { obtenerSesion } from "@/lib/auth";
 import { CambiarPasswordForm } from "./cambiar-password-form";
 import { EditarPerfilForm } from "./editar-perfil-form";
 import { ActivarRecordatorios } from "@/components/activar-recordatorios";
+import { ConectarGoogleCalendar } from "@/components/conectar-google-calendar";
+import { urlCalendario } from "@/lib/ics";
 
 const ROL_LABEL: Record<"AGENTE" | "TEAM_LEADER" | "ADMINISTRADOR", string> = {
   AGENTE: "Agente",
@@ -30,6 +32,8 @@ export default async function PerfilPage() {
 
   if (!usuario) notFound();
 
+  const urlIcs = await urlCalendario(sesion.userId);
+
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="mb-6 text-xl font-bold text-orion-navy dark:text-white">Mi perfil</h1>
@@ -37,6 +41,12 @@ export default async function PerfilPage() {
       <div className="mb-8">
         <ActivarRecordatorios />
       </div>
+
+      {urlIcs && (
+        <div className="mb-8">
+          <ConectarGoogleCalendar url={urlIcs} />
+        </div>
+      )}
 
       <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:bg-gray-800 dark:border-gray-700">
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
