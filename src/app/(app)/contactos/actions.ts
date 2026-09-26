@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { contactos } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { dependenciasContacto, borrarContacto } from "@/lib/eliminar";
+import { buscarDuplicados, type Duplicado } from "@/lib/duplicados";
 import {
   CATEGORIAS_CONTACTO,
   ORIGENES_CONTACTO,
@@ -24,7 +25,23 @@ const ContactoSchema = z.object({
   origenDetalle: z.string().optional(),
 });
 
-export type ContactoState = { error?: string };
+export type ContactoState = {
+  error?: string;
+  ok?: number;
+  /** Contactos que ya existen con el mismo teléfono o email. */
+  duplicados?: Duplicado[];
+  /** Lo que se había escrito, para no perderlo al mostrar el aviso. */
+  valores?: Record<string, string>;
+  /** Cambia en cada respuesta: vuelve a armar el formulario con `valores`. */
+  intento?: number;
+};
+
+/** Para avisar mientras se escribe (al salir del campo teléfono o email). */
+export async function revisarDuplicados(telefono: string, email: string): Promise<Duplicado[]> {
+  const sesion = await obtenerSesion();
+  if (!sesion) return [];
+  return buscarDuplicados(sesion.userId, telefono, email);
+}
 
 export async function crearContacto(
   _prevState: ContactoState,
@@ -43,8 +60,22 @@ export async function crearContacto(
     origenDetalle: formData.get("origenDetalle") || undefined,
   });
 
+  const valores = Object.fromEntries(
+    ["nombre", "telefono", "email", "notas", "categoria", "origen", "origenDetalle"].map((k) => [
+      k,
+      String(formData.get(k) ?? ""),
+    ])
+  );
+
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos", valores, intento: Date.now() };
+  }
+
+  // Aviso de repetido: si ya existe alguien con el mismo teléfono o email, se
+  // muestra antes de guardar. El agente puede abrir el existente o guardar igual.
+  if (formData.get("confirmarDuplicado") !== "1") {
+    const duplicados = await buscarDuplicados(sesion.userId, parsed.data.telefono, parsed.data.email);
+    if (duplicados.length > 0) return { duplicados, valores, intento: Date.now() };
   }
 
   await db.insert(contactos).values({
@@ -57,7 +88,7 @@ export async function crearContacto(
   });
 
   revalidatePath("/contactos");
-  return {};
+  return { ok: Date.now() };
 }
 
 async function requerirPropietario(contactoId: string) {
