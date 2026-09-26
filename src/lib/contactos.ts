@@ -95,3 +95,12 @@ export function esCategoriaValida(valor: string): valor is CategoriaContacto {
 export function esOrigenValido(valor: string): valor is OrigenContacto {
   return (ORIGENES_CONTACTO as readonly string[]).includes(valor);
 }
+
+/** Todos los roles del contacto (el principal primero), sin repetir. */
+export function rolesDe(c: { categoria: string; roles?: string[] | null }): CategoriaContacto[] {
+  const lista = [c.categoria, ...(c.roles ?? [])].filter(esCategoriaValida);
+  const unicos = [...new Set(lista)];
+  // "Otro" solo si no tiene ningún otro rol.
+  const sinOtro = unicos.filter((r) => r !== "OTRO");
+  return (sinOtro.length ? sinOtro : ["OTRO"]) as CategoriaContacto[];
+}
