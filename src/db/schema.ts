@@ -73,6 +73,10 @@ export const contactos = pgTable("contactos", {
       email: text("email"),
       notas: text("notas"),
       categoria: text("categoria").notNull().default("OTRO"),
+      // Ficha única con varios roles: la misma persona puede ser propietaria,
+      // compradora, inquilina, colega... `categoria` es el rol principal
+      // (el primero de la lista) y `roles` la lista completa.
+      roles: jsonb("roles").$type<string[]>().notNull().default([]),
       origen: text("origen").notNull().default("OTRO"),
       origenDetalle: text("origen_detalle"),
       archivado: boolean("archivado").notNull().default(false),
