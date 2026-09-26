@@ -29,6 +29,22 @@ import { AccionesActividad } from "./acciones-actividad";
 import { TarjetaEditable } from "./tarjeta-editable";
 import { SelectorAgente } from "./selector-agente";
 import { ActivarRecordatorios } from "@/components/activar-recordatorios";
+import { ConectarGoogleCalendar } from "@/components/conectar-google-calendar";
+import { urlCalendario } from "@/lib/ics";
+import { linkGoogleCalendar } from "@/lib/gcal";
+
+function BotonGoogleCalendar({ href }: { href: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-2 mr-2 inline-block rounded-lg border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+    >
+      📅 + Google Calendar
+    </a>
+  );
+}
 
 const ORDEN_BALDES = ["Vencidas", "Hoy", "Mañana", "Esta semana", "Más adelante"];
 
@@ -111,6 +127,7 @@ export default async function AgendaPage({
     vista = agenteParam;
   }
   const viendoOtro = vista !== "yo";
+  const urlIcs = await urlCalendario(agenteId);
   const fechaInicial =
     fechaParam && /^\d{4}-\d{2}-\d{2}$/.test(fechaParam) ? `${fechaParam}T09:00` : undefined;
 
@@ -345,6 +362,12 @@ export default async function AgendaPage({
         <ActivarRecordatorios compacto />
       </div>
 
+      {urlIcs && (
+        <div className="mb-4">
+          <ConectarGoogleCalendar url={urlIcs} compacto />
+        </div>
+      )}
+
       {faltaMigracion && (
         <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
           Para agendar reuniones, captaciones y demás, falta ejecutar la
@@ -488,6 +511,24 @@ export default async function AgendaPage({
                         </Link>
                       )}
                       {it.notas && <p className="mt-1 text-xs italic text-gray-400">{it.notas}</p>}
+                      <BotonGoogleCalendar
+                        href={linkGoogleCalendar({
+                          titulo: `${TIPO_EVENTO_ICONO[it.tipo]} ${
+                            it.clase === "actividad" ? it.titulo : `Visita: ${it.propiedadTexto}`
+                          }`,
+                          fecha: it.fecha,
+                          duracionMin: it.duracionMin,
+                          lugar: it.lugar,
+                          detalle: [
+                            TIPO_EVENTO_LABEL[it.tipo],
+                            it.clase === "actividad" && it.propiedadTexto ? `Propiedad: ${it.propiedadTexto}` : null,
+                            it.contactoTexto ? `Contacto: ${it.contactoTexto}` : null,
+                            it.notas,
+                          ]
+                            .filter(Boolean)
+                            .join("\n"),
+                        })}
+                      />
                       {propio && it.tipo === "VISITA_CAPTACION" && (
                         <Link
                           href={`/captaciones?desde=${it.id}`}
