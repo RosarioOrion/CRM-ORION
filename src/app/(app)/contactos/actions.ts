@@ -137,8 +137,9 @@ export async function resumenEliminarContacto(contactoId: string) {
 }
 
 export async function eliminarContacto(contactoId: string): Promise<EliminarState> {
+  let agenteId: string;
   try {
-    await requerirPropietario(contactoId);
+    agenteId = (await requerirPropietario(contactoId)).agenteId;
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "No autorizado." };
   }
@@ -152,7 +153,7 @@ export async function eliminarContacto(contactoId: string): Promise<EliminarStat
   }
 
   try {
-    await borrarContacto(contactoId);
+    await borrarContacto(contactoId, agenteId);
   } catch (e) {
     return {
       ok: false,
@@ -163,5 +164,6 @@ export async function eliminarContacto(contactoId: string): Promise<EliminarStat
   revalidatePath("/contactos");
   revalidatePath("/agenda");
   revalidatePath("/dashboard");
+  revalidatePath("/papelera");
   return { ok: true };
 }
