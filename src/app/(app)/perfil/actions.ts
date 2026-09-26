@@ -96,3 +96,52 @@ export async function cambiarPassword(
   revalidatePath("/perfil");
   return { ok: Date.now() };
 }
+
+const EmailSchema = z.object({
+  email: z.string().trim().email("Ingresá un email válido"),
+  passwordActual: z.string().min(1, "Ingresá tu contraseña actual"),
+});
+
+export type EmailState = { error?: string; ok?: number; email?: string };
+
+// Cambiar el email con el que se entra a Orion. Pide la contraseña actual
+// para confirmar que es la dueña de la cuenta.
+export async function cambiarEmail(
+  _prevState: EmailState,
+  formData: FormData
+): Promise<EmailState> {
+  const sesion = await obtenerSesion();
+  if (!sesion) return { error: "Sesión expirada, volvé a ingresar." };
+
+  const parsed = EmailSchema.safeParse({
+    email: formData.get("email"),
+    passwordActual: formData.get("passwordActual"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const email = parsed.data.email.toLowerCase();
+
+  const [usuario] = await db
+    .select({ passwordHash: usuarios.passwordHash, email: usuarios.email })
+    .from(usuarios)
+    .where(eq(usuarios.id, sesion.userId));
+  if (!usuario) return { error: "Sesión expirada, volvé a ingresar." };
+
+  const actualOk = await bcrypt.compare(parsed.data.passwordActual, usuario.passwordHash);
+  if (!actualOk) return { error: "La contraseña actual no es correcta." };
+
+  if (email === usuario.email) return { error: "Ese ya es tu email actual." };
+
+  const [otro] = await db
+    .select({ id: usuarios.id })
+    .from(usuarios)
+    .where(eq(usuarios.email, email));
+  if (otro) return { error: "Ya existe otra cuenta con ese email." };
+
+  await db.update(usuarios).set({ email }).where(eq(usuarios.id, sesion.userId));
+
+  revalidatePath("/perfil");
+  revalidatePath("/admin/usuarios");
+  return { ok: Date.now(), email };
+}

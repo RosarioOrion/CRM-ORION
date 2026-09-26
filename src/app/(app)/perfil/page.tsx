@@ -4,6 +4,7 @@ import { usuarios } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { obtenerSesion } from "@/lib/auth";
 import { CambiarPasswordForm } from "./cambiar-password-form";
+import { CambiarEmailForm } from "./cambiar-email-form";
 import { EditarPerfilForm } from "./editar-perfil-form";
 import { ActivarRecordatorios } from "@/components/activar-recordatorios";
 import { ConectarGoogleCalendar } from "@/components/conectar-google-calendar";
@@ -63,6 +64,13 @@ export default async function PerfilPage() {
           telefono={usuario.telefono}
           descripcion={usuario.descripcion}
         />
+      </div>
+
+      <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:bg-gray-800 dark:border-gray-700">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+          Cambiar email de ingreso
+        </p>
+        <CambiarEmailForm emailActual={usuario.email} />
       </div>
 
       <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:bg-gray-800 dark:border-gray-700">
