@@ -26,8 +26,8 @@ export function EliminarPropiedad({ propiedadId, codigo }: { propiedadId: string
         d.actividades && `${d.actividades} actividad(es) de la Agenda (quedan sin propiedad)`,
       ].filter(Boolean);
 
-      let texto = `¿Eliminar definitivamente la propiedad ${codigo}?\n\nEsta acción no se puede deshacer.`;
-      if (seBorra.length) texto += `\n\nTambién se borran: ${seBorra.join(", ")}.`;
+      let texto = `¿Eliminar la propiedad ${codigo}?\n\nQueda 30 días en la Papelera y la podés restaurar con todo lo suyo.`;
+      if (seBorra.length) texto += `\n\nTambién van a la Papelera: ${seBorra.join(", ")}.`;
       if (seDesvincula.length) texto += `\n\nSe desvinculan: ${seDesvincula.join(", ")}.`;
       if (!window.confirm(texto)) return;
 
