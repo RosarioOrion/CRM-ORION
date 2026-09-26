@@ -60,11 +60,16 @@ export async function iniciarSesion(
     };
   }
 
-  await crearSesion({
-    userId: usuario.id,
-    nombre: usuario.nombre,
-    rol: usuario.rol,
-  });
+  const recordar = formData.get("recordar") === "on";
+
+  await crearSesion(
+    {
+      userId: usuario.id,
+      nombre: usuario.nombre,
+      rol: usuario.rol,
+    },
+    recordar
+  );
 
   redirect("/dashboard");
 }
