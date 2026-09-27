@@ -15,6 +15,7 @@ import {
   reservasVenta,
   reservasAlquiler,
   actividades,
+  seguimientos,
 } from "@/db/schema";
 
 // Papelera: lo que se elimina queda guardado 30 días y se puede restaurar.
@@ -37,6 +38,7 @@ export type FotoContacto = {
   visitas: Filas;
   captaciones: Filas;
   actividadesIds: string[];
+  seguimientos?: Filas;
 };
 
 export type FotoPropiedad = {
@@ -113,6 +115,7 @@ export async function guardarContactoEnPapelera(tx: Tx, contactoId: string, elim
     visitas: await filas(tx, visitas, eq(visitas.contactoId, contactoId)),
     captaciones: await filas(tx, captaciones, eq(captaciones.contactoId, contactoId)),
     actividadesIds: await ids(tx, actividades, eq(actividades.contactoId, contactoId)).catch(() => []),
+    seguimientos: await filas(tx, seguimientos, eq(seguimientos.contactoId, contactoId)),
   };
   await tx.insert(papelera).values({
     id: contactoId,
@@ -200,6 +203,7 @@ export async function restaurarDePapelera(
         salteadas += await insertarVarias(tx, coincidenciasAvisadas, f.coincidencias);
         salteadas += await insertarVarias(tx, visitas, f.visitas);
         salteadas += await insertarVarias(tx, captaciones, f.captaciones);
+        salteadas += await insertarVarias(tx, seguimientos, f.seguimientos ?? []);
         if (f.actividadesIds.length)
           await tx
             .update(actividades)

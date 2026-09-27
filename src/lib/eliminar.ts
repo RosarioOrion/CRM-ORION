@@ -13,6 +13,7 @@ import {
   reservasVenta,
   reservasAlquiler,
   actividades,
+  seguimientos,
 } from "@/db/schema";
 import {
   asegurarTablaPapelera,
@@ -129,6 +130,7 @@ export async function borrarContacto(contactoId: string, eliminadoPor: string) {
     }
     await tx.delete(visitas).where(eq(visitas.contactoId, contactoId));
     await tx.delete(captaciones).where(eq(captaciones.contactoId, contactoId));
+    await tx.delete(seguimientos).where(eq(seguimientos.contactoId, contactoId));
     await tx
       .update(actividades)
       .set({ contactoId: null })
