@@ -77,6 +77,9 @@ export const contactos = pgTable("contactos", {
       // compradora, inquilina, colega... `categoria` es el rol principal
       // (el primero de la lista) y `roles` la lista completa.
       roles: jsonb("roles").$type<string[]>().notNull().default([]),
+      // Contacto frío: 3 seguimientos seguidos sin respuesta (el 3º es el
+      // aviso final) y una semana más sin contestar. Se limpia cuando responde.
+      frioDesde: timestamp("frio_desde"),
       origen: text("origen").notNull().default("OTRO"),
       origenDetalle: text("origen_detalle"),
       archivado: boolean("archivado").notNull().default(false),
@@ -794,4 +797,22 @@ export const papelera = pgTable("papelera", {
       eliminadoPor: text("eliminado_por"),
       datos: jsonb("datos").notNull(),
       eliminadoEn: timestamp("eliminado_en").notNull().defaultNow(),
+});
+
+// Seguimientos (historial de interacciones): cada llamada, WhatsApp, email
+// o visita con el contacto, si respondió o no, una nota y la fecha del
+// próximo seguimiento. Ver src/lib/seguimientos.ts (regla de contacto frío).
+// Sin claves foráneas a propósito: así borrar/restaurar contactos y
+// propiedades no se traba (el borrado de contactos se ocupa de estos).
+export const seguimientos = pgTable("seguimientos", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      contactoId: text("contacto_id").notNull(),
+      propiedadId: text("propiedad_id"),
+      agenteId: text("agente_id").notNull(),
+      fecha: timestamp("fecha").notNull().defaultNow(),
+      canal: text("canal").notNull(),
+      respondio: boolean("respondio").notNull(),
+      avisoFinal: boolean("aviso_final").notNull().default(false),
+      nota: text("nota"),
+      proximaFecha: timestamp("proxima_fecha"),
 });
