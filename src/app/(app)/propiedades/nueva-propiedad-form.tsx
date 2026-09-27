@@ -190,18 +190,37 @@ if (contactos.length === 0) {
     );
 }
 
-function PropiedadFormFields({
+/** Valores iniciales para editar una propiedad existente. */
+export type ValoresPropiedad = Record<string, string | number | boolean | string[] | null | undefined>;
+
+export function PropiedadFormFields({
   contactos,
   formAction,
   pending,
   error,
+  inicial,
+  extraArriba,
+  extraAbajo,
+  textoBoton,
+  titulo = "Nueva propiedad",
 }: {
   contactos: Contacto[];
   formAction: (formData: FormData) => void;
   pending: boolean;
   error?: string;
+  inicial?: ValoresPropiedad;
+  extraArriba?: React.ReactNode;
+  extraAbajo?: React.ReactNode;
+  textoBoton?: string;
+  titulo?: string;
 }) {
-  const [tipo, setTipo] = useState("Apartamento");
+  const [tipo, setTipo] = useState(String(inicial?.tipo ?? "Apartamento"));
+  // Valor inicial de un campo (para editar); vacío en una propiedad nueva.
+  const d = (campo: string, porDefecto = "") => {
+    const v = inicial?.[campo];
+    return v === null || v === undefined ? porDefecto : String(v);
+  };
+  const extrasIniciales = new Set(Array.isArray(inicial?.extras) ? (inicial!.extras as string[]) : []);
   
   const esConstruido = TIPOS_CONSTRUIDOS.includes(tipo);
   const esAptoOCasa = TIPOS_APTO_CASA.includes(tipo);
@@ -216,13 +235,15 @@ function PropiedadFormFields({
       className="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:grid-cols-2"
       >
     <div className="sm:col-span-2">
-    <h2 className="text-sm font-semibold text-orion-navy">
-    Nueva propiedad
+    <h2 className="text-sm font-semibold text-orion-navy dark:text-white">
+    {titulo}
     </h2>
     </div>
+    {extraArriba}
     
     <input
       name="titulo"
+      defaultValue={d("titulo")}
       placeholder="Título (ej. Apto 2 dorm. en Pocitos)"
       required
       className={`sm:col-span-2 ${inputClass}`}
@@ -244,7 +265,7 @@ function PropiedadFormFields({
     <select
       name="operacion"
       required
-      defaultValue="VENTA"
+      defaultValue={d("operacion", "VENTA")}
       className={inputClass}
       >
     <option value="VENTA">Venta</option>
@@ -254,11 +275,12 @@ function PropiedadFormFields({
       {/* Ubicación */}
     <input
       name="zona"
+      defaultValue={d("zona")}
       placeholder="Barrio / Zona (ej. Pocitos)"
       required
       className={inputClass}
       />
-    <select name="departamento" defaultValue="Montevideo" className={inputClass}>
+    <select name="departamento" defaultValue={d("departamento", "Montevideo")} className={inputClass}>
       {DEPARTAMENTOS.map((d) => (
         <option key={d} value={d}>
           {d}
@@ -267,6 +289,7 @@ function PropiedadFormFields({
     </select>
     <input
       name="direccion"
+      defaultValue={d("direccion")}
       placeholder="Dirección (opcional)"
       className="sm:col-span-2 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy"
       />
@@ -275,7 +298,7 @@ function PropiedadFormFields({
     <div className="flex gap-2">
     <select
       name="moneda"
-      defaultValue="USD"
+      defaultValue={d("moneda", "USD")}
       className="w-24 rounded-lg border border-gray-300 px-2 py-2 text-sm outline-none focus:border-orion-navy"
       >
     <option value="USD">USD</option>
@@ -283,6 +306,7 @@ function PropiedadFormFields({
     </select>
     <input
       name="precio"
+      defaultValue={d("precio")}
       type="number"
       placeholder="Precio (opcional)"
       className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy"
@@ -291,7 +315,7 @@ function PropiedadFormFields({
     <select
       name="duenoId"
       required
-      defaultValue=""
+      defaultValue={d("duenoId", "")}
       className={inputClass}
       >
     <option value="" disabled>
@@ -312,108 +336,160 @@ function PropiedadFormFields({
         </p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {esConstruido && (
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[11px] font-medium text-gray-400">Superficie total (m²)</span>
           <input
             name="m2Cubiertos"
+      defaultValue={d("m2Cubiertos")}
             type="number"
             placeholder="Superficie total (m²)"
             className={inputClass}
             />
+          </label>
           )}
           {esConstruido && (
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[11px] font-medium text-gray-400">Superficie privada (m²)</span>
           <input
             name="m2Privados"
+      defaultValue={d("m2Privados")}
             type="number"
             placeholder="Superficie privada (m²)"
             className={inputClass}
             />
+          </label>
           )}
           {esAptoOCasa && (
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[11px] font-medium text-gray-400">Dormitorios</span>
           <input
             name="dormitorios"
+      defaultValue={d("dormitorios")}
             type="number"
             placeholder="Dormitorios"
             className={inputClass}
             />
+          </label>
           )}
           {esConstruido && (
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[11px] font-medium text-gray-400">Baños</span>
           <input
             name="banos"
+      defaultValue={d("banos")}
             type="number"
             placeholder="Baños"
             className={inputClass}
             />
+          </label>
           )}
           {esConstruido && (
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[11px] font-medium text-gray-400">Ambientes</span>
           <input
             name="ambientes"
+      defaultValue={d("ambientes")}
             type="number"
             placeholder="Ambientes"
             className={inputClass}
             />
+          </label>
           )}
           {esConstruido && (
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[11px] font-medium text-gray-400">Cocheras</span>
           <input
             name="cocheras"
+      defaultValue={d("cocheras")}
             type="number"
             placeholder="Cocheras"
             className={inputClass}
             />
+          </label>
           )}
           {esSoloApartamento && (
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[11px] font-medium text-gray-400">Bodegas</span>
           <input
             name="bodegas"
+      defaultValue={d("bodegas")}
             type="number"
             placeholder="Bodegas"
             className={inputClass}
             />
+          </label>
           )}
           {esConstruido && (
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[11px] font-medium text-gray-400">Antigüedad (años)</span>
           <input
             name="antiguedad"
+      defaultValue={d("antiguedad")}
             type="number"
             placeholder="Antigüedad (años)"
             className={inputClass}
             />
+          </label>
           )}
           {esSoloApartamento && (
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[11px] font-medium text-gray-400">Número de piso</span>
           <input
             name="numeroPiso"
+      defaultValue={d("numeroPiso")}
             type="number"
             placeholder="Número de piso"
             className={inputClass}
             />
+          </label>
           )}
           {esAptoOCasa && (
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[11px] font-medium text-gray-400">Cantidad de pisos</span>
           <input
             name="cantidadPisos"
+      defaultValue={d("cantidadPisos")}
             type="number"
             placeholder="Cantidad de pisos"
             className={inputClass}
             />
+          </label>
           )}
           {esTerrenoM2 && (
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[11px] font-medium text-gray-400">m² de terreno</span>
           <input
             name="m2Terreno"
+      defaultValue={d("m2Terreno")}
             type="number"
             placeholder="m² de terreno"
             className={inputClass}
             />
+          </label>
           )}
           {esRural && (
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[11px] font-medium text-gray-400">Hectáreas</span>
           <input
             name="hectareas"
+      defaultValue={d("hectareas")}
             type="number"
             placeholder="Hectáreas"
             className={inputClass}
             />
+          </label>
           )}
           {esRural && (
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[11px] font-medium text-gray-400">Distancia al asfalto (km)</span>
           <input
             name="distanciaAsfalto"
+      defaultValue={d("distanciaAsfalto")}
             type="number"
             placeholder="Distancia al asfalto (km)"
             className={inputClass}
             />
+          </label>
           )}
         </div>
         
@@ -421,6 +497,7 @@ function PropiedadFormFields({
           {esAptoOCasa && (
           <input
             name="subtipo"
+      defaultValue={d("subtipo")}
             placeholder={
               tipo === "Apartamento" ? "Tipo de apartamento" : "Tipo de casa"
             }
@@ -428,7 +505,7 @@ function PropiedadFormFields({
             />
           )}
           {esAptoOCasa && (
-          <select name="orientacion" defaultValue="" className={inputClass}>
+          <select name="orientacion" defaultValue={d("orientacion", "")} className={inputClass}>
           <option value="">Orientación (opcional)</option>
             {ORIENTACIONES.map((o) => (
             <option key={o} value={o}>
@@ -438,7 +515,7 @@ function PropiedadFormFields({
           </select>
           )}
           {esSoloApartamento && (
-          <select name="disposicion" defaultValue="" className={inputClass}>
+          <select name="disposicion" defaultValue={d("disposicion", "")} className={inputClass}>
           <option value="">Disposición (opcional)</option>
             {DISPOSICIONES.map((d) => (
             <option key={d} value={d}>
@@ -448,17 +525,21 @@ function PropiedadFormFields({
           </select>
           )}
           {esSoloApartamento && (
+          <label className="flex flex-col gap-0.5">
+            <span className="text-[11px] font-medium text-gray-400">Gastos comunes (opcional)</span>
           <input
             name="gastosComunes"
+      defaultValue={d("gastosComunes")}
             type="number"
             placeholder="Gastos comunes (opcional)"
             className={inputClass}
             />
+          </label>
           )}
           {esConstruido && (
           <select
             name="estadoEdilicio"
-            defaultValue=""
+            defaultValue={d("estadoEdilicio", "")}
             className={inputClass}
             >
           <option value="">Estado edilicio (opcional)</option>
@@ -472,12 +553,13 @@ function PropiedadFormFields({
           {esRural && (
           <input
             name="subtipo"
+      defaultValue={d("subtipo")}
             placeholder="Tipo de campo"
             className={inputClass}
             />
           )}
           {esRural && (
-          <select name="acceso" defaultValue="" className={inputClass}>
+          <select name="acceso" defaultValue={d("acceso", "")} className={inputClass}>
           <option value="">Acceso (opcional)</option>
             {ACCESOS.map((a) => (
             <option key={a} value={a}>
@@ -487,7 +569,7 @@ function PropiedadFormFields({
           </select>
           )}
           {esRural && (
-          <select name="formaTerreno" defaultValue="" className={inputClass}>
+          <select name="formaTerreno" defaultValue={d("formaTerreno", "")} className={inputClass}>
           <option value="">Forma del terreno (opcional)</option>
             {FORMAS_TERRENO.map((f) => (
             <option key={f} value={f}>
@@ -500,7 +582,7 @@ function PropiedadFormFields({
         
           {esAptoOCasa && (
           <label className="mt-3 flex items-center gap-1.5 text-sm text-gray-600">
-          <input type="checkbox" name="mascotas" value="true" />
+          <input type="checkbox" name="mascotas" value="true" defaultChecked={inicial?.mascotas === true} />
           Admite mascotas
           </label>
           )}
@@ -519,7 +601,7 @@ function PropiedadFormFields({
             key={ex}
             className="flex items-center gap-1.5 text-sm text-gray-600"
             >
-          <input type="checkbox" name="extras" value={ex} />
+          <input type="checkbox" name="extras" value={ex} defaultChecked={extrasIniciales.has(ex)} />
             {ex}
           </label>
           ))}
@@ -534,7 +616,7 @@ function PropiedadFormFields({
             key={ex}
             className="flex items-center gap-1.5 text-sm text-gray-600"
             >
-          <input type="checkbox" name="extras" value={ex} />
+          <input type="checkbox" name="extras" value={ex} defaultChecked={extrasIniciales.has(ex)} />
             {ex}
           </label>
           ))}
@@ -549,7 +631,7 @@ function PropiedadFormFields({
             key={ex}
             className="flex items-center gap-1.5 text-sm text-gray-600"
             >
-          <input type="checkbox" name="extras" value={ex} />
+          <input type="checkbox" name="extras" value={ex} defaultChecked={extrasIniciales.has(ex)} />
             {ex}
           </label>
           ))}
@@ -564,7 +646,7 @@ function PropiedadFormFields({
             key={ex}
             className="flex items-center gap-1.5 text-sm text-gray-600"
             >
-          <input type="checkbox" name="extras" value={ex} />
+          <input type="checkbox" name="extras" value={ex} defaultChecked={extrasIniciales.has(ex)} />
             {ex}
           </label>
           ))}
@@ -583,7 +665,7 @@ function PropiedadFormFields({
             key={ex}
             className="flex items-center gap-1.5 text-sm text-gray-600"
             >
-          <input type="checkbox" name="extras" value={ex} />
+          <input type="checkbox" name="extras" value={ex} defaultChecked={extrasIniciales.has(ex)} />
             {ex}
           </label>
           ))}
@@ -593,11 +675,13 @@ function PropiedadFormFields({
     
     <textarea
       name="descripcion"
+      defaultValue={d("descripcion")}
       placeholder="Descripción (opcional, para portales)"
       rows={3}
       className="sm:col-span-2 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy"
       />
     
+      {extraAbajo}
       {error && (
         <p className="sm:col-span-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
@@ -609,7 +693,7 @@ function PropiedadFormFields({
       disabled={pending}
       className="rounded-lg bg-orion-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-orion-navy-light disabled:opacity-60"
       >
-      {pending ? "Guardando…" : "Publicar propiedad"}
+      {pending ? "Guardando…" : textoBoton ?? "Publicar propiedad"}
     </button>
     </div>
 

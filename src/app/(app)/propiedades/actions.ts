@@ -4,7 +4,8 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { count, eq, sql, and } from "drizzle-orm";
 import { db } from "@/db";
-import { propiedades, portalesPublicados } from "@/db/schema";
+import { propiedades, portalesPublicados, historialPrecios } from "@/db/schema";
+import { reemplazarPrecio } from "@/lib/precio-texto";
 import { obtenerSesion } from "@/lib/auth";
 import { dependenciasPropiedad, borrarPropiedad } from "@/lib/eliminar";
 import { ESTADOS_PROPIEDAD } from "@/lib/propiedades";
@@ -52,14 +53,8 @@ async function generarCodigo() {
       return `OR${String(siguiente).padStart(3, "0")}`;
 }
 
-export async function crearPropiedad(
-      _prevState: PropiedadState,
-      formData: FormData
-    ): Promise<PropiedadState> {
-      const sesion = await obtenerSesion();
-      if (!sesion) return { error: "Sesion expirada, volve a ingresar." };
-
-  const parsed = PropiedadSchema.safeParse({
+function leerFormularioPropiedad(formData: FormData) {
+  return PropiedadSchema.safeParse({
           titulo: formData.get("titulo"),
           operacion: formData.get("operacion"),
           tipo: formData.get("tipo"),
@@ -93,6 +88,16 @@ export async function crearPropiedad(
           descripcion: formData.get("descripcion") || undefined,
           duenoId: formData.get("duenoId"),
   });
+}
+
+export async function crearPropiedad(
+      _prevState: PropiedadState,
+      formData: FormData
+    ): Promise<PropiedadState> {
+      const sesion = await obtenerSesion();
+      if (!sesion) return { error: "Sesion expirada, volve a ingresar." };
+
+  const parsed = leerFormularioPropiedad(formData);
 
   if (!parsed.success) {
           return { error: parsed.error.issues[0]?.message ?? "Datos invalidos" };
@@ -390,4 +395,126 @@ export async function cambiarPublicadaWeb(propiedadId: string, publicada: boolea
       revalidatePath(`/propiedades/${propiedadId}`);
       revalidatePath("/inmuebles");
       revalidatePath("/");
+}
+
+// ---------------------------------------------------------------------------
+// Editar propiedad (solo el agente a cargo).
+// Si cambia el precio: queda registrado en el historial de precios (igual que
+// "Ajustar precio" del Pipeline) y, si se pide, se actualiza el precio escrito
+// en el título y la descripción.
+
+export type EditarPropiedadState = {
+      error?: string;
+      ok?: number;
+      /** Resumen de lo que cambió con el precio (para mostrar después de guardar). */
+      aviso?: string;
+      /** Portales donde está publicada: hay que actualizar el precio a mano ahí. */
+      portales?: { portal: string; url: string }[];
+};
+
+export async function editarPropiedad(
+      _prev: EditarPropiedadState,
+      formData: FormData
+): Promise<EditarPropiedadState> {
+      const propiedadId = String(formData.get("propiedadId") ?? "");
+      let sesion;
+      try {
+        sesion = await requerirPropiedadDelAgente(propiedadId);
+      } catch (e) {
+        return { error: e instanceof Error ? e.message : "No autorizado." };
+      }
+
+      const parsed = leerFormularioPropiedad(formData);
+      if (!parsed.success) {
+        return { error: parsed.error.issues[0]?.message ?? "Datos invalidos" };
+      }
+      const datos = parsed.data;
+
+      const [actual] = await db.select().from(propiedades).where(eq(propiedades.id, propiedadId));
+      if (!actual) return { error: "Propiedad no encontrada." };
+
+      let titulo = datos.titulo;
+      let descripcion = datos.descripcion ?? null;
+      const precioNuevo = datos.precio ?? null;
+      const cambioPrecio =
+        precioNuevo !== actual.precio || (precioNuevo !== null && datos.moneda !== actual.moneda);
+
+      let aviso: string | undefined;
+      if (cambioPrecio && actual.precio && precioNuevo && formData.get("actualizarTextos") === "1") {
+        const ant = { precio: actual.precio, moneda: actual.moneda };
+        const nue = { precio: precioNuevo, moneda: datos.moneda };
+        const t = reemplazarPrecio(titulo, ant, nue);
+        const dsc = descripcion ? reemplazarPrecio(descripcion, ant, nue) : { texto: null, cambios: 0 };
+        titulo = t.texto;
+        descripcion = dsc.texto;
+        const partes = [t.cambios && "el título", dsc.cambios && "la descripción"].filter(Boolean);
+        aviso = partes.length
+          ? `Precio actualizado también en ${partes.join(" y ")}.`
+          : "No encontré el precio anterior escrito en el título ni en la descripción.";
+      }
+
+      await db.transaction(async (tx) => {
+        if (cambioPrecio) {
+          await tx.insert(historialPrecios).values({
+            propiedadId,
+            precioAnterior: actual.precio ?? null,
+            monedaAnterior: actual.moneda ?? null,
+            precioNuevo: precioNuevo ?? 0,
+            monedaNueva: datos.moneda,
+            agenteId: sesion.userId,
+          });
+        }
+        await tx
+          .update(propiedades)
+          .set({
+            titulo,
+            operacion: datos.operacion,
+            tipo: datos.tipo,
+            zona: datos.zona,
+            direccion: datos.direccion ?? null,
+            departamento: datos.departamento ?? null,
+            precio: precioNuevo,
+            moneda: datos.moneda,
+            m2Cubiertos: datos.m2Cubiertos ?? null,
+            m2Privados: datos.m2Privados ?? null,
+            m2Terreno: datos.m2Terreno ?? null,
+            hectareas: datos.hectareas ?? null,
+            dormitorios: datos.dormitorios ?? null,
+            banos: datos.banos ?? null,
+            ambientes: datos.ambientes ?? null,
+            cocheras: datos.cocheras ?? null,
+            bodegas: datos.bodegas ?? null,
+            antiguedad: datos.antiguedad ?? null,
+            numeroPiso: datos.numeroPiso ?? null,
+            cantidadPisos: datos.cantidadPisos ?? null,
+            orientacion: datos.orientacion ?? null,
+            disposicion: datos.disposicion ?? null,
+            subtipo: datos.subtipo ?? null,
+            gastosComunes: datos.gastosComunes ?? null,
+            mascotas: datos.mascotas ?? false,
+            acceso: datos.acceso ?? null,
+            distanciaAsfalto: datos.distanciaAsfalto ?? null,
+            formaTerreno: datos.formaTerreno ?? null,
+            estadoEdilicio: datos.estadoEdilicio ?? null,
+            extras: datos.extras ?? [],
+            descripcion,
+            duenoId: datos.duenoId,
+          })
+          .where(eq(propiedades.id, propiedadId));
+      });
+
+      let portales: { portal: string; url: string }[] | undefined;
+      if (cambioPrecio) {
+        portales = await db
+          .select({ portal: portalesPublicados.portal, url: portalesPublicados.url })
+          .from(portalesPublicados)
+          .where(eq(portalesPublicados.propiedadId, propiedadId));
+      }
+
+      revalidatePath(`/propiedades/${propiedadId}`);
+      revalidatePath("/propiedades");
+      revalidatePath("/pipeline");
+      revalidatePath("/inmuebles");
+      revalidatePath("/");
+      return { ok: Date.now(), aviso, portales };
 }
