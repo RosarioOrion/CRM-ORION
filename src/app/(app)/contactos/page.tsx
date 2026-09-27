@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/db";
-import { contactos } from "@/db/schema";
+import { contactos, seguimientos } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { eq, desc, and, or, ilike, inArray, sql } from "drizzle-orm";
 import { NuevoContactoForm } from "./nuevo-contacto-form";
@@ -10,10 +10,13 @@ import {
   GRUPOS_CATEGORIA,
   rolesDe,
 } from "@/lib/contactos";
+import { ahoraUY } from "@/lib/calendario";
+import { estadoSeguimiento, etiquetaEstado, type SeguimientoMin } from "@/lib/seguimientos";
 
 const TABS: { key: string; label: string }[] = [
   { key: "activos", label: "Activos" },
   { key: "todos", label: "Todos" },
+  { key: "seguimiento", label: "⏰ Seguimiento" },
   ...GRUPOS_CATEGORIA.map((g) => ({ key: g.key, label: g.label })),
 ];
 
@@ -57,11 +60,49 @@ export default async function ContactosPage({
     );
   }
 
-  const misContactos = await db
+  const encontrados = await db
     .select()
     .from(contactos)
     .where(and(...condiciones))
     .orderBy(desc(contactos.creadoEn));
+
+  // Estado de seguimiento de cada contacto (regla de contacto frío).
+  const ahora = ahoraUY();
+  const porContacto = new Map<string, SeguimientoMin[]>();
+  if (encontrados.length) {
+    const segs = await db
+      .select({
+        contactoId: seguimientos.contactoId,
+        fecha: seguimientos.fecha,
+        respondio: seguimientos.respondio,
+        avisoFinal: seguimientos.avisoFinal,
+        proximaFecha: seguimientos.proximaFecha,
+      })
+      .from(seguimientos)
+      .where(eq(seguimientos.agenteId, sesion!.userId));
+    for (const sg of segs) {
+      if (!porContacto.has(sg.contactoId)) porContacto.set(sg.contactoId, []);
+      porContacto.get(sg.contactoId)!.push(sg);
+    }
+  }
+  const estados = new Map(
+    encontrados.map((c) => [c.id, estadoSeguimiento(porContacto.get(c.id) ?? [], c.frioDesde, ahora)])
+  );
+  // Pestaña "Seguimiento": lo que hay que hacer (vencidos y avisos sin respuesta).
+  const necesitaAccion = (id: string) => {
+    const e = estados.get(id)!;
+    return e.tipo === "NO_RESPONDIO_AVISO" || e.vencido;
+  };
+  const misContactos =
+    tabActivo === "seguimiento"
+      ? encontrados
+          .filter((c) => !c.archivado && necesitaAccion(c.id))
+          .sort((a, b) => {
+            const pa = estados.get(a.id)!.proxima?.getTime() ?? 0;
+            const pb = estados.get(b.id)!.proxima?.getTime() ?? 0;
+            return pa - pb;
+          })
+      : encontrados;
 
   function hrefTab(tab: string) {
     const sp = new URLSearchParams();
@@ -125,7 +166,9 @@ export default async function ContactosPage({
           <p className="col-span-full rounded-xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-400 dark:bg-gray-800 dark:border-gray-700">
             {q
               ? "No hay contactos que coincidan con la búsqueda."
-              : "No hay contactos para este filtro."}
+              : tabActivo === "seguimiento"
+                ? "No tenés seguimientos vencidos. ✅"
+                : "No hay contactos para este filtro."}
           </p>
         ) : (
           misContactos.map((c) => {
@@ -161,6 +204,14 @@ export default async function ContactosPage({
                     </span>
                   ))}
                 </div>
+                {(() => {
+                  const et = etiquetaEstado(estados.get(c.id)!);
+                  return et ? (
+                    <span className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${et.clase}`}>
+                      {et.texto}
+                    </span>
+                  ) : null;
+                })()}
                 <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">
                   {c.telefono || "Sin teléfono"}
                 </p>

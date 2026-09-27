@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
-import { contactos, propiedades, visitas, busquedas, captaciones, actividades } from "@/db/schema";
+import { contactos, propiedades, visitas, busquedas, captaciones, actividades, seguimientos } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { dependenciasContacto, borrarContacto } from "@/lib/eliminar";
 import { buscarDuplicados, type Duplicado } from "@/lib/duplicados";
@@ -189,6 +189,7 @@ export async function unirContactos(
       await tx.update(busquedas).set({ contactoId: principalId }).where(eq(busquedas.contactoId, otroId));
       await tx.update(captaciones).set({ contactoId: principalId }).where(eq(captaciones.contactoId, otroId));
       await tx.update(actividades).set({ contactoId: principalId }).where(eq(actividades.contactoId, otroId));
+      await tx.update(seguimientos).set({ contactoId: principalId }).where(eq(seguimientos.contactoId, otroId));
       await tx
         .update(contactos)
         .set({
