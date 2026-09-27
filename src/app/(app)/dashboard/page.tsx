@@ -14,6 +14,8 @@ import { limpiarTitulo } from "@/lib/propiedades";
 import { aDiaHora, esTipoEvento, type EventoCalendario } from "@/lib/calendario";
 import { Calendario } from "./calendario";
 import { SelectorAgente } from "../agenda/selector-agente";
+import { PlanDelDia } from "./plan-del-dia";
+import { cargarPlanDelDia } from "@/lib/plan-del-dia";
 
 /**
  * Todo lo agendado de los agentes `ids` (normalmente solo el usuario; el
@@ -207,13 +209,18 @@ export default async function DashboardPage({
     );
 
   const eventos = await cargarEventos(ids, yo, nombres);
+  // El Plan del día es siempre el propio (no el del agente que se esté mirando).
+  const plan = await cargarPlanDelDia(yo);
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-orion-navy">
         Hola, {sesion?.nombre?.split(" ")[0]} 👋
       </h1>
-      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+      <div className="mt-4">
+        <PlanDelDia plan={plan} />
+      </div>
+      <p className="mt-6 text-sm text-gray-500 dark:text-gray-400">
         Tocá un día del calendario para ver lo que tenés agendado.
       </p>
       {jefe && (
