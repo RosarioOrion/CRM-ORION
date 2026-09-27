@@ -28,7 +28,7 @@ export function UnirContacto({ contactoId, nombre }: { contactoId: string; nombr
     if (!otro) return;
     if (
       !window.confirm(
-        `¿Unir "${otro.nombre}" dentro de "${nombre}"?\n\nSus propiedades, visitas, búsquedas, captaciones y actividades pasan a esta ficha y se suman sus roles. La ficha de "${otro.nombre}" va a la Papelera.`
+        `¿Unir "${otro.nombre}" dentro de "${nombre}"?\n\nSus propiedades, visitas, búsquedas, captaciones, seguimientos y actividades pasan a esta ficha y se suman sus roles. La ficha de "${otro.nombre}" va a la Papelera.`
       )
     )
       return;
