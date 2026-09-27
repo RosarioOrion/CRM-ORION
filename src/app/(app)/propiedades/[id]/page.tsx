@@ -31,6 +31,7 @@ import { EditarDescripcion } from "./editar-descripcion";
 import { eliminarFoto } from "../actions";
 import { EliminarPropiedad } from "./eliminar-propiedad";
 import { MostrarEnWeb } from "./mostrar-en-web";
+import { EditarPropiedad } from "./editar-propiedad";
 
 type Propiedad = typeof propiedades.$inferSelect;
 
@@ -159,6 +160,34 @@ export default async function PropiedadDetallePage({
     };
   }
 
+  // Para "Editar propiedad": mis contactos (posibles dueños), incluido el actual.
+  const contactosEdicion = esPropia
+    ? await db
+        .select({ id: contactos.id, nombre: contactos.nombre })
+        .from(contactos)
+        .where(eq(contactos.agenteId, sesion.userId))
+        .orderBy(contactos.nombre)
+    : [];
+  if (esPropia && propiedad.duenoId && !contactosEdicion.some((c) => c.id === propiedad.duenoId)) {
+    const [d] = await db
+      .select({ id: contactos.id, nombre: contactos.nombre })
+      .from(contactos)
+      .where(eq(contactos.id, propiedad.duenoId));
+    if (d) contactosEdicion.unshift(d);
+  }
+
+  // Solo los campos del formulario (sin fotos ni fechas, que pesan o no se editan acá).
+  const {
+    fotos: _fotos,
+    creadoEn: _creado,
+    fechaInicioPipeline: _inicio,
+    ...camposEditables
+  } = propiedad;
+  void _fotos;
+  void _creado;
+  void _inicio;
+  const valoresEdicion = { ...camposEditables, titulo: limpiarTitulo(propiedad.titulo) };
+
   const caracteristicas = CARACTERISTICAS.map((c) => ({
     ...c,
     valor: propiedad[c.key],
@@ -214,6 +243,14 @@ export default async function PropiedadDetallePage({
           <p className="mb-4 text-2xl font-bold text-orion-navy dark:text-orion-gold">
             {propiedad.moneda} {propiedad.precio.toLocaleString("es-UY")}
           </p>
+        )}
+
+        {esPropia && (
+          <EditarPropiedad
+            propiedadId={propiedad.id}
+            contactos={contactosEdicion}
+            valores={valoresEdicion}
+          />
         )}
 
         {esPropia && (
