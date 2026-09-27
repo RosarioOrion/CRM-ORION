@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { propiedades, historialPrecios, pipelineAcciones } from "@/db/schema";
+import { reemplazarPrecio } from "@/lib/precio-texto";
 import { obtenerSesion } from "@/lib/auth";
 import { CATEGORIAS_PIPELINE, type CategoriaPipeline } from "@/lib/pipeline";
 
@@ -69,9 +70,24 @@ export async function registrarAjustePrecio(
   }
 
   const [actual] = await db
-    .select({ precio: propiedades.precio, moneda: propiedades.moneda })
+    .select({
+      precio: propiedades.precio,
+      moneda: propiedades.moneda,
+      titulo: propiedades.titulo,
+      descripcion: propiedades.descripcion,
+    })
     .from(propiedades)
     .where(eq(propiedades.id, propiedadId));
+
+  // El precio viejo escrito en el título y la descripción también se actualiza.
+  let titulo = actual?.titulo;
+  let descripcion = actual?.descripcion ?? null;
+  if (actual?.precio) {
+    const ant = { precio: actual.precio, moneda: actual.moneda };
+    const nue = { precio: parsed.data.precio, moneda: parsed.data.moneda };
+    if (titulo) titulo = reemplazarPrecio(titulo, ant, nue).texto;
+    if (descripcion) descripcion = reemplazarPrecio(descripcion, ant, nue).texto;
+  }
 
   await db.insert(historialPrecios).values({
     propiedadId,
@@ -84,7 +100,7 @@ export async function registrarAjustePrecio(
 
   await db
     .update(propiedades)
-    .set({ precio: parsed.data.precio, moneda: parsed.data.moneda })
+    .set({ precio: parsed.data.precio, moneda: parsed.data.moneda, titulo, descripcion })
     .where(eq(propiedades.id, propiedadId));
 
   revalidatePath("/pipeline");
