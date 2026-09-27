@@ -4,6 +4,7 @@ import { usuarios } from "@/db/schema";
 import { obtenerSesion, esAdmin } from "@/lib/auth";
 import { listarPapelera, DIAS_PAPELERA } from "@/lib/papelera";
 import { BotonRestaurar } from "./boton-restaurar";
+import { BotonVaciar } from "./boton-vaciar";
 
 const DIA = 24 * 3600 * 1000;
 
@@ -29,9 +30,15 @@ export default async function PapeleraPage() {
     for (const u of us) nombres.set(u.id, u.nombre);
   }
 
+  const mios = items.filter((i) => i.agenteId === yo).length;
+  const hayDeOtros = items.length > mios;
+
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="text-2xl font-bold text-orion-navy dark:text-white">Papelera</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold text-orion-navy dark:text-white">Papelera</h1>
+        {mios > 0 && <BotonVaciar cantidad={mios} soloLoMio={hayDeOtros} />}
+      </div>
       <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
         Los contactos y propiedades eliminados quedan acá {DIAS_PAPELERA} días, con todo lo
         suyo (visitas, búsquedas, captaciones, portales, pipeline…). Después se borran

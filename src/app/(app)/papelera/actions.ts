@@ -37,3 +37,16 @@ export async function restaurar(
     href: item.tipo === "CONTACTO" ? `/contactos/${id}` : `/propiedades/${id}`,
   };
 }
+
+/** Vaciar papelera: borra definitivamente lo propio (nunca lo de otros agentes). */
+export async function vaciarMiPapelera(): Promise<{ ok: boolean; borrados?: number; error?: string }> {
+  const sesion = await obtenerSesion();
+  if (!sesion) return { ok: false, error: "Sesión expirada, volvé a ingresar." };
+  await asegurarTablaPapelera();
+  const borrados = await db
+    .delete(papelera)
+    .where(eq(papelera.agenteId, sesion.userId))
+    .returning({ id: papelera.id });
+  revalidatePath("/papelera");
+  return { ok: true, borrados: borrados.length };
+}
