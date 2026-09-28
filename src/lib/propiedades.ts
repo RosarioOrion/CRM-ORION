@@ -29,7 +29,7 @@ export const ESTADOS_PROPIEDAD = [
 export const ESTADO_LABEL: Record<string, string> = {
   ACTIVA: "Activa",
   RESERVADA: "Reservada",
-  PAUSADA: "Inactiva",
+  PAUSADA: "Suspendida",
   CERRADA: "Cerrada",
   VENDIDA: "Vendida",
   ALQUILADA: "Alquilada",
