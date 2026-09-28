@@ -28,6 +28,7 @@ import { SubirFotosForm } from "./subir-fotos-form";
 import { PipelineToggle } from "./pipeline-toggle";
 import { RegistroPortales } from "./registro-portales";
 import { CarruselFotos } from "./carrusel-fotos";
+import { ReactivarPropiedad } from "./reactivar-propiedad";
 import { OrganizarFotos } from "./organizar-fotos";
 import { createHash } from "node:crypto";
 import { EliminarPropiedad } from "./eliminar-propiedad";
@@ -273,6 +274,10 @@ export default async function PropiedadDetallePage({
           )}
         </div>
       </div>
+
+      {esPropia && !editando && propiedad.estado !== "ACTIVA" && (
+        <ReactivarPropiedad propiedadId={propiedad.id} estadoLabel={ESTADO_LABEL[propiedad.estado]} />
+      )}
 
       {sp.guardado === "1" && !editando && (
         <div className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-100">
