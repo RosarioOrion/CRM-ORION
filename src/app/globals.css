@@ -3,9 +3,9 @@
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 :root {
-  --orion-navy: #0f1f45;
-  --orion-navy-light: #16295c;
-  --orion-gold: #c9972e;
+  --orion-navy: #0a1830;
+  --orion-navy-light: #132647;
+  --orion-gold: #c99a3e;
   --orion-bg: #f6f5f2;
   --orion-text: #1c2333;
   --background: #ffffff;

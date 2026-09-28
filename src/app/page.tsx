@@ -26,8 +26,15 @@ export default async function Portada() {
           className="absolute inset-0 opacity-20"
           style={{
             backgroundImage:
-              "radial-gradient(circle at 20% 20%, #c9972e 0, transparent 40%), radial-gradient(circle at 85% 70%, #2a4a9a 0, transparent 45%)",
+              "radial-gradient(circle at 20% 20%, #c99a3e 0, transparent 40%), radial-gradient(circle at 85% 70%, #2a4a9a 0, transparent 45%)",
           }}
+        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/brand/orion-emblema.png"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-10 top-1/2 hidden w-[420px] -translate-y-1/2 opacity-25 lg:block"
         />
         <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-14 sm:pb-24 sm:pt-20">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orion-gold">
