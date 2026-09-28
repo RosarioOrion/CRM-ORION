@@ -1,24 +1,20 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { guardarOrdenFotos } from "../actions";
+import { useState } from "react";
 
 type Foto = { indice: number; url: string };
 
 /**
  * Organizar las fotos de la propiedad: cambiar el orden (la primera es la
  * portada en Orion, la web y los listados), elegir portada y borrar.
- * Los cambios se guardan juntos con "Guardar cambios".
+ * Se guarda junto con el resto de la edición: manda el orden en campos
+ * ocultos del formulario `formId` ("Guardar cambios").
  * Funciona con botones (celular) y arrastrando (computadora).
  */
-export function OrganizarFotos({ propiedadId, fotos }: { propiedadId: string; fotos: Foto[] }) {
-  const router = useRouter();
+export function OrganizarFotos({ formId, fotos }: { formId: string; fotos: Foto[] }) {
   const [orden, setOrden] = useState<Foto[]>(fotos);
   const [borrar, setBorrar] = useState<Set<number>>(new Set());
   const [arrastrando, setArrastrando] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [guardando, start] = useTransition();
 
   const huboCambios =
     borrar.size > 0 || orden.some((f, i) => f.indice !== fotos[i]?.indice);
@@ -36,26 +32,6 @@ export function OrganizarFotos({ propiedadId, fotos }: { propiedadId: string; fo
     if (s.has(indice)) s.delete(indice);
     else s.add(indice);
     setBorrar(s);
-  }
-
-  function guardar() {
-    if (borrar.size > 0 && !window.confirm(`¿Borrar ${borrar.size} foto(s)? Esto no se puede deshacer.`)) return;
-    setError(null);
-    start(async () => {
-      const quedan = orden.filter((f) => !borrar.has(f.indice)).map((f) => f.indice);
-      const r = await guardarOrdenFotos(propiedadId, quedan, fotos.length);
-      if (!r.ok) setError(r.error ?? "No se pudo guardar.");
-      else {
-        setBorrar(new Set());
-        router.refresh();
-      }
-    });
-  }
-
-  function descartar() {
-    setOrden(fotos);
-    setBorrar(new Set());
-    setError(null);
   }
 
   const btn =
@@ -141,25 +117,19 @@ export function OrganizarFotos({ propiedadId, fotos }: { propiedadId: string; fo
         })}
       </div>
 
+      <input
+        type="hidden"
+        form={formId}
+        name="ordenFotos"
+        value={JSON.stringify(orden.filter((f) => !borrar.has(f.indice)).map((f) => f.indice))}
+      />
+      <input type="hidden" form={formId} name="totalFotos" value={fotos.length} />
       {huboCambios && (
-        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 dark:bg-amber-900/30">
-          <span className="text-xs font-semibold text-amber-900 dark:text-amber-100">
-            Hay cambios sin guardar{borrar.size ? ` · ${borrar.size} foto(s) para borrar` : ""}
-          </span>
-          <button
-            type="button"
-            onClick={guardar}
-            disabled={guardando}
-            className="rounded-lg bg-orion-navy px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
-          >
-            {guardando ? "Guardando…" : "Guardar cambios"}
-          </button>
-          <button type="button" onClick={descartar} className="text-xs font-semibold text-gray-500 hover:underline">
-            Descartar
-          </button>
-        </div>
+        <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 dark:bg-amber-900/30 dark:text-amber-100">
+          Cambios en las fotos sin guardar{borrar.size ? ` · ${borrar.size} para borrar` : ""} — se guardan con
+          “Guardar cambios”, abajo.
+        </p>
       )}
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
   );
 }
