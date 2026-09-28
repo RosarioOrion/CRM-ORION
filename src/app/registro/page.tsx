@@ -10,10 +10,11 @@ export default function RegistroPage() {
 
   if (state?.ok) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-orion-bg px-4">
+      <div className="flex min-h-screen items-center justify-center bg-orion-navy bg-[radial-gradient(ellipse_at_top,#132647_0%,#0a1830_55%,#050d1c_100%)] px-4">
         <div className="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-6 text-center shadow-sm">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-orion-navy text-orion-gold text-2xl font-bold">
-            O
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-orion-navy p-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/orion-emblema.png" alt="Orion" className="h-full w-full object-contain" />
           </div>
           <h1 className="mb-2 text-xl font-bold text-orion-navy">
             ¡Listo! Tu solicitud fue enviada
@@ -34,14 +35,13 @@ export default function RegistroPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-orion-bg px-4 py-10">
+    <div className="flex min-h-screen items-center justify-center bg-orion-navy bg-[radial-gradient(ellipse_at_top,#132647_0%,#0a1830_55%,#050d1c_100%)] px-4 py-10">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-orion-navy text-orion-gold text-2xl font-bold">
-            O
-          </div>
-          <h1 className="text-2xl font-bold text-orion-navy">Crear cuenta</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/orion-logo.png" alt="Orion Propiedades" className="mx-auto mb-5 h-auto w-64 max-w-full" />
+          <h1 className="text-2xl font-bold text-white">Crear cuenta</h1>
+          <p className="mt-1 text-sm text-white/60">
             Sumate al equipo en CRM Orion
           </p>
         </div>
@@ -172,9 +172,9 @@ export default function RegistroPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-gray-500">
+        <p className="mt-6 text-center text-sm text-white/60">
           ¿Ya tenés cuenta?{" "}
-          <a href="/login" className="font-semibold text-orion-navy hover:underline">
+          <a href="/login" className="font-semibold text-orion-gold hover:underline">
             Iniciar sesión
           </a>
         </p>
