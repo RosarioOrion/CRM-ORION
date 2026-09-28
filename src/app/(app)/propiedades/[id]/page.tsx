@@ -28,7 +28,8 @@ import { SubirFotosForm } from "./subir-fotos-form";
 import { PipelineToggle } from "./pipeline-toggle";
 import { RegistroPortales } from "./registro-portales";
 import { EditarDescripcion } from "./editar-descripcion";
-import { eliminarFoto } from "../actions";
+import { OrganizarFotos } from "./organizar-fotos";
+import { createHash } from "node:crypto";
 import { EliminarPropiedad } from "./eliminar-propiedad";
 import { MostrarEnWeb } from "./mostrar-en-web";
 import { EditarPropiedad } from "./editar-propiedad";
@@ -175,6 +176,13 @@ export default async function PropiedadDetallePage({
       .where(eq(contactos.id, propiedad.duenoId));
     if (d) contactosEdicion.unshift(d);
   }
+
+  // Fotos: se sirven por /api/fotos (más liviano que meterlas en la página).
+  // La huella (?v=) cambia si cambia la foto en esa posición.
+  const fotosVista = propiedad.fotos.map((f, i) => ({
+    indice: i,
+    url: `/api/fotos/${propiedad.id}/${i}?v=${createHash("sha1").update(f).digest("hex").slice(0, 10)}`,
+  }));
 
   // Solo los campos del formulario (sin fotos ni fechas, que pesan o no se editan acá).
   const {
@@ -366,35 +374,27 @@ export default async function PropiedadDetallePage({
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
             Fotos
           </p>
-          {propiedad.fotos.length > 0 && (
-            <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-              {propiedad.fotos.map((foto) => (
-                <div key={foto} className="group relative overflow-hidden rounded-lg">
+          {fotosVista.length > 0 &&
+            (esPropia ? (
+              <OrganizarFotos
+                key={fotosVista.map((f) => f.url).join("|")}
+                propiedadId={propiedad.id}
+                fotos={fotosVista}
+              />
+            ) : (
+              <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                {fotosVista.map((f) => (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={foto}
+                    key={f.url}
+                    src={f.url}
                     alt="Foto de la propiedad"
-                    className="h-32 w-full object-cover"
+                    loading="lazy"
+                    className="h-32 w-full rounded-lg object-cover"
                   />
-                  {esPropia && (
-                  <form
-                    action={async () => {
-                      "use server";
-                      await eliminarFoto(propiedad.id, foto);
-                    }}
-                    className="absolute right-1 top-1 opacity-0 transition group-hover:opacity-100"
-                  >
-                    <button
-                      type="submit"
-                      className="rounded-full bg-black/60 px-2 py-0.5 text-xs text-white hover:bg-black/80"
-                    >
-                      ✕
-                    </button>
-                  </form>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            ))}
           {esPropia ? (
             <SubirFotosForm propiedadId={propiedad.id} />
           ) : (
