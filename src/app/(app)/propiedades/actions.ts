@@ -229,6 +229,46 @@ export async function eliminarFoto(propiedadId: string, fotoUrl: string) {
       revalidatePath("/propiedades");
 }
 
+/**
+ * Organizar fotos: nuevo orden y fotos a borrar, en un solo guardado.
+ * `orden` son las posiciones actuales de las fotos que quedan, en el orden
+ * nuevo (la primera es la portada). `total` es cuántas fotos había cuando se
+ * abrió el organizador: si cambió en el medio (otra pestaña subió o borró),
+ * se pide recargar para no mezclar fotos.
+ */
+export async function guardarOrdenFotos(
+      propiedadId: string,
+      orden: number[],
+      total: number
+): Promise<{ ok: boolean; error?: string }> {
+      try {
+        await requerirPropiedadDelAgente(propiedadId);
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : "No autorizado." };
+      }
+      const [prop] = await db
+        .select({ fotos: propiedades.fotos })
+        .from(propiedades)
+        .where(eq(propiedades.id, propiedadId));
+      if (!prop) return { ok: false, error: "Propiedad no encontrada." };
+      if (prop.fotos.length !== total) {
+        return { ok: false, error: "Las fotos cambiaron mientras las organizabas. Recargá la página y volvé a intentar." };
+      }
+      const validos = orden.every((i) => Number.isInteger(i) && i >= 0 && i < total);
+      if (!validos || new Set(orden).size !== orden.length) {
+        return { ok: false, error: "Orden inválido." };
+      }
+      await db
+        .update(propiedades)
+        .set({ fotos: orden.map((i) => prop.fotos[i]) })
+        .where(eq(propiedades.id, propiedadId));
+      revalidatePath(`/propiedades/${propiedadId}`);
+      revalidatePath("/propiedades");
+      revalidatePath("/inmuebles");
+      revalidatePath("/");
+      return { ok: true };
+}
+
 export async function actualizarEstado(propiedadId: string, estado: string) {
       // Solo el agente a cargo puede cambiar el estado de su propiedad.
       try {
