@@ -203,6 +203,8 @@ export function PropiedadFormFields({
   extraAbajo,
   textoBoton,
   titulo = "Nueva propiedad",
+  formId,
+  botonesExtra,
 }: {
   contactos: Contacto[];
   formAction: (formData: FormData) => void;
@@ -213,6 +215,9 @@ export function PropiedadFormFields({
   extraAbajo?: React.ReactNode;
   textoBoton?: string;
   titulo?: string;
+  formId?: string;
+  /** Botones al lado de "Guardar" (ej. Cancelar). */
+  botonesExtra?: React.ReactNode;
 }) {
   const [tipo, setTipo] = useState(String(inicial?.tipo ?? "Apartamento"));
   // Valor inicial de un campo (para editar); vacío en una propiedad nueva.
@@ -231,6 +236,7 @@ export function PropiedadFormFields({
   
   return (
     <form
+      id={formId}
       action={formAction}
       className="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:grid-cols-2"
       >
@@ -677,7 +683,7 @@ export function PropiedadFormFields({
       name="descripcion"
       defaultValue={d("descripcion")}
       placeholder="Descripción (opcional, para portales)"
-      rows={3}
+      rows={inicial ? 12 : 3}
       className="sm:col-span-2 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy"
       />
     
@@ -695,6 +701,7 @@ export function PropiedadFormFields({
       >
       {pending ? "Guardando…" : textoBoton ?? "Publicar propiedad"}
     </button>
+    {botonesExtra}
     </div>
 
     </form>

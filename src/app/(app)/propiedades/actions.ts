@@ -493,6 +493,30 @@ export async function editarPropiedad(
           : "No encontré el precio anterior escrito en el título ni en la descripción.";
       }
 
+      // Fotos (orden y borrados) desde el organizador del modo edición.
+      let fotosNuevas: string[] | undefined;
+      const ordenStr = formData.get("ordenFotos");
+      if (typeof ordenStr === "string" && ordenStr) {
+        let orden: unknown;
+        try {
+          orden = JSON.parse(ordenStr);
+        } catch {
+          orden = null;
+        }
+        const total = Number(formData.get("totalFotos"));
+        if (total !== actual.fotos.length) {
+          return { error: "Las fotos cambiaron mientras editabas (¿subiste o borraste en otra pestaña?). Recargá la página y volvé a intentar." };
+        }
+        const valido =
+          Array.isArray(orden) &&
+          orden.every((i) => Number.isInteger(i) && i >= 0 && i < total) &&
+          new Set(orden).size === orden.length;
+        if (!valido) return { error: "Orden de fotos inválido." };
+        const ord = orden as number[];
+        const igual = ord.length === total && ord.every((v, k) => v === k);
+        if (!igual) fotosNuevas = ord.map((k) => actual.fotos[k]);
+      }
+
       await db.transaction(async (tx) => {
         if (cambioPrecio) {
           await tx.insert(historialPrecios).values({
@@ -539,6 +563,7 @@ export async function editarPropiedad(
             extras: datos.extras ?? [],
             descripcion,
             duenoId: datos.duenoId,
+            ...(fotosNuevas ? { fotos: fotosNuevas } : {}),
           })
           .where(eq(propiedades.id, propiedadId));
       });
