@@ -38,7 +38,7 @@ export function MostrarEnWeb({
           checked={valor}
           disabled={pending}
           onChange={(e) => cambiar(e.target.checked)}
-          className="h-4 w-4 accent-[#0f1f45]"
+          className="h-4 w-4 accent-[#0a1830]"
         />
         🌐 Mostrar en la web (Orion Propiedades)
       </label>
