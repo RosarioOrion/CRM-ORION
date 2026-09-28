@@ -40,9 +40,13 @@ export function AccionesBusqueda({
         type="button"
         disabled={pending}
         onClick={toggleActiva}
-        className="rounded-lg border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-600 transition hover:border-orion-navy hover:text-orion-navy disabled:opacity-60 dark:border-gray-600 dark:text-gray-300 dark:hover:text-white"
+        className={
+          activa
+            ? "rounded-lg border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-600 transition hover:border-orion-navy hover:text-orion-navy disabled:opacity-60 dark:border-gray-600 dark:text-gray-300 dark:hover:text-white"
+            : "rounded-lg bg-emerald-600 px-2 py-1 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+        }
       >
-        {activa ? "Desactivar" : "Reactivar"}
+        {activa ? "⏸ Suspender" : "↩ Reactivar"}
       </button>
       <button
         type="button"

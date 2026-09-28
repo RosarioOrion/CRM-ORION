@@ -99,8 +99,19 @@ export async function actualizarActivaBusqueda(
 
   await db.update(busquedas).set({ activa }).where(eq(busquedas.id, busquedaId));
 
+  // Si vuelve a buscar, el contacto deja de estar "frío".
+  if (activa) {
+    const [b] = await db
+      .select({ contactoId: busquedas.contactoId })
+      .from(busquedas)
+      .where(eq(busquedas.id, busquedaId));
+    if (b) await db.update(contactos).set({ frioDesde: null }).where(eq(contactos.id, b.contactoId));
+  }
+
   revalidatePath("/busquedas");
   revalidatePath("/contactos");
+  revalidatePath("/coincidencias");
+  revalidatePath("/dashboard");
 }
 
 export async function eliminarBusqueda(busquedaId: string) {

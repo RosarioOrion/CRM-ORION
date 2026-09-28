@@ -8,6 +8,7 @@ import { AccionesBusqueda } from "./acciones-busqueda";
 
 const TABS = [
   { key: "activas", label: "Activas" },
+  { key: "suspendidas", label: "Suspendidas" },
   { key: "todas", label: "Todas" },
   { key: "venta", label: "Venta" },
   { key: "alquiler", label: "Alquiler" },
@@ -41,6 +42,8 @@ export default async function BusquedasPage({
   const condiciones = [eq(contactos.agenteId, sesion!.userId)];
   if (tabActivo === "activas") {
     condiciones.push(eq(busquedas.activa, true));
+  } else if (tabActivo === "suspendidas") {
+    condiciones.push(eq(busquedas.activa, false));
   } else if (tabActivo === "venta") {
     condiciones.push(eq(busquedas.operacion, "VENTA"));
   } else if (tabActivo === "alquiler") {
@@ -185,7 +188,7 @@ export default async function BusquedasPage({
                     </span>
                     {!f.activa && (
                       <span className="rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                        Inactiva
+                        Suspendida
                       </span>
                     )}
                   </div>
