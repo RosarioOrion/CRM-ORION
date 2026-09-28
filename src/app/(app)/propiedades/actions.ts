@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { count, eq, sql, and } from "drizzle-orm";
 import { db } from "@/db";
-import { propiedades, portalesPublicados, historialPrecios } from "@/db/schema";
+import { propiedades, portalesPublicados, historialPrecios, contactos } from "@/db/schema";
 import { reemplazarPrecio } from "@/lib/precio-texto";
 import { obtenerSesion } from "@/lib/auth";
 import { dependenciasPropiedad, borrarPropiedad } from "@/lib/eliminar";
@@ -264,6 +264,38 @@ export async function guardarOrdenFotos(
         .where(eq(propiedades.id, propiedadId));
       revalidatePath(`/propiedades/${propiedadId}`);
       revalidatePath("/propiedades");
+      revalidatePath("/inmuebles");
+      revalidatePath("/");
+      return { ok: true };
+}
+
+/**
+ * Volver al mercado: la propiedad pasa a Activa (por ejemplo, se cayó la
+ * reserva o el dueño volvió a responder). Si el dueño estaba "frío", deja
+ * de estarlo. Opcionalmente reinicia el ciclo del Pipeline desde hoy.
+ */
+export async function reactivarPropiedad(
+      propiedadId: string,
+      reiniciarPipeline: boolean
+): Promise<{ ok: boolean; error?: string }> {
+      try {
+        await requerirPropiedadDelAgente(propiedadId);
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : "No autorizado." };
+      }
+      const [p] = await db
+        .update(propiedades)
+        .set({ estado: "ACTIVA", ...(reiniciarPipeline ? { fechaInicioPipeline: new Date() } : {}) })
+        .where(eq(propiedades.id, propiedadId))
+        .returning({ duenoId: propiedades.duenoId });
+      if (p?.duenoId) {
+        await db.update(contactos).set({ frioDesde: null }).where(eq(contactos.id, p.duenoId));
+      }
+      revalidatePath(`/propiedades/${propiedadId}`);
+      revalidatePath("/propiedades");
+      revalidatePath("/pipeline");
+      revalidatePath("/contactos");
+      revalidatePath("/dashboard");
       revalidatePath("/inmuebles");
       revalidatePath("/");
       return { ok: true };

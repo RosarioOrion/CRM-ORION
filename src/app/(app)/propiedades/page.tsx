@@ -16,7 +16,7 @@ import {
 const TABS: { estado: string; label: string }[] = [
   { estado: "ACTIVA", label: "Activas" },
   { estado: "RESERVADA", label: "Reservadas" },
-  { estado: "PAUSADA", label: "Inactivas" },
+  { estado: "PAUSADA", label: "Suspendidas" },
   { estado: "CERRADA", label: "Cerradas" },
   { estado: "VENDIDA", label: "Vendidas" },
   { estado: "ALQUILADA", label: "Alquiladas" },
