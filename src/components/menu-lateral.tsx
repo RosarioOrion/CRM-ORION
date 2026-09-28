@@ -36,10 +36,8 @@ export function MenuLateral({ children }: { children: React.ReactNode }) {
         >
           ☰
         </button>
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-orion-gold text-sm font-bold text-orion-navy">
-          O
-        </div>
-        <span className="text-base font-bold tracking-wide">ORION</span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/orion-logo.png" alt="Orion Propiedades" className="h-9 w-auto" />
       </header>
 
       {/* Fondo oscuro detrás del menú abierto (solo celular) */}
