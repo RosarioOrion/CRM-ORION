@@ -42,12 +42,10 @@ export default async function AppLayout({
   return (
     <div className="flex min-h-screen">
       <MenuLateral>
-        <div className="flex items-center gap-2 px-5 py-5 border-b border-white/10">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orion-gold text-orion-navy text-sm font-bold">
-            O
-          </div>
-          <span className="text-lg font-bold tracking-wide">ORION</span>
-        </div>
+        <Link href="/dashboard" className="block border-b border-white/10 px-5 py-5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/orion-logo.png" alt="Orion Propiedades" className="h-auto w-full max-w-[180px]" />
+        </Link>
 
         <nav className="flex-1 space-y-1 px-3 py-4">
           {NAV.map((item) => (
