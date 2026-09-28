@@ -16,7 +16,7 @@ export function TarjetaSitio({ p }: { p: TarjetaPropiedad }) {
       href={`/inmuebles/${p.codigo}`}
       className="group flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-lg"
     >
-      <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-[#16295c] to-[#0f1f45]">
+      <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-[#132647] to-[#0a1830]">
         {p.cantidadFotos > 0 ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img

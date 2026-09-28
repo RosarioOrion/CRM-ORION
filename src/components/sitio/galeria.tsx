@@ -8,7 +8,7 @@ export function Galeria({ urls, alt, tipo }: { urls: string[]; alt: string; tipo
 
   if (urls.length === 0) {
     return (
-      <div className="flex aspect-[16/10] w-full flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-[#16295c] to-[#0f1f45] text-white/70">
+      <div className="flex aspect-[16/10] w-full flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-[#132647] to-[#0a1830] text-white/70">
         <span className="text-5xl">🏠</span>
         <span className="mt-2 text-xs uppercase tracking-widest">{tipo}</span>
         <span className="mt-1 text-xs">Fotos próximamente</span>
