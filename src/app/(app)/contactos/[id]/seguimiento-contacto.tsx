@@ -1,7 +1,13 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { registrarSeguimiento, marcarFrio, borrarSeguimiento, type SeguimientoState } from "./seguimiento-actions";
+import {
+  registrarSeguimiento,
+  marcarFrio,
+  borrarSeguimiento,
+  reactivarContacto,
+  type SeguimientoState,
+} from "./seguimiento-actions";
 import {
   CANALES,
   CANAL_LABEL,
@@ -40,6 +46,8 @@ export function SeguimientoContacto({
   busquedas,
   whatsappAviso,
   proximaSugerida,
+  suspendidas = [],
+  busquedasSuspendidas = [],
 }: {
   contactoId: string;
   estado: EstadoSeguimiento;
@@ -52,6 +60,9 @@ export function SeguimientoContacto({
   whatsappAviso: string | null;
   /** Fecha sugerida para el próximo seguimiento (hoy + 7 días). */
   proximaSugerida: Date;
+  /** Para "Reactivar": propiedades suspendidas y búsquedas suspendidas del contacto. */
+  suspendidas?: Opcion[];
+  busquedasSuspendidas?: Opcion[];
 }) {
   const [state, formAction, pending] = useActionState(registrarSeguimiento, inicial);
   const [respondio, setRespondio] = useState<"si" | "no" | "">("");
@@ -59,6 +70,16 @@ export function SeguimientoContacto({
   const [selProps, setSelProps] = useState<string[]>(propiedades.map((p) => p.id));
   const [selBusq, setSelBusq] = useState<string[]>(busquedas.map((b) => b.id));
   const [errorFrio, setErrorFrio] = useState<string | null>(null);
+  const [reactProps, setReactProps] = useState<string[]>(suspendidas.map((p) => p.id));
+  const [reactBusq, setReactBusq] = useState<string[]>(busquedasSuspendidas.map((b) => b.id));
+
+  function reactivar() {
+    setErrorFrio(null);
+    start(async () => {
+      const r = await reactivarContacto(contactoId, reactProps, reactBusq);
+      if (!r.ok) setErrorFrio(r.error ?? "No se pudo reactivar.");
+    });
+  }
   const [ocupado, start] = useTransition();
 
   const siguienteEsAviso = estado.tipo === "SIN_RESPUESTA" && estado.siguienteEsAviso;
@@ -206,10 +227,51 @@ export function SeguimientoContacto({
       break;
     case "FRIO":
       banner = (
-        <p className={`${caja} bg-sky-50 text-sky-900 dark:bg-sky-900/30 dark:text-sky-100`}>
-          ❄️ <b>Frío</b> desde el {fechaCorta(estado.desde)}. Si vuelve a responder, registralo como
-          “Respondió” y deja de estar frío (las propiedades suspendidas se reactivan desde su ficha).
-        </p>
+        <div className={`${caja} bg-sky-50 text-sky-900 dark:bg-sky-900/30 dark:text-sky-100`}>
+          <p>
+            ❄️ <b>Frío</b> desde el {fechaCorta(estado.desde)}. Si volvió a aparecer, reactivalo (y elegí qué
+            vuelve al mercado):
+          </p>
+          {suspendidas.length > 0 && (
+            <div className="mt-2">
+              <p className="text-xs font-semibold">Propiedades suspendidas → volver a Activa:</p>
+              {suspendidas.map((p) => (
+                <label key={p.id} className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={reactProps.includes(p.id)}
+                    onChange={() => toggle(reactProps, setReactProps, p.id)}
+                  />
+                  {p.texto}
+                </label>
+              ))}
+            </div>
+          )}
+          {busquedasSuspendidas.length > 0 && (
+            <div className="mt-2">
+              <p className="text-xs font-semibold">Búsquedas suspendidas → volver a activar:</p>
+              {busquedasSuspendidas.map((b) => (
+                <label key={b.id} className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={reactBusq.includes(b.id)}
+                    onChange={() => toggle(reactBusq, setReactBusq, b.id)}
+                  />
+                  {b.texto}
+                </label>
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            disabled={ocupado}
+            onClick={reactivar}
+            className="mt-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+          >
+            {ocupado ? "…" : "↩ Reactivar contacto"}
+          </button>
+          {errorFrio && <p className="mt-1 text-xs text-red-700">{errorFrio}</p>}
+        </div>
       );
       break;
   }

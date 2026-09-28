@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { contactos, propiedades, busquedas, seguimientos, usuarios } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { ORIGEN_LABEL, rolesDe } from "@/lib/contactos";
 import { limpiarTitulo } from "@/lib/propiedades";
 import { RolesContacto } from "./roles-contacto";
@@ -59,10 +59,23 @@ export default async function ContactoDetallePage({
   const propsActivas = propiedadesDelContacto.filter(
     (p) => p.estado === "ACTIVA" && p.agenteId === sesion.userId
   );
-  const busqActivas = await db
-    .select({ id: busquedas.id, operacion: busquedas.operacion, tipo: busquedas.tipo, zona: busquedas.zona })
+  const propsSuspendidas = propiedadesDelContacto.filter(
+    (p) => p.estado === "PAUSADA" && p.agenteId === sesion.userId
+  );
+  const todasBusq = await db
+    .select({
+      id: busquedas.id,
+      operacion: busquedas.operacion,
+      tipo: busquedas.tipo,
+      zona: busquedas.zona,
+      activa: busquedas.activa,
+    })
     .from(busquedas)
-    .where(and(eq(busquedas.contactoId, contacto.id), eq(busquedas.activa, true)));
+    .where(eq(busquedas.contactoId, contacto.id));
+  const busqActivas = todasBusq.filter((b) => b.activa);
+  const busqSuspendidas = todasBusq.filter((b) => !b.activa);
+  const textoBusqueda = (b: (typeof todasBusq)[number]) =>
+    `${b.operacion === "VENTA" ? "Compra" : "Alquiler"} · ${b.tipo} · ${b.zona}`;
   const idsPropHist = [...new Set(historial.map((h) => h.propiedadId).filter(Boolean))] as string[];
   const propHist = new Map<string, string>();
   if (idsPropHist.length) {
@@ -204,10 +217,9 @@ export default async function ContactoDetallePage({
               propiedad: h.propiedadId ? propHist.get(h.propiedadId) ?? null : null,
             }))}
             propiedades={propsActivas.map((p) => ({ id: p.id, texto: `${p.codigo} — ${limpiarTitulo(p.titulo)}` }))}
-            busquedas={busqActivas.map((b) => ({
-              id: b.id,
-              texto: `${b.operacion === "VENTA" ? "Compra" : "Alquiler"} · ${b.tipo} · ${b.zona}`,
-            }))}
+            busquedas={busqActivas.map((b) => ({ id: b.id, texto: textoBusqueda(b) }))}
+            suspendidas={propsSuspendidas.map((p) => ({ id: p.id, texto: `${p.codigo} — ${limpiarTitulo(p.titulo)}` }))}
+            busquedasSuspendidas={busqSuspendidas.map((b) => ({ id: b.id, texto: textoBusqueda(b) }))}
             whatsappAviso={whatsappAviso}
             proximaSugerida={proximaSugerida}
           />

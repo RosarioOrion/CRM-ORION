@@ -150,3 +150,46 @@ export async function borrarSeguimiento(seguimientoId: string, contactoId: strin
   revalidatePath(`/contactos/${contactoId}`);
   revalidatePath("/contactos");
 }
+
+/**
+ * Reactivar un contacto frío (volvió a aparecer): deja de estar frío y,
+ * si se eligen, sus propiedades suspendidas vuelven a Activa y sus
+ * búsquedas vuelven a estar activas.
+ */
+export async function reactivarContacto(
+  contactoId: string,
+  propiedadIds: string[],
+  busquedaIds: string[]
+): Promise<{ ok: boolean; error?: string }> {
+  let yo;
+  try {
+    ({ yo } = await miContacto(contactoId));
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "No autorizado." };
+  }
+  await db.transaction(async (tx) => {
+    await tx.update(contactos).set({ frioDesde: null }).where(eq(contactos.id, contactoId));
+    if (propiedadIds.length)
+      await tx
+        .update(propiedades)
+        .set({ estado: "ACTIVA" })
+        .where(
+          and(
+            inArray(propiedades.id, propiedadIds),
+            eq(propiedades.duenoId, contactoId),
+            eq(propiedades.agenteId, yo)
+          )
+        );
+    if (busquedaIds.length)
+      await tx
+        .update(busquedas)
+        .set({ activa: true })
+        .where(and(inArray(busquedas.id, busquedaIds), eq(busquedas.contactoId, contactoId)));
+  });
+  revalidatePath(`/contactos/${contactoId}`);
+  revalidatePath("/contactos");
+  revalidatePath("/propiedades");
+  revalidatePath("/busquedas");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
