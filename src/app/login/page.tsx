@@ -13,17 +13,16 @@ export default function LoginPage() {
   );
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-orion-bg px-4">
+    <div className="flex min-h-screen items-center justify-center bg-orion-navy bg-[radial-gradient(ellipse_at_top,#132647_0%,#0a1830_55%,#050d1c_100%)] px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-orion-navy text-orion-gold text-2xl font-bold">
-            O
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/orion-logo.png" alt="Orion Propiedades" className="mx-auto mb-5 h-auto w-64 max-w-full" />
           <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-orion-gold">
             Sector agentes
           </p>
-          <h1 className="mt-1 text-2xl font-bold text-orion-navy">CRM Orion</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="mt-1 text-2xl font-bold text-white">CRM Orion</h1>
+          <p className="mt-1 text-sm text-white/60">
             Ingresá con tu usuario y contraseña
           </p>
         </div>
@@ -87,24 +86,24 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={pending}
-            className="w-full rounded-lg bg-orion-navy px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orion-navy-light disabled:opacity-60"
+            className="w-full rounded-lg bg-orion-navy px-4 py-2.5 text-sm font-semibold text-orion-gold transition hover:bg-orion-navy-light disabled:opacity-60"
           >
             {pending ? "Ingresando…" : "Ingresar"}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-gray-500">
+        <p className="mt-6 text-center text-sm text-white/60">
           ¿Sos nuevo en el equipo?{" "}
           <a
             href="/registro"
-            className="font-semibold text-orion-navy hover:underline"
+            className="font-semibold text-orion-gold hover:underline"
           >
             Crear cuenta
           </a>
         </p>
 
         <p className="mt-3 text-center text-sm">
-          <Link href="/" className="text-gray-500 hover:text-orion-navy hover:underline">
+          <Link href="/" className="text-white/60 hover:text-orion-gold hover:underline">
             ← Volver a la web
           </Link>
         </p>
