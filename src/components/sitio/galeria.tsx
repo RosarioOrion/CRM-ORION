@@ -2,13 +2,18 @@
 
 import { useState } from "react";
 
-/** Galería de fotos de la ficha pública: foto grande, flechas y miniaturas. */
+/**
+ * Galería de fotos de la ficha pública, con el formato de los portales
+ * (Mercado Libre / InfoCasas): marco fijo horizontal 4:3, la foto entera sin
+ * recortar y, si no llena el marco (fotos verticales), un fondo difuminado de
+ * la misma foto en vez de franjas negras. Miniaturas también en 4:3.
+ */
 export function Galeria({ urls, alt, tipo }: { urls: string[]; alt: string; tipo: string }) {
   const [i, setI] = useState(0);
 
   if (urls.length === 0) {
     return (
-      <div className="flex aspect-[16/10] w-full flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-[#132647] to-[#0a1830] text-white/70">
+      <div className="flex aspect-[4/3] w-full flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-[#132647] to-[#0a1830] text-white/70">
         <span className="text-5xl">🏠</span>
         <span className="mt-2 text-xs uppercase tracking-widest">{tipo}</span>
         <span className="mt-1 text-xs">Fotos próximamente</span>
@@ -20,9 +25,16 @@ export function Galeria({ urls, alt, tipo }: { urls: string[]; alt: string; tipo
 
   return (
     <div>
-      <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl bg-black">
+      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-gray-900">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={urls[i]} alt={`${alt} — foto ${i + 1}`} className="h-full w-full object-contain" />
+        <img
+          src={urls[i]}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full scale-110 object-cover opacity-70 blur-2xl"
+        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={urls[i]} alt={`${alt} — foto ${i + 1}`} className="relative h-full w-full object-contain" />
         {urls.length > 1 && (
           <>
             <button
@@ -55,7 +67,7 @@ export function Galeria({ urls, alt, tipo }: { urls: string[]; alt: string; tipo
               key={u}
               type="button"
               onClick={() => setI(n)}
-              className={`h-16 w-24 shrink-0 overflow-hidden rounded-lg ring-2 transition ${
+              className={`h-[72px] w-24 shrink-0 overflow-hidden rounded-lg ring-2 transition ${
                 n === i ? "ring-orion-gold" : "ring-transparent opacity-70 hover:opacity-100"
               }`}
             >
