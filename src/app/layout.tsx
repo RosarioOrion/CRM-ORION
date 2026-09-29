@@ -6,8 +6,8 @@ export const metadata: Metadata = {
   description: "CRM Orion — sistema de gestión inmobiliaria",
   applicationName: "Orion",
   icons: {
-    icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
-    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+    icon: [{ url: "/icons/orion-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/icons/orion-apple-180.png", sizes: "180x180" }],
   },
   // iPhone: al agregarla a la pantalla de inicio se abre como app, sin barra de Safari.
   appleWebApp: {
