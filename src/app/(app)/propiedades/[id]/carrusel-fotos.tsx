@@ -2,7 +2,11 @@
 
 import { useRef, useState } from "react";
 
-/** Foto principal con flechas (y deslizar en el celular) + miniaturas. */
+/**
+ * Foto principal con flechas (y deslizar en el celular) + miniaturas.
+ * Formato portales (Mercado Libre / InfoCasas): marco 4:3, foto entera y
+ * fondo difuminado de la misma foto cuando no llena el marco.
+ */
 export function CarruselFotos({ fotos }: { fotos: string[] }) {
   const [i, setI] = useState(0);
   const toque = useRef<number | null>(null);
@@ -22,7 +26,7 @@ export function CarruselFotos({ fotos }: { fotos: string[] }) {
   return (
     <div>
       <div
-        className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-black"
+        className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-gray-900"
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === "ArrowLeft") ir(i - 1);
@@ -37,7 +41,14 @@ export function CarruselFotos({ fotos }: { fotos: string[] }) {
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={fotos[i]} alt={`Foto ${i + 1}`} className="h-full w-full object-contain" />
+        <img
+          src={fotos[i]}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full scale-110 object-cover opacity-70 blur-2xl"
+        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={fotos[i]} alt={`Foto ${i + 1}`} className="relative h-full w-full object-contain" />
         {fotos.length > 1 && (
           <>
             <button type="button" aria-label="Foto anterior" onClick={() => ir(i - 1)} className={`${flecha} left-2`}>
@@ -59,7 +70,7 @@ export function CarruselFotos({ fotos }: { fotos: string[] }) {
               key={f}
               type="button"
               onClick={() => setI(n)}
-              className={`h-14 w-20 shrink-0 overflow-hidden rounded-md border-2 ${
+              className={`h-15 w-20 shrink-0 overflow-hidden rounded-md border-2 ${
                 n === i ? "border-orion-gold" : "border-transparent opacity-70 hover:opacity-100"
               }`}
             >
