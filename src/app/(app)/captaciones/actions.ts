@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { count, eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { captaciones, contactos, propiedades } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
@@ -23,9 +23,16 @@ const CaptacionSchema = z.object({
 export type CaptacionState = { error?: string; ok?: boolean };
 
 async function generarCodigoPropiedad() {
-  const [{ total }] = await db.select({ total: count() }).from(propiedades);
-  const siguiente = total + 1;
-  return `OR${String(siguiente).padStart(3, "0")}`;
+  // Código correlativo por orden de ingreso: O0001, O0002, ... Toma el número
+  // más alto existente (no la cantidad), así no se repite aunque se borren
+  // propiedades.
+  const [{ maximo }] = await db
+    .select({
+      maximo: sql<number>`coalesce(max(nullif(regexp_replace(${propiedades.codigo}, '[^0-9]', '', 'g'), '')::int), 0)`,
+    })
+    .from(propiedades)
+    .where(sql`${propiedades.codigo} ~ '^O[0-9]+$'`);
+  return `O${String(Number(maximo) + 1).padStart(4, "0")}`;
 }
 
 /** Confirma que el contacto es del agente logueado antes de crear la captación en su nombre. */
