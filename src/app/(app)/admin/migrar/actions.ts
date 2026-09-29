@@ -682,6 +682,34 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
     db.execute(sql`ALTER TABLE contactos ADD COLUMN IF NOT EXISTS roles jsonb NOT NULL DEFAULT '[]'`)
   );
 
+  // Códigos de propiedad nuevos: O0001, O0002, ... por orden de ingreso
+  // (fecha de carga y, a igual fecha, el número del código viejo). Se hace
+  // una sola vez: si todas ya tienen el formato nuevo, no toca nada, así los
+  // códigos quedan fijos para siempre.
+  await paso(resultados, "Renumerar códigos de propiedades (O0001...)", () =>
+    db.execute(sql`
+      WITH pendientes AS (
+        SELECT 1 FROM propiedades WHERE codigo !~ '^O[0-9]{4,}$' LIMIT 1
+      ),
+      orden AS (
+        SELECT id,
+               'O' || lpad(row_number() OVER (
+                 ORDER BY creado_en,
+                          nullif(regexp_replace(codigo, '[^0-9]', '', 'g'), '')::int NULLS LAST,
+                          id
+               )::text, 4, '0') AS nuevo
+        FROM propiedades
+      )
+      UPDATE propiedades p
+         SET codigo = orden.nuevo
+        FROM orden
+       WHERE p.id = orden.id
+         AND p.codigo <> orden.nuevo
+         AND EXISTS (SELECT 1 FROM pendientes)
+      RETURNING p.id
+    `)
+  );
+
   return resultados;
 }
 
