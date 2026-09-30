@@ -78,6 +78,50 @@ function armarLotes(archivos: File[]): File[][] {
   return lotes;
 }
 
+/**
+ * Optimiza y sube fotos a una propiedad en lotes. Devuelve un mensaje de
+ * error o null si salió todo bien. Lo usan esta ficha y el alta de
+ * propiedad nueva.
+ */
+export async function subirFotosPropiedad(
+  propiedadId: string,
+  archivosOriginales: File[],
+  onProgreso: (texto: string) => void
+): Promise<string | null> {
+  onProgreso(
+    archivosOriginales.length > 1
+      ? `Optimizando ${archivosOriginales.length} fotos…`
+      : "Optimizando foto…"
+  );
+  const archivos = await Promise.all(archivosOriginales.map(comprimirImagen));
+  const lotes = armarLotes(archivos);
+  let completados = 0;
+  let huboError: string | null = null;
+  let siguiente = 0;
+
+  async function trabajador() {
+    while (siguiente < lotes.length && !huboError) {
+      const indice = siguiente++;
+      const fd = new FormData();
+      for (const archivo of lotes[indice]) fd.append("fotos", archivo);
+      const resultado = await agregarFotos(propiedadId, {}, fd);
+      if (resultado.error) {
+        huboError = resultado.error;
+        return;
+      }
+      completados++;
+      onProgreso(
+        lotes.length > 1
+          ? `Subiendo fotos… (${completados} de ${lotes.length} lotes)`
+          : "Subiendo fotos…"
+      );
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(LOTES_EN_PARALELO, lotes.length) }, trabajador));
+  return huboError;
+}
+
 export function SubirFotosForm({ propiedadId }: { propiedadId: string }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -101,45 +145,7 @@ export function SubirFotosForm({ propiedadId }: { propiedadId: string }) {
     setEnviando(true);
 
     try {
-      setProgreso(
-        archivosOriginales.length > 1
-          ? `Optimizando ${archivosOriginales.length} fotos…`
-          : "Optimizando foto…"
-      );
-      const archivos = await Promise.all(archivosOriginales.map(comprimirImagen));
-
-      const lotes = armarLotes(archivos);
-      let completados = 0;
-      let huboError: string | null = null;
-
-      // Subimos los lotes con un cupo de paralelismo: se disparan varios
-      // pedidos a la vez (no uno por uno esperando cada respuesta), lo que
-      // acorta bastante el tiempo total con muchas fotos.
-      let siguiente = 0;
-      async function trabajador() {
-        while (siguiente < lotes.length && !huboError) {
-          const indice = siguiente++;
-          const fd = new FormData();
-          for (const archivo of lotes[indice]) fd.append("fotos", archivo);
-
-          const resultado = await agregarFotos(propiedadId, {}, fd);
-          if (resultado.error) {
-            huboError = resultado.error;
-            return;
-          }
-          completados++;
-          setProgreso(
-            lotes.length > 1
-              ? `Subiendo fotos… (${completados} de ${lotes.length} lotes)`
-              : "Subiendo fotos…"
-          );
-        }
-      }
-
-      await Promise.all(
-        Array.from({ length: Math.min(LOTES_EN_PARALELO, lotes.length) }, trabajador)
-      );
-
+      const huboError = await subirFotosPropiedad(propiedadId, archivosOriginales, setProgreso);
       if (huboError) {
         setError(huboError);
         return;
