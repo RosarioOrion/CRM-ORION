@@ -45,7 +45,7 @@ const PropiedadSchema = z.object({
       duenoId: z.string().min(1, "Elegi el contacto dueno"),
 });
 
-export type PropiedadState = { error?: string; ok?: number };
+export type PropiedadState = { error?: string; ok?: number; id?: string };
 
 async function generarCodigo() {
   // Código correlativo por orden de ingreso: O0001, O0002, ... Toma el número
@@ -112,7 +112,7 @@ export async function crearPropiedad(
 
   const codigo = await generarCodigo();
 
-  await db.insert(propiedades).values({
+  const [nueva] = await db.insert(propiedades).values({
           codigo,
           titulo: parsed.data.titulo,
           operacion: parsed.data.operacion,
@@ -147,10 +147,10 @@ export async function crearPropiedad(
           descripcion: parsed.data.descripcion ?? null,
           duenoId: parsed.data.duenoId,
           agenteId: sesion.userId,
-  });
+  }).returning({ id: propiedades.id });
 
   revalidatePath("/propiedades");
-      return { ok: Date.now() };
+      return { ok: Date.now(), id: nueva.id };
 }
 
 const FOTO_MAX_BYTES = 10 * 1024 * 1024;
