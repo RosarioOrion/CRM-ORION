@@ -1,7 +1,9 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { crearPropiedad, type PropiedadState } from "./actions";
+import { subirFotosPropiedad } from "./[id]/subir-fotos-form";
 
 const initialState: PropiedadState = {};
 
@@ -140,12 +142,52 @@ export function NuevaPropiedadForm({ contactos }: { contactos: Contacto[] }) {
     initialState
     );
   const [abierto, setAbierto] = useState(false);
+  const router = useRouter();
+  // Fotos elegidas en el alta: se suben apenas se crea la propiedad.
+  const [fotos, setFotos] = useState<File[]>([]);
+  const [subiendo, setSubiendo] = useState<string | null>(null);
+  const [errorFotos, setErrorFotos] = useState<string | null>(null);
+  const procesado = useRef<number | null>(null);
 
   useEffect(() => {
-    if (state?.ok) {
+    if (!state?.ok || !state.id || procesado.current === state.ok) return;
+    procesado.current = state.ok;
+    const id = state.id;
+    (async () => {
+      if (fotos.length > 0) {
+        const err = await subirFotosPropiedad(id, fotos, setSubiendo);
+        setSubiendo(null);
+        if (err) {
+          setErrorFotos(`La propiedad se guardó, pero las fotos no: ${err} Podés subirlas desde la ficha.`);
+          return;
+        }
+      }
+      setFotos([]);
       setAbierto(false);
-    }
-  }, [state?.ok]);
+      router.push(`/propiedades/${id}`);
+    })();
+  }, [state?.ok, state?.id, fotos, router]);
+
+  const selectorFotos = (
+    <div className="sm:col-span-2 rounded-lg border border-dashed border-gray-300 p-3 dark:border-gray-600">
+      <p className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-200">📷 Fotos</p>
+      <input
+        type="file"
+        accept="image/*"
+        multiple
+        disabled={!!subiendo}
+        onChange={(e) => setFotos(e.target.files ? Array.from(e.target.files) : [])}
+        className="text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-orion-navy file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-orion-navy-light dark:text-gray-300"
+      />
+      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        {fotos.length > 0
+          ? `${fotos.length} foto(s) elegida(s). Se suben al guardar la propiedad; después las podés ordenar desde la ficha.`
+          : "Opcional. Podés elegir varias a la vez."}
+      </p>
+      {subiendo && <p className="mt-1 text-xs font-semibold text-orion-navy dark:text-orion-gold">{subiendo}</p>}
+      {errorFotos && <p className="mt-1 text-xs text-red-600">{errorFotos}</p>}
+    </div>
+  );
 
 if (contactos.length === 0) {
   return (
@@ -180,11 +222,12 @@ if (contactos.length === 0) {
         </button>
       </div>
       <PropiedadFormFields
-        key={state?.ok ?? "initial"}
+        key={state?.ok && !state.id ? state.ok : "initial"}
         contactos={contactos}
         formAction={formAction}
-        pending={pending}
+        pending={pending || !!subiendo}
         error={state?.error}
+        extraAbajo={selectorFotos}
         />
     </div>
     );
