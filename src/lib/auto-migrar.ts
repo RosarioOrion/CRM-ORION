@@ -20,6 +20,13 @@ const SENTENCIAS = [
     proxima_fecha timestamp
   )`,
   sql`CREATE INDEX IF NOT EXISTS seguimientos_contacto_idx ON seguimientos (contacto_id, fecha)`,
+  // Pipeline: frecuencia del seguimiento al dueño y datos del ajuste de precio.
+  sql`ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS frecuencia_seguimiento integer`,
+  sql`ALTER TABLE seguimientos ADD COLUMN IF NOT EXISTS ajuste_planteado boolean`,
+  sql`ALTER TABLE seguimientos ADD COLUMN IF NOT EXISTS ajuste_aceptado boolean`,
+  sql`ALTER TABLE seguimientos ADD COLUMN IF NOT EXISTS ajuste_precio integer`,
+  sql`ALTER TABLE seguimientos ADD COLUMN IF NOT EXISTS ajuste_moneda text`,
+  sql`CREATE INDEX IF NOT EXISTS seguimientos_propiedad_idx ON seguimientos (propiedad_id, fecha)`,
 ];
 
 export async function autoMigrar() {
