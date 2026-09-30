@@ -137,6 +137,10 @@ export const propiedades = pgTable("propiedades", {
       // Si aparece en la página web pública (Orion Propiedades). Por defecto
       // sí; el agente la puede ocultar desde la ficha.
       publicadaWeb: boolean("publicada_web").notNull().default(true),
+      // Cada cuántos días se hace el seguimiento al dueño desde el Pipeline
+      // (7 = todos los lunes, 14 = cada 15 días). Null = todavía no se eligió.
+      // Republicar sigue la misma frecuencia.
+      frecuenciaSeguimiento: integer("frecuencia_seguimiento"),
       estado: estadoPropiedadEnum("estado").notNull().default("ACTIVA"),
       // Fecha desde la que corre la cadencia del Pipeline (semana 1 de 14 en
       // venta / semana 1 de 7 en alquiler). Por defecto es cuando se cargó en
@@ -815,4 +819,11 @@ export const seguimientos = pgTable("seguimientos", {
       avisoFinal: boolean("aviso_final").notNull().default(false),
       nota: text("nota"),
       proximaFecha: timestamp("proxima_fecha"),
+      // Seguimiento de los lunes desde el Pipeline: si en esa semana tocaba
+      // plantear ajuste de precio, si se planteó, si el dueño aceptó y a qué
+      // precio quedó.
+      ajustePlanteado: boolean("ajuste_planteado"),
+      ajusteAceptado: boolean("ajuste_aceptado"),
+      ajustePrecio: integer("ajuste_precio"),
+      ajusteMoneda: text("ajuste_moneda"),
 });
