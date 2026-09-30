@@ -100,7 +100,9 @@ export default async function PropiedadDetallePage({
   const ubicacion = [propiedad.direccion, propiedad.zona, propiedad.departamento, "Uruguay"]
     .filter(Boolean)
     .join(", ");
-  const mapaSrc = `https://www.google.com/maps?q=${encodeURIComponent(ubicacion)}&output=embed`;
+  // Con dirección se acerca a la cuadra; sin dirección muestra el barrio.
+  const zoomMapa = propiedad.direccion ? 16 : 14;
+  const mapaSrc = `https://www.google.com/maps?q=${encodeURIComponent(ubicacion)}&z=${zoomMapa}&output=embed`;
 
   let datosPipeline: import("./pipeline-toggle").TarjetaPipelineProps | null = null;
   if (esPropia && propiedad.estado === "ACTIVA") {
@@ -383,16 +385,24 @@ export default async function PropiedadDetallePage({
           {/* 4. Mapa */}
           <div className={`${tarjeta} mb-4`}>
             <p className={subtitulo}>Ubicación</p>
-            <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+            <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+              📍 {ubicacion.replace(/, Uruguay$/, "")}
+            </p>
+            <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-900">
               <iframe
                 title="Ubicación en el mapa"
                 src={mapaSrc}
                 width="100%"
                 height="280"
                 style={{ border: 0 }}
-                loading="lazy"
               />
             </div>
+            {!propiedad.direccion && (
+              <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                El mapa muestra el barrio. Para marcar la ubicación exacta, agregá la dirección
+                (calle y número o esquina){esPropia ? " desde “Editar propiedad”." : "."}
+              </p>
+            )}
           </div>
 
           {/* 5. Portales */}
