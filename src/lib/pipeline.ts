@@ -228,3 +228,94 @@ export function esViernesHoy(ahora: Date = new Date()): boolean {
   const montevideo = new Date(ahora.getTime() - 3 * 60 * 60 * 1000);
   return montevideo.getUTCDay() === 5;
 }
+
+// --- Tareas que se repiten: seguimiento al dueño y republicar ----------
+//
+// No dependen de la semana del plan (que corre desde el día de ingreso) sino
+// del calendario: se hacen los LUNES, cada semana o cada 15 días según la
+// propiedad. Si un lunes no se hizo, queda atrasado (en rojo) hasta que se
+// registre; al registrarlo, el próximo se cuenta desde el lunes de esa semana.
+
+export const FRECUENCIAS_SEGUIMIENTO = [7, 14] as const;
+export type FrecuenciaSeguimiento = (typeof FRECUENCIAS_SEGUIMIENTO)[number];
+
+export const FRECUENCIA_LABEL: Record<FrecuenciaSeguimiento, string> = {
+  7: "Todos los lunes",
+  14: "Cada 15 días (lunes por medio)",
+};
+
+export function esFrecuencia(v: unknown): v is FrecuenciaSeguimiento {
+  return v === 7 || v === 14;
+}
+
+const DIA_MS = 24 * 60 * 60 * 1000;
+
+function inicioDelDia(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function sumarDias(d: Date, n: number): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+}
+
+/** Lunes (00:00) de la semana de `d`. */
+export function lunesDe(d: Date): Date {
+  const x = inicioDelDia(d);
+  const desdeLunes = (x.getDay() + 6) % 7;
+  return sumarDias(x, -desdeLunes);
+}
+
+/** Primer lunes en o después de `d`. */
+export function primerLunesDesde(d: Date): Date {
+  const x = inicioDelDia(d);
+  const l = lunesDe(x);
+  return l.getTime() === x.getTime() ? l : sumarDias(l, 7);
+}
+
+/**
+ * Lunes en que toca la próxima vez. Sin registros previos: el primer lunes
+ * desde que la propiedad entró al Pipeline. Con registros: el lunes de la
+ * semana del último + la frecuencia.
+ */
+export function proximoLunesQueToca(
+  ultima: Date | null,
+  inicio: Date,
+  frecuencia: number
+): Date {
+  if (!ultima) return primerLunesDesde(inicio);
+  return sumarDias(lunesDe(ultima), frecuencia);
+}
+
+export type EstadoRecurrente = "PROXIMO" | "HECHO" | "HOY" | "ATRASADO";
+
+export function estadoRecurrente(
+  toca: Date,
+  hayRegistro: boolean,
+  ahora: Date
+): EstadoRecurrente {
+  const hoy = inicioDelDia(ahora).getTime();
+  const t = inicioDelDia(toca).getTime();
+  if (t > hoy) return hayRegistro ? "HECHO" : "PROXIMO";
+  if (t === hoy) return "HOY";
+  return "ATRASADO";
+}
+
+export function diasDeAtraso(toca: Date, ahora: Date): number {
+  return Math.max(0, Math.round((inicioDelDia(ahora).getTime() - inicioDelDia(toca).getTime()) / DIA_MS));
+}
+
+/** ¿En esta semana del plan corresponde plantear un ajuste de precio al dueño? */
+export function semanaPideAjuste(acciones: AccionesSemana): boolean {
+  return Object.values(acciones).some((t) =>
+    /posible ajuste de precio|proponer correcci[oó]n de precio/i.test(t)
+  );
+}
+
+/** Texto corto para una fecha guardada en hora de Uruguay: "lun 06/10". */
+export function fechaCorta(d: Date | string): string {
+  const x = typeof d === "string" ? new Date(d) : d;
+  const dias = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
+  const dd = String(x.getDate()).padStart(2, "0");
+  const mm = String(x.getMonth() + 1).padStart(2, "0");
+  return `${dias[x.getDay()]} ${dd}/${mm}`;
+}
