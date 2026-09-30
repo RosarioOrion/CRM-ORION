@@ -1,20 +1,9 @@
 import { db } from "@/db";
-import { propiedades, pipelineAcciones, historialPrecios, usuarios } from "@/db/schema";
+import { propiedades, usuarios } from "@/db/schema";
 import { obtenerSesion, esAdmin } from "@/lib/auth";
-import { and, eq, desc, inArray } from "drizzle-orm";
-import { limpiarTitulo } from "@/lib/propiedades";
-import {
-  diasEnMercado,
-  semanaActual,
-  esSemanaFinal,
-  accionesDeLaSemana,
-  estaVencido,
-  DURACION_CICLO,
-  MINIMO_PROPIEDADES_ACTIVAS,
-  UMBRAL_REVISAR_PRECIO_DIAS,
-  UMBRAL_ESTANCADA_DIAS,
-} from "@/lib/pipeline";
-import type { CategoriaPipeline } from "@/lib/pipeline";
+import { and, eq } from "drizzle-orm";
+import { MINIMO_PROPIEDADES_ACTIVAS } from "@/lib/pipeline";
+import { armarTarjetasPipeline } from "@/lib/pipeline-datos";
 import { TarjetaPipeline } from "./tarjeta-pipeline";
 import { SelectorAgente } from "./selector-agente";
 
@@ -48,78 +37,16 @@ export default async function PipelinePage({
     .where(and(eq(propiedades.agenteId, agenteObjetivoId), eq(propiedades.estado, "ACTIVA")))
     .orderBy(propiedades.fechaInicioPipeline);
 
-  const ids = props.map((p) => p.id);
+  const tarjetas = await armarTarjetasPipeline(props, soloLectura);
 
-  const acciones = ids.length
-    ? await db
-        .select()
-        .from(pipelineAcciones)
-        .where(inArray(pipelineAcciones.propiedadId, ids))
-        .orderBy(desc(pipelineAcciones.creadoEn))
-    : [];
-
-  const ajustes = ids.length
-    ? await db
-        .select()
-        .from(historialPrecios)
-        .where(inArray(historialPrecios.propiedadId, ids))
-        .orderBy(desc(historialPrecios.creadoEn))
-    : [];
-
-  const ahora = new Date();
-
-  const tarjetas = props.map((p) => {
-    const dias = diasEnMercado(p.fechaInicioPipeline, ahora);
-    const semana = semanaActual(dias, p.operacion);
-    const esFinal = esSemanaFinal(semana, p.operacion);
-    const vencido = estaVencido(dias, p.operacion);
-    const accionesSemana = accionesDeLaSemana(p.operacion, semana);
-
-    const accionesDeEsta = acciones.filter(
-      (a) => a.propiedadId === p.id && a.semana === semana
-    );
-    const hechasEstaSemana = accionesDeEsta.map((a) => a.categoria as CategoriaPipeline);
-
-    const ultimaAccion = acciones.find((a) => a.propiedadId === p.id);
-    const diasSinContacto = ultimaAccion
-      ? diasEnMercado(ultimaAccion.creadoEn, ahora)
-      : null;
-
-    const ultimoAjuste = ajustes.find((a) => a.propiedadId === p.id);
-    const diasSinAjuste = ultimoAjuste
-      ? diasEnMercado(ultimoAjuste.creadoEn, ahora)
-      : dias;
-    const revisarPrecio = diasSinAjuste >= UMBRAL_REVISAR_PRECIO_DIAS;
-
-    const estancada = diasSinContacto === null || diasSinContacto >= UMBRAL_ESTANCADA_DIAS;
-
-    return {
-      propiedadId: p.id,
-      codigo: p.codigo,
-      titulo: limpiarTitulo(p.titulo),
-      operacion: p.operacion,
-      precio: p.precio,
-      moneda: p.moneda,
-      dias,
-      semana,
-      totalSemanas: DURACION_CICLO[p.operacion],
-      esFinal,
-      vencido,
-      revisarPrecio,
-      estancada,
-      acciones: accionesSemana,
-      hechasEstaSemana,
-      diasSinContacto,
-      ultimoAjustePrecio: ultimoAjuste
-        ? { fecha: ultimoAjuste.creadoEn.toISOString(), precioAnterior: ultimoAjuste.precioAnterior }
-        : null,
-      fechaInicioPipeline: p.fechaInicioPipeline.toISOString(),
-      soloLectura,
-    };
-  });
-
-  // Más urgente primero: sin contacto nunca, o hace más días.
-  tarjetas.sort((a, b) => (b.diasSinContacto ?? 999) - (a.diasSinContacto ?? 999));
+  // Más urgente primero: seguimiento atrasado o que toca hoy, después sin
+  // frecuencia elegida, después por días sin contacto.
+  const prioridad = (t: (typeof tarjetas)[number]) =>
+    t.seguimiento?.estado === "ATRASADO" ? 0 : t.seguimiento?.estado === "HOY" ? 1 : !t.frecuencia ? 2 : 3;
+  tarjetas.sort(
+    (a, b) =>
+      prioridad(a) - prioridad(b) || (b.diasSinContacto ?? 999) - (a.diasSinContacto ?? 999)
+  );
 
   const ventas = tarjetas.filter((t) => t.operacion === "VENTA");
   const alquileres = tarjetas.filter((t) => t.operacion === "ALQUILER");
