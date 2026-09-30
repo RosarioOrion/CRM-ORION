@@ -4,25 +4,13 @@ import { db } from "@/db";
 import {
   propiedades,
   contactos,
-  pipelineAcciones,
-  historialPrecios,
   portalesPublicados,
   usuarios,
 } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { eq, desc } from "drizzle-orm";
 import { limpiarTitulo, ESTADO_LABEL, ESTADO_COLOR } from "@/lib/propiedades";
-import {
-  diasEnMercado,
-  semanaActual,
-  esSemanaFinal,
-  accionesDeLaSemana,
-  estaVencido,
-  DURACION_CICLO,
-  UMBRAL_REVISAR_PRECIO_DIAS,
-  UMBRAL_ESTANCADA_DIAS,
-} from "@/lib/pipeline";
-import type { CategoriaPipeline } from "@/lib/pipeline";
+import { armarTarjetasPipeline } from "@/lib/pipeline-datos";
 import { CambiarEstado } from "./cambiar-estado";
 import { SubirFotosForm } from "./subir-fotos-form";
 import { PipelineToggle } from "./pipeline-toggle";
@@ -116,53 +104,7 @@ export default async function PropiedadDetallePage({
 
   let datosPipeline: import("./pipeline-toggle").TarjetaPipelineProps | null = null;
   if (esPropia && propiedad.estado === "ACTIVA") {
-    const [acciones, ajustes] = await Promise.all([
-      db
-        .select()
-        .from(pipelineAcciones)
-        .where(eq(pipelineAcciones.propiedadId, propiedad.id))
-        .orderBy(desc(pipelineAcciones.creadoEn)),
-      db
-        .select()
-        .from(historialPrecios)
-        .where(eq(historialPrecios.propiedadId, propiedad.id))
-        .orderBy(desc(historialPrecios.creadoEn)),
-    ]);
-
-    const ahora = new Date();
-    const dias = diasEnMercado(propiedad.fechaInicioPipeline, ahora);
-    const semana = semanaActual(dias, propiedad.operacion);
-    const esFinal = esSemanaFinal(semana, propiedad.operacion);
-    const accionesSemana = accionesDeLaSemana(propiedad.operacion, semana);
-    const accionesDeEsta = acciones.filter((a) => a.semana === semana);
-    const hechasEstaSemana = accionesDeEsta.map((a) => a.categoria as CategoriaPipeline);
-    const ultimaAccion = acciones[0];
-    const diasSinContacto = ultimaAccion ? diasEnMercado(ultimaAccion.creadoEn, ahora) : null;
-    const ultimoAjuste = ajustes[0];
-    const diasSinAjuste = ultimoAjuste ? diasEnMercado(ultimoAjuste.creadoEn, ahora) : dias;
-
-    datosPipeline = {
-      propiedadId: propiedad.id,
-      codigo: propiedad.codigo,
-      titulo: limpiarTitulo(propiedad.titulo),
-      operacion: propiedad.operacion,
-      precio: propiedad.precio,
-      moneda: propiedad.moneda,
-      dias,
-      semana,
-      totalSemanas: DURACION_CICLO[propiedad.operacion],
-      esFinal,
-      vencido: estaVencido(dias, propiedad.operacion),
-      revisarPrecio: diasSinAjuste >= UMBRAL_REVISAR_PRECIO_DIAS,
-      estancada: diasSinContacto === null || diasSinContacto >= UMBRAL_ESTANCADA_DIAS,
-      acciones: accionesSemana,
-      hechasEstaSemana,
-      diasSinContacto,
-      ultimoAjustePrecio: ultimoAjuste
-        ? { fecha: ultimoAjuste.creadoEn.toISOString(), precioAnterior: ultimoAjuste.precioAnterior }
-        : null,
-      fechaInicioPipeline: propiedad.fechaInicioPipeline.toISOString(),
-    };
+    [datosPipeline] = await armarTarjetasPipeline([propiedad], false);
   }
 
   // Para "Editar propiedad": mis contactos (posibles dueños), incluido el actual.
