@@ -42,6 +42,8 @@ const PropiedadSchema = z.object({
       estadoEdilicio: z.string().optional(),
       extras: z.array(z.string()).optional(),
       descripcion: z.string().optional(),
+      lat: z.coerce.number().min(-90).max(90).optional(),
+      lng: z.coerce.number().min(-180).max(180).optional(),
       duenoId: z.string().min(1, "Elegi el contacto dueno"),
 });
 
@@ -93,6 +95,8 @@ function leerFormularioPropiedad(formData: FormData) {
           estadoEdilicio: formData.get("estadoEdilicio") || undefined,
           extras: formData.getAll("extras"),
           descripcion: formData.get("descripcion") || undefined,
+          lat: formData.get("lat") || undefined,
+          lng: formData.get("lng") || undefined,
           duenoId: formData.get("duenoId"),
   });
 }
@@ -145,6 +149,8 @@ export async function crearPropiedad(
           estadoEdilicio: parsed.data.estadoEdilicio ?? null,
           extras: parsed.data.extras ?? [],
           descripcion: parsed.data.descripcion ?? null,
+          lat: parsed.data.lat ?? null,
+          lng: parsed.data.lng ?? null,
           duenoId: parsed.data.duenoId,
           agenteId: sesion.userId,
   }).returning({ id: propiedades.id });
@@ -601,6 +607,8 @@ export async function editarPropiedad(
             estadoEdilicio: datos.estadoEdilicio ?? null,
             extras: datos.extras ?? [],
             descripcion,
+            // Si no se marcó una ubicación precisa, se conserva la que había.
+            ...(datos.lat != null && datos.lng != null ? { lat: datos.lat, lng: datos.lng } : {}),
             duenoId: datos.duenoId,
             ...(fotosNuevas ? { fotos: fotosNuevas } : {}),
           })
