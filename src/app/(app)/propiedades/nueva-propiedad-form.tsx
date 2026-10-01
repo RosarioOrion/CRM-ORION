@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { crearPropiedad, type PropiedadState } from "./actions";
 import { subirFotosPropiedad } from "./[id]/subir-fotos-form";
+import { MapaUbicacion } from "@/components/mapa-ubicacion";
 
 const initialState: PropiedadState = {};
 
@@ -339,8 +340,17 @@ export function PropiedadFormFields({
     <input
       name="direccion"
       defaultValue={d("direccion")}
-      placeholder="Dirección (opcional)"
+      placeholder="Dirección: calle y número o esquina (opcional)"
       className="sm:col-span-2 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy"
+      />
+    <MapaUbicacion
+      editable
+      lat={inicial?.lat != null ? Number(inicial.lat) : null}
+      lng={inicial?.lng != null ? Number(inicial.lng) : null}
+      direccion={d("direccion")}
+      zona={d("zona")}
+      departamento={d("departamento")}
+      alto={260}
       />
     
       {/* Precio */}
