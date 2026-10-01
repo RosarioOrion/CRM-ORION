@@ -12,6 +12,8 @@ import { eq, desc } from "drizzle-orm";
 import { limpiarTitulo, ESTADO_LABEL, ESTADO_COLOR } from "@/lib/propiedades";
 import { armarTarjetasPipeline } from "@/lib/pipeline-datos";
 import { MapaUbicacion } from "@/components/mapa-ubicacion";
+import { tituloPublico, precioTexto } from "@/lib/sitio";
+import { PrepararMarketplace, type DatosMarketplace } from "./preparar-marketplace";
 import { CambiarEstado } from "./cambiar-estado";
 import { SubirFotosForm } from "./subir-fotos-form";
 import { PipelineToggle } from "./pipeline-toggle";
@@ -129,6 +131,32 @@ export default async function PropiedadDetallePage({
     indice: i,
     url: `/api/fotos/${propiedad.id}/${i}?v=${createHash("sha1").update(f).digest("hex").slice(0, 10)}`,
   }));
+
+  // Datos listos para copiar en Facebook Marketplace (solo el agente a cargo).
+  let datosMarketplace: DatosMarketplace | null = null;
+  if (esPropia) {
+    const m2 = propiedad.m2Cubiertos ?? propiedad.m2Privados ?? propiedad.m2Terreno;
+    const tipoMk: Record<string, string> = { Apartamento: "Apartamento", Casa: "Casa" };
+    const descripcionMk = [
+      (propiedad.descripcion ?? "").replace(/\s*\[[^\]]*\]/g, "").trim(),
+      `Ref. ${propiedad.codigo}`,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    datosMarketplace = {
+      codigo: propiedad.codigo,
+      titulo: tituloPublico(propiedad.titulo).slice(0, 99),
+      operacion: propiedad.operacion === "VENTA" ? "En venta" : "En alquiler",
+      tipo: tipoMk[propiedad.tipo] ?? propiedad.tipo,
+      precio: propiedad.precio ? precioTexto(propiedad.precio, propiedad.moneda) : "",
+      dormitorios: propiedad.dormitorios != null ? String(propiedad.dormitorios) : "",
+      banos: propiedad.banos != null ? String(propiedad.banos) : "",
+      metros: m2 ? String(m2) : "",
+      ubicacion: [propiedad.direccion, propiedad.zona, propiedad.departamento].filter(Boolean).join(", "),
+      descripcion: descripcionMk,
+      fotos: fotosVista.map((f) => f.url),
+    };
+  }
 
   // Solo los campos del formulario (sin fotos ni fechas, que pesan o no se editan acá).
   const {
@@ -394,6 +422,12 @@ export default async function PropiedadDetallePage({
               departamento={propiedad.departamento}
             />
           </div>
+
+          {datosMarketplace && (
+            <div className="mb-4">
+              <PrepararMarketplace datos={datosMarketplace} />
+            </div>
+          )}
 
           {/* 5. Portales */}
           <div className={`${tarjeta} mb-4`}>
