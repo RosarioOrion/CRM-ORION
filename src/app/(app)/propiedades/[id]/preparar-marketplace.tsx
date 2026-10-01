@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export type DatosMarketplace = {
   codigo: string;
@@ -99,6 +99,65 @@ export function PrepararMarketplace({ datos }: { datos: DatosMarketplace }) {
   const [abierto, setAbierto] = useState(false);
   const [bajando, setBajando] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // En el celular: las fotos se bajan apenas se abre el panel, así el botón
+  // "Guardar en la galería" abre el menú de compartir al instante (el
+  // celular solo lo permite justo después de tocar el botón).
+  const [archivosCel, setArchivosCel] = useState<File[] | null>(null);
+  const [esCelular, setEsCelular] = useState(false);
+  const [guardadas, setGuardadas] = useState(false);
+
+  useEffect(() => {
+    if (!abierto || archivosCel || datos.fotos.length === 0) return;
+    const movil = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    setEsCelular(movil);
+    if (!movil) return;
+    let cancelado = false;
+    (async () => {
+      try {
+        const lista: File[] = [];
+        for (let i = 0; i < datos.fotos.length; i++) {
+          const r = await fetch(datos.fotos[i]);
+          if (!r.ok) throw new Error();
+          const blob = await r.blob();
+          const tipo = blob.type || "image/jpeg";
+          const ext = tipo.includes("png") ? "png" : tipo.includes("webp") ? "webp" : "jpg";
+          lista.push(new File([blob], `${datos.codigo}-${String(i + 1).padStart(2, "0")}.${ext}`, { type: tipo }));
+        }
+        if (!cancelado) setArchivosCel(lista);
+      } catch {
+        if (!cancelado) setError("No se pudieron preparar las fotos. Cerrá y volvé a abrir el panel.");
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, [abierto, archivosCel, datos.fotos, datos.codigo]);
+
+  async function guardarEnGaleria() {
+    if (!archivosCel) return;
+    setError(null);
+    const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
+    if (nav.share && nav.canShare?.({ files: archivosCel })) {
+      try {
+        await nav.share({ files: archivosCel });
+        setGuardadas(true);
+      } catch {
+        // La persona cerró el menú: no es un error.
+      }
+      return;
+    }
+    // Sin menú de compartir: se descargan una por una (quedan en Descargas / galería).
+    for (const f of archivosCel) {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(f);
+      a.download = f.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      await new Promise((r) => setTimeout(r, 400));
+    }
+    setGuardadas(true);
+  }
 
   async function descargarFotos() {
     setError(null);
@@ -160,7 +219,19 @@ export function PrepararMarketplace({ datos }: { datos: DatosMarketplace }) {
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            {datos.fotos.length > 0 ? (
+            {esCelular && datos.fotos.length > 0 && (
+              <button
+                type="button"
+                disabled={!archivosCel}
+                onClick={guardarEnGaleria}
+                className="rounded-lg bg-orion-gold px-3 py-1.5 text-xs font-semibold text-orion-navy disabled:opacity-60"
+              >
+                {archivosCel
+                  ? `📲 Guardar las ${archivosCel.length} fotos en la galería`
+                  : "Preparando fotos para el celular…"}
+              </button>
+            )}
+            {datos.fotos.length > 0 && esCelular ? null : datos.fotos.length > 0 ? (
               <button
                 type="button"
                 disabled={!!bajando}
@@ -182,6 +253,13 @@ export function PrepararMarketplace({ datos }: { datos: DatosMarketplace }) {
             </a>
           </div>
           {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+          {esCelular && (
+            <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+              {guardadas
+                ? "✓ Listo. En Facebook elegí las fotos desde la galería (quedan en el mismo orden)."
+                : "En el menú que se abre tocá “Guardar imágenes” (iPhone) o “Guardar en Fotos / Galería” (Android). También podés compartirlas directo a Facebook."}
+            </p>
+          )}
           <p className="mt-3 text-[11px] text-gray-400">
             Cuando la publiques, pegá el link en “Publicada en” (más abajo) para que quede registrada.
           </p>
