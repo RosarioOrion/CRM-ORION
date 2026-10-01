@@ -27,6 +27,9 @@ const SENTENCIAS = [
   sql`ALTER TABLE seguimientos ADD COLUMN IF NOT EXISTS ajuste_precio integer`,
   sql`ALTER TABLE seguimientos ADD COLUMN IF NOT EXISTS ajuste_moneda text`,
   sql`CREATE INDEX IF NOT EXISTS seguimientos_propiedad_idx ON seguimientos (propiedad_id, fecha)`,
+  // Ubicación de la propiedad en el mapa.
+  sql`ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS lat double precision`,
+  sql`ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS lng double precision`,
 ];
 
 export async function autoMigrar() {
