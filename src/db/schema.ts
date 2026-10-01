@@ -141,6 +141,9 @@ export const propiedades = pgTable("propiedades", {
       // (7 = todos los lunes, 14 = cada 15 días). Null = todavía no se eligió.
       // Republicar sigue la misma frecuencia.
       frecuenciaSeguimiento: integer("frecuencia_seguimiento"),
+      // Ubicación exacta en el mapa (marcada a mano o encontrada por dirección).
+      lat: doublePrecision("lat"),
+      lng: doublePrecision("lng"),
       estado: estadoPropiedadEnum("estado").notNull().default("ACTIVA"),
       // Fecha desde la que corre la cadencia del Pipeline (semana 1 de 14 en
       // venta / semana 1 de 7 en alquiler). Por defecto es cuando se cargó en
