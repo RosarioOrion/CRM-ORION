@@ -11,6 +11,7 @@ import { obtenerSesion } from "@/lib/auth";
 import { eq, desc } from "drizzle-orm";
 import { limpiarTitulo, ESTADO_LABEL, ESTADO_COLOR } from "@/lib/propiedades";
 import { armarTarjetasPipeline } from "@/lib/pipeline-datos";
+import { MapaUbicacion } from "@/components/mapa-ubicacion";
 import { CambiarEstado } from "./cambiar-estado";
 import { SubirFotosForm } from "./subir-fotos-form";
 import { PipelineToggle } from "./pipeline-toggle";
@@ -100,9 +101,6 @@ export default async function PropiedadDetallePage({
   const ubicacion = [propiedad.direccion, propiedad.zona, propiedad.departamento, "Uruguay"]
     .filter(Boolean)
     .join(", ");
-  // Con dirección se acerca a la cuadra; sin dirección muestra el barrio.
-  const zoomMapa = propiedad.direccion ? 16 : 14;
-  const mapaSrc = `https://www.google.com/maps?q=${encodeURIComponent(ubicacion)}&z=${zoomMapa}&output=embed`;
 
   let datosPipeline: import("./pipeline-toggle").TarjetaPipelineProps | null = null;
   if (esPropia && propiedad.estado === "ACTIVA") {
@@ -388,21 +386,13 @@ export default async function PropiedadDetallePage({
             <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
               📍 {ubicacion.replace(/, Uruguay$/, "")}
             </p>
-            <div className="overflow-hidden rounded-lg border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-900">
-              <iframe
-                title="Ubicación en el mapa"
-                src={mapaSrc}
-                width="100%"
-                height="280"
-                style={{ border: 0 }}
-              />
-            </div>
-            {!propiedad.direccion && (
-              <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
-                El mapa muestra el barrio. Para marcar la ubicación exacta, agregá la dirección
-                (calle y número o esquina){esPropia ? " desde “Editar propiedad”." : "."}
-              </p>
-            )}
+            <MapaUbicacion
+              lat={propiedad.lat}
+              lng={propiedad.lng}
+              direccion={propiedad.direccion}
+              zona={propiedad.zona}
+              departamento={propiedad.departamento}
+            />
           </div>
 
           {/* 5. Portales */}
