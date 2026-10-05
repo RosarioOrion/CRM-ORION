@@ -87,6 +87,12 @@ export default async function ContactoDetallePage({
   }
   const [yo] = await db.select({ nombre: usuarios.nombre }).from(usuarios).where(eq(usuarios.id, sesion.userId));
   const roles = rolesDe(contacto);
+  const esPropietario = roles.some((r) => r.startsWith("PROPIETARIO"));
+  // Si solo es propietario de alquiler, la propiedad nueva arranca como alquiler.
+  const operacionNueva =
+    roles.includes("PROPIETARIO_ALQUILER") && !roles.includes("PROPIETARIO_VENTA")
+      ? "ALQUILER"
+      : "VENTA";
   const numeroWa = numeroWhatsApp(contacto.telefono);
   const whatsappAviso = numeroWa
     ? `https://wa.me/${numeroWa}?text=${encodeURIComponent(
@@ -179,11 +185,24 @@ export default async function ContactoDetallePage({
           </div>
         </div>
 
-        {propiedadesDelContacto.length > 0 && (
+        {(propiedadesDelContacto.length > 0 || esPropietario) && (
           <div className="mb-6">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-              Propiedades a su nombre
-            </p>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Propiedades a su nombre
+              </p>
+              {esPropietario && (
+                <Link
+                  href={`/propiedades?dueno=${contacto.id}&operacion=${operacionNueva}`}
+                  className="flex items-center gap-1.5 rounded-lg bg-orion-navy px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-orion-navy-light"
+                >
+                  <span className="text-sm leading-none">+</span> Publicar propiedad
+                </Link>
+              )}
+            </div>
+            {propiedadesDelContacto.length === 0 && (
+              <p className="text-sm text-gray-400">Todavía no tiene propiedades cargadas.</p>
+            )}
             <div className="flex flex-col gap-1">
               {propiedadesDelContacto.map((p) => (
                 <Link

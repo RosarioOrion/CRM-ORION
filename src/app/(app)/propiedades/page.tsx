@@ -26,7 +26,7 @@ const TABS: { estado: string; label: string }[] = [
 export default async function PropiedadesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ estado?: string; q?: string }>;
+  searchParams: Promise<{ estado?: string; q?: string; dueno?: string; operacion?: string }>;
 }) {
   const params = await searchParams;
   const estadoParam = params.estado ?? "ACTIVA";
@@ -72,6 +72,11 @@ export default async function PropiedadesPage({
       .where(eq(contactos.agenteId, sesion!.userId)),
   ]);
 
+  // Desde la ficha de un contacto propietario: abre el alta con ese dueño.
+  const duenoInicial = misContactos.some((c) => c.id === params.dueno)
+    ? params.dueno
+    : undefined;
+
   function hrefTab(estado: string) {
     const sp = new URLSearchParams();
     sp.set("estado", estado);
@@ -92,7 +97,11 @@ export default async function PropiedadesPage({
       </div>
 
       <div className="mb-6">
-        <NuevaPropiedadForm contactos={misContactos} />
+        <NuevaPropiedadForm
+          contactos={misContactos}
+          duenoInicial={duenoInicial}
+          operacionInicial={params.operacion === "ALQUILER" ? "ALQUILER" : "VENTA"}
+        />
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">

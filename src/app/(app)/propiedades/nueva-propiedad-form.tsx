@@ -137,12 +137,22 @@ const EXTRAS_RURALES = [
 const inputClass =
   "rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy";
 
-export function NuevaPropiedadForm({ contactos }: { contactos: Contacto[] }) {
+export function NuevaPropiedadForm({
+  contactos,
+  duenoInicial,
+  operacionInicial,
+}: {
+  contactos: Contacto[];
+  /** Dueño ya elegido (al venir desde la ficha de un contacto propietario). */
+  duenoInicial?: string;
+  operacionInicial?: "VENTA" | "ALQUILER";
+}) {
   const [state, formAction, pending] = useActionState(
     crearPropiedad,
     initialState
     );
-  const [abierto, setAbierto] = useState(false);
+  // Si viene con dueño elegido, el formulario se abre directamente.
+  const [abierto, setAbierto] = useState(!!duenoInicial);
   const router = useRouter();
   // Fotos elegidas en el alta: se suben apenas se crea la propiedad.
   const [fotos, setFotos] = useState<File[]>([]);
@@ -229,6 +239,8 @@ if (contactos.length === 0) {
         pending={pending || !!subiendo}
         error={state?.error}
         extraAbajo={selectorFotos}
+        inicial={duenoInicial ? { duenoId: duenoInicial, operacion: operacionInicial ?? "VENTA" } : undefined}
+        filasDescripcion={3}
         />
     </div>
     );
@@ -249,6 +261,7 @@ export function PropiedadFormFields({
   titulo = "Nueva propiedad",
   formId,
   botonesExtra,
+  filasDescripcion,
 }: {
   contactos: Contacto[];
   formAction: (formData: FormData) => void;
@@ -262,6 +275,8 @@ export function PropiedadFormFields({
   formId?: string;
   /** Botones al lado de "Guardar" (ej. Cancelar). */
   botonesExtra?: React.ReactNode;
+  /** Alto de la descripción; por defecto más alta al editar. */
+  filasDescripcion?: number;
 }) {
   const [tipo, setTipo] = useState(String(inicial?.tipo ?? "Apartamento"));
   // Valor inicial de un campo (para editar); vacío en una propiedad nueva.
@@ -736,7 +751,7 @@ export function PropiedadFormFields({
       name="descripcion"
       defaultValue={d("descripcion")}
       placeholder="Descripción (opcional, para portales)"
-      rows={inicial ? 12 : 3}
+      rows={filasDescripcion ?? (inicial ? 12 : 3)}
       className="sm:col-span-2 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy"
       />
     
