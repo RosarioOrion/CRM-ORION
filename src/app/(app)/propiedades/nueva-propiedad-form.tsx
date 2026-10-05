@@ -1,10 +1,12 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
 import { crearPropiedad, type PropiedadState } from "./actions";
 import { subirFotosPropiedad } from "./[id]/subir-fotos-form";
 import { MapaUbicacion } from "@/components/mapa-ubicacion";
+import { leerDescripcion, type LecturaDescripcion } from "@/lib/leer-descripcion";
 
 const initialState: PropiedadState = {};
 
@@ -241,6 +243,7 @@ if (contactos.length === 0) {
         extraAbajo={selectorFotos}
         inicial={duenoInicial ? { duenoId: duenoInicial, operacion: operacionInicial ?? "VENTA" } : undefined}
         filasDescripcion={3}
+        lectorDescripcion
         />
     </div>
     );
@@ -262,6 +265,7 @@ export function PropiedadFormFields({
   formId,
   botonesExtra,
   filasDescripcion,
+  lectorDescripcion,
 }: {
   contactos: Contacto[];
   formAction: (formData: FormData) => void;
@@ -277,6 +281,8 @@ export function PropiedadFormFields({
   botonesExtra?: React.ReactNode;
   /** Alto de la descripción; por defecto más alta al editar. */
   filasDescripcion?: number;
+  /** Muestra el cuadro "Pegá el copy" que precarga los datos. */
+  lectorDescripcion?: boolean;
 }) {
   const [tipo, setTipo] = useState(String(inicial?.tipo ?? "Apartamento"));
   // Valor inicial de un campo (para editar); vacío en una propiedad nueva.
@@ -284,6 +290,70 @@ export function PropiedadFormFields({
     const v = inicial?.[campo];
     return v === null || v === undefined ? porDefecto : String(v);
   };
+  const formRef = useRef<HTMLFormElement>(null);
+  const [copy, setCopy] = useState("");
+  const [resumenLectura, setResumenLectura] = useState<string[] | null>(null);
+
+  // Lee el copy pegado y completa los campos que reconoce. Solo precarga:
+  // el agente revisa (los campos completados quedan resaltados) y guarda.
+  function completarDesdeCopy() {
+    const l = leerDescripcion(copy);
+    // Primero el tipo, para que aparezcan sus campos antes de llenarlos.
+    if (l.tipo) flushSync(() => setTipo(l.tipo!));
+    const form = formRef.current;
+    if (!form) return;
+    const completados: string[] = [];
+    const poner = (campo: keyof LecturaDescripcion, etiqueta: string, soloSiVacio = false) => {
+      const v = l[campo];
+      if (v === undefined || v === null || Array.isArray(v) || typeof v === "boolean") return;
+      const el = form.elements.namedItem(campo);
+      if (!(el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement)) return;
+      if (soloSiVacio && el.value.trim()) return;
+      el.value = String(v);
+      if (el.value !== String(v)) return; // opción inexistente en el select
+      el.classList.add("bg-amber-50");
+      completados.push(`${etiqueta}: ${v}`);
+    };
+    if (l.tipo) completados.push(`Tipo: ${l.tipo}`);
+    poner("titulo", "Título", true);
+    poner("operacion", "Operación");
+    poner("moneda", "Moneda");
+    poner("precio", "Precio");
+    poner("dormitorios", "Dormitorios");
+    poner("banos", "Baños");
+    poner("ambientes", "Ambientes");
+    poner("m2Cubiertos", "m² totales");
+    poner("m2Privados", "m² privados");
+    poner("m2Terreno", "m² terreno");
+    poner("hectareas", "Hectáreas");
+    poner("cocheras", "Cocheras");
+    poner("bodegas", "Bodegas");
+    poner("numeroPiso", "Piso");
+    poner("cantidadPisos", "Cantidad de pisos");
+    poner("antiguedad", "Antigüedad");
+    poner("disposicion", "Disposición");
+    poner("orientacion", "Orientación");
+    poner("gastosComunes", "Gastos comunes");
+    poner("estadoEdilicio", "Estado");
+    const mascotas = form.elements.namedItem("mascotas");
+    if (l.mascotas !== undefined && mascotas instanceof HTMLInputElement) {
+      mascotas.checked = l.mascotas;
+      completados.push(l.mascotas ? "Admite mascotas" : "No admite mascotas");
+    }
+    const extrasMarcados: string[] = [];
+    form.querySelectorAll<HTMLInputElement>('input[name="extras"]').forEach((cb) => {
+      if (l.extras.includes(cb.value) && !cb.checked) {
+        cb.checked = true;
+        extrasMarcados.push(cb.value);
+      }
+    });
+    if (extrasMarcados.length) completados.push(`Extras: ${extrasMarcados.join(", ")}`);
+    // El copy también queda como descripción, si estaba vacía.
+    const desc = form.elements.namedItem("descripcion");
+    if (desc instanceof HTMLTextAreaElement && !desc.value.trim()) desc.value = copy.trim();
+    setResumenLectura(completados);
+  }
+
   const extrasIniciales = new Set(Array.isArray(inicial?.extras) ? (inicial!.extras as string[]) : []);
   
   const esConstruido = TIPOS_CONSTRUIDOS.includes(tipo);
@@ -295,6 +365,7 @@ export function PropiedadFormFields({
   
   return (
     <form
+      ref={formRef}
       id={formId}
       action={formAction}
       className="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:grid-cols-2"
@@ -305,6 +376,44 @@ export function PropiedadFormFields({
     </h2>
     </div>
     {extraArriba}
+
+    {lectorDescripcion && (
+      <div className="sm:col-span-2 rounded-lg border border-dashed border-orion-navy/40 bg-orion-navy/5 p-3 dark:border-gray-600 dark:bg-gray-700/30">
+        <p className="mb-1 text-sm font-semibold text-gray-700 dark:text-gray-200">📋 Pegá la descripción (copy)</p>
+        <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+          Se completan solos los datos que se reconozcan (dormitorios, baños, m², piso, frente/contrafrente,
+          cochera, gastos comunes, extras…). Revisá antes de guardar.
+        </p>
+        <textarea
+          value={copy}
+          onChange={(e) => setCopy(e.target.value)}
+          rows={5}
+          placeholder="Pegá acá el texto del aviso…"
+          className={`w-full ${inputClass}`}
+        />
+        <button
+          type="button"
+          onClick={completarDesdeCopy}
+          disabled={!copy.trim()}
+          className="mt-2 rounded-lg bg-orion-navy px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-orion-navy-light disabled:opacity-50"
+        >
+          Completar datos
+        </button>
+        {resumenLectura && (
+          <div className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-900/30 dark:text-amber-200">
+            {resumenLectura.length === 0 ? (
+              "No se reconoció ningún dato. Completalos a mano."
+            ) : (
+              <>
+                <p className="font-semibold">Se completó (resaltado en amarillo) — revisalo:</p>
+                <p>{resumenLectura.join(" · ")}</p>
+                <p className="mt-1 text-amber-700 dark:text-amber-300">Barrio, dirección y dueño se cargan a mano.</p>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    )}
     
     <input
       name="titulo"
