@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { documentosCapacitacion, usuarios } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { fechaCorta, pesoLegible, visorDeLink } from "@/lib/capacitacion";
+import { VisorPdf } from "./visor-pdf";
 
 export default async function VerMaterialPage({
   params,
@@ -35,11 +36,7 @@ export default async function VerMaterialPage({
   const esVideo = d.tipo === "VIDEO";
   // PDF subido a Orion → se sirve desde /api/capacitacion; si no, el link.
   const pdfPropio = d.archivoNombre ? `/api/capacitacion/${id}` : null;
-  const visor = pdfPropio
-    ? ({ tipo: "iframe", src: pdfPropio } as const)
-    : d.link
-      ? visorDeLink(d.link)
-      : null;
+  const visor = !pdfPropio && d.link ? visorDeLink(d.link) : null;
   const peso = pesoLegible(d.archivoPesoBytes);
   const boton =
     "rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-orion-navy transition hover:border-orion-navy dark:border-gray-600 dark:text-white";
@@ -65,17 +62,7 @@ export default async function VerMaterialPage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {pdfPropio && (
-            <>
-              <a href={pdfPropio} target="_blank" rel="noopener noreferrer" className={boton}>
-                ⛶ Pantalla completa
-              </a>
-              <a href={`${pdfPropio}?descargar=1`} className={boton}>
-                ⬇ Descargar
-              </a>
-            </>
-          )}
-          {!pdfPropio && d.link && (
+          {!pdfPropio && d.link && !visor && (
             <a href={d.link} target="_blank" rel="noopener noreferrer" className={boton}>
               🔗 Abrir en otra pestaña
             </a>
@@ -89,8 +76,15 @@ export default async function VerMaterialPage({
         </p>
       )}
 
-      {visor?.tipo === "video" ? (
-        <video src={visor.src} controls className="w-full rounded-xl bg-black" />
+      {pdfPropio ? (
+        <VisorPdf url={pdfPropio} titulo={d.titulo} />
+      ) : visor?.tipo === "video" ? (
+        <video
+          src={visor.src}
+          controls
+          controlsList="nodownload"
+          className="w-full rounded-xl bg-black"
+        />
       ) : visor?.tipo === "iframe" ? (
         <div
           className={`overflow-hidden rounded-xl border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-900 ${
@@ -123,12 +117,6 @@ export default async function VerMaterialPage({
             </>
           )}
         </div>
-      )}
-
-      {pdfPropio && (
-        <p className="mt-2 text-xs text-gray-400 sm:hidden">
-          En el celular, si el PDF no se ve, tocá “Pantalla completa”.
-        </p>
       )}
     </div>
   );
