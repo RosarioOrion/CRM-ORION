@@ -663,6 +663,8 @@ export const comisionesRelations = relations(comisiones, ({ one }) => ({
 // solo la biblioteca con filtro por texto.
 export const documentosCapacitacion = pgTable("documentos_capacitacion", {
       id: text("id").primaryKey().$defaultFn(() => createId()),
+      // "PDF" (documento) o "VIDEO" (clase grabada, siempre por link).
+      tipo: text("tipo").notNull().default("PDF"),
       titulo: text("titulo").notNull(),
       descripcion: text("descripcion"),
       archivo: text("archivo"), // data URI base64 (PDF chico) o null si se usa link

@@ -1,62 +1,36 @@
-import { db } from "@/db";
-import { documentosCapacitacion, usuarios } from "@/db/schema";
+import Link from "next/link";
 import { obtenerSesion, esAdmin } from "@/lib/auth";
-import { eq, desc } from "drizzle-orm";
-import { NuevoDocumentoForm } from "./nuevo-documento-form";
+import { listarMaterial } from "./datos";
 import { BuscadorDocumentos } from "./buscador-documentos";
 
 export default async function CapacitacionPage() {
   const sesion = await obtenerSesion();
   if (!sesion) return null;
   const admin = esAdmin(sesion.rol);
-
-  const filas = await db
-    .select({
-      id: documentosCapacitacion.id,
-      titulo: documentosCapacitacion.titulo,
-      descripcion: documentosCapacitacion.descripcion,
-      archivo: documentosCapacitacion.archivo,
-      archivoNombre: documentosCapacitacion.archivoNombre,
-      archivoPesoBytes: documentosCapacitacion.archivoPesoBytes,
-      link: documentosCapacitacion.link,
-      paginas: documentosCapacitacion.paginas,
-      creadoEn: documentosCapacitacion.creadoEn,
-      subidoPorNombre: usuarios.nombre,
-    })
-    .from(documentosCapacitacion)
-    .innerJoin(usuarios, eq(documentosCapacitacion.subidoPorId, usuarios.id))
-    .orderBy(desc(documentosCapacitacion.creadoEn));
+  const material = await listarMaterial();
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-bold text-orion-navy dark:text-white">
-        Capacitación
-      </h1>
-      <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-        Biblioteca de documentos de entrenamiento del equipo.
-      </p>
-
-      {admin && (
-        <div className="mb-6">
-          <NuevoDocumentoForm />
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="mb-1 text-2xl font-bold text-orion-navy dark:text-white">
+            Capacitación
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Biblioteca del equipo: tocá un material para leerlo o ver la clase.
+          </p>
         </div>
-      )}
+        {admin && (
+          <Link
+            href="/capacitacion/subir"
+            className="flex items-center gap-2 rounded-lg bg-orion-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-orion-navy-light"
+          >
+            ⬆ Subir material
+          </Link>
+        )}
+      </div>
 
-      <BuscadorDocumentos
-        admin={admin}
-        documentos={filas.map((f) => ({
-          id: f.id,
-          titulo: f.titulo,
-          descripcion: f.descripcion,
-          archivo: f.archivo,
-          archivoNombre: f.archivoNombre,
-          archivoPesoBytes: f.archivoPesoBytes,
-          link: f.link,
-          paginas: f.paginas,
-          creadoEn: f.creadoEn.toISOString(),
-          subidoPorNombre: f.subidoPorNombre,
-        }))}
-      />
+      <BuscadorDocumentos documentos={material} />
     </div>
   );
 }

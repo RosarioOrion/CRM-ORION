@@ -1,135 +1,106 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import { EliminarDocumentoBoton } from "./eliminar-documento-boton";
+import { fechaCorta, pesoLegible, TIPO_MATERIAL_LABEL } from "@/lib/capacitacion";
+import type { Material } from "./datos";
 
-type Documento = {
-  id: string;
-  titulo: string;
-  descripcion: string | null;
-  archivo: string | null;
-  archivoNombre: string | null;
-  archivoPesoBytes: number | null;
-  link: string | null;
-  paginas: number | null;
-  creadoEn: string;
-  subidoPorNombre: string;
-};
+const FILTROS = [
+  { key: "todo", label: "Todo" },
+  { key: "PDF", label: "📄 Documentos" },
+  { key: "VIDEO", label: "🎬 Clases grabadas" },
+] as const;
 
-function pesoLegible(bytes: number | null) {
-  if (!bytes) return null;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-export function BuscadorDocumentos({
-  admin,
-  documentos,
-}: {
-  admin: boolean;
-  documentos: Documento[];
-}) {
+export function BuscadorDocumentos({ documentos }: { documentos: Material[] }) {
   const [busqueda, setBusqueda] = useState("");
+  const [filtro, setFiltro] = useState<(typeof FILTROS)[number]["key"]>("todo");
 
   const filtrados = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
-    if (!q) return documentos;
-    return documentos.filter((d) =>
-      `${d.titulo} ${d.descripcion ?? ""}`.toLowerCase().includes(q)
+    return documentos.filter(
+      (d) =>
+        (filtro === "todo" || d.tipo === filtro) &&
+        (!q || `${d.titulo} ${d.descripcion ?? ""}`.toLowerCase().includes(q))
     );
-  }, [busqueda, documentos]);
+  }, [busqueda, filtro, documentos]);
 
   return (
     <div>
-      <div className="mb-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        {FILTROS.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            onClick={() => setFiltro(f.key)}
+            className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+              filtro === f.key
+                ? "bg-orion-navy text-white"
+                : "border border-gray-200 bg-white text-gray-600 hover:border-orion-navy dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+            }`}
+          >
+            {f.label}
+            <span className="ml-1 opacity-70">
+              {f.key === "todo" ? documentos.length : documentos.filter((d) => d.tipo === f.key).length}
+            </span>
+          </button>
+        ))}
         <input
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscar por título o descripción…"
-          className="w-full max-w-md rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
+          className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-orion-navy sm:ml-auto sm:w-64 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
         />
-        <p className="mt-1 text-xs text-gray-400">
-          Búsqueda por palabra clave. El buscador inteligente con IA (preguntar
-          en lenguaje natural) todavía no está disponible.
-        </p>
       </div>
 
-      <div className="mt-4 flex flex-col gap-3">
-        {filtrados.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-gray-200 bg-white p-6 text-center text-sm text-gray-400 dark:bg-gray-800 dark:border-gray-700">
-            {documentos.length === 0
-              ? "Todavía no hay documentos de capacitación."
-              : "No hay documentos que coincidan con la búsqueda."}
-          </p>
-        ) : (
-          filtrados.map((d) => {
+      {filtrados.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-gray-200 bg-white p-6 text-center text-sm text-gray-400 dark:border-gray-700 dark:bg-gray-800">
+          {documentos.length === 0
+            ? "Todavía no hay material de capacitación."
+            : "No hay material que coincida con la búsqueda."}
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {filtrados.map((d) => {
             const peso = pesoLegible(d.archivoPesoBytes);
+            const esVideo = d.tipo === "VIDEO";
             return (
-              <div
+              <Link
                 key={d.id}
-                className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+                href={`/capacitacion/${d.id}`}
+                className="group flex gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:border-orion-navy hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-orion-navy dark:text-white">
-                      {d.titulo}
-                    </p>
-                    {d.descripcion && (
-                      <p className="mt-1 whitespace-pre-wrap text-sm text-gray-600 dark:text-gray-300">
-                        {d.descripcion}
-                      </p>
-                    )}
-                    <p className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-gray-400">
-                      <span>{d.subidoPorNombre}</span>
-                      <span>·</span>
-                      <span>
-                        {new Date(d.creadoEn).toLocaleDateString("es-UY", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                        })}
-                      </span>
-                      {d.paginas ? (
-                        <>
-                          <span>·</span>
-                          <span>{d.paginas} pág.</span>
-                        </>
-                      ) : null}
-                      {peso ? (
-                        <>
-                          <span>·</span>
-                          <span>{peso}</span>
-                        </>
-                      ) : null}
-                    </p>
-                    <div className="mt-2">
-                      {d.archivo ? (
-                        <a
-                          href={d.archivo}
-                          download={d.archivoNombre ?? `${d.titulo}.pdf`}
-                          className="text-sm text-orion-navy hover:underline dark:text-orion-gold"
-                        >
-                          ⬇ Descargar PDF
-                        </a>
-                      ) : d.link ? (
-                        <a
-                          href={d.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-orion-navy hover:underline dark:text-orion-gold"
-                        >
-                          🔗 Abrir link
-                        </a>
-                      ) : null}
-                    </div>
-                  </div>
-                  {admin && <EliminarDocumentoBoton documentoId={d.id} />}
+                <div
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-2xl ${
+                    esVideo ? "bg-red-50 dark:bg-red-900/30" : "bg-blue-50 dark:bg-blue-900/30"
+                  }`}
+                >
+                  {esVideo ? "🎬" : "📄"}
                 </div>
-              </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-orion-navy group-hover:underline dark:text-white">
+                    {d.titulo}
+                  </p>
+                  {d.descripcion && (
+                    <p className="mt-1 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">
+                      {d.descripcion}
+                    </p>
+                  )}
+                  <p className="mt-2 flex flex-wrap items-center gap-x-2 text-[11px] text-gray-400">
+                    <span>{TIPO_MATERIAL_LABEL[d.tipo]}</span>
+                    <span>·</span>
+                    <span>{fechaCorta(d.creadoEn)}</span>
+                    {d.paginas ? <span>· {d.paginas} pág.</span> : null}
+                    {peso ? <span>· {peso}</span> : null}
+                  </p>
+                  <p className="mt-2 text-xs font-semibold text-orion-navy dark:text-orion-gold">
+                    {esVideo ? "▶ Ver clase" : "📖 Leer"}
+                  </p>
+                </div>
+              </Link>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      )}
     </div>
   );
 }
