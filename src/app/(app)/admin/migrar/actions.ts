@@ -682,6 +682,13 @@ export async function ejecutarMigracion(): Promise<PasoMigracion[]> {
     db.execute(sql`ALTER TABLE contactos ADD COLUMN IF NOT EXISTS roles jsonb NOT NULL DEFAULT '[]'`)
   );
 
+  // Capacitación: documentos PDF y clases grabadas.
+  await paso(resultados, "Agregar tipo a documentos de capacitación", () =>
+    db.execute(
+      sql`ALTER TABLE documentos_capacitacion ADD COLUMN IF NOT EXISTS tipo text NOT NULL DEFAULT 'PDF'`
+    )
+  );
+
   // Códigos de propiedad nuevos: O0001, O0002, ... por orden de ingreso
   // (fecha de carga y, a igual fecha, el número del código viejo). Se hace
   // una sola vez: si todas ya tienen el formato nuevo, no toca nada, así los

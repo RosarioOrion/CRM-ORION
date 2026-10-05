@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { documentosCapacitacion } from "@/db/schema";
 import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { esTipoMaterial } from "@/lib/capacitacion";
 
 async function requerirAdmin() {
   const sesion = await obtenerSesion();
@@ -32,6 +33,8 @@ export async function subirDocumentoCapacitacion(
     return { error: e instanceof Error ? e.message : "No autorizado." };
   }
 
+  const tipoRaw = String(formData.get("tipo") || "PDF");
+  const tipo = esTipoMaterial(tipoRaw) ? tipoRaw : "PDF";
   const titulo = String(formData.get("titulo") || "").trim();
   const descripcion = String(formData.get("descripcion") || "").trim();
   const link = String(formData.get("link") || "").trim();
@@ -40,12 +43,18 @@ export async function subirDocumentoCapacitacion(
   const archivo = formData.get("archivo");
 
   if (!titulo) return { error: "Ingresá un título." };
+  if (link && !/^https?:\/\//i.test(link)) {
+    return { error: "El link tiene que empezar con http:// o https://" };
+  }
+  if (tipo === "VIDEO" && !link) {
+    return { error: "Pegá el link de la clase grabada (YouTube, Vimeo, Drive o Loom)." };
+  }
 
   let archivoDataUri: string | null = null;
   let archivoNombre: string | null = null;
   let archivoPesoBytes: number | null = null;
 
-  if (archivo instanceof File && archivo.size > 0) {
+  if (tipo === "PDF" && archivo instanceof File && archivo.size > 0) {
     if (archivo.type !== "application/pdf") {
       return { error: "El archivo tiene que ser un PDF." };
     }
@@ -65,17 +74,19 @@ export async function subirDocumentoCapacitacion(
   }
 
   await db.insert(documentosCapacitacion).values({
+    tipo,
     titulo,
     descripcion: descripcion || null,
     archivo: archivoDataUri,
     archivoNombre,
     archivoPesoBytes,
     link: link || null,
-    paginas,
+    paginas: tipo === "PDF" ? paginas : null,
     subidoPorId: sesion.userId,
   });
 
   revalidatePath("/capacitacion");
+  revalidatePath("/capacitacion/subir");
   return { ok: Date.now() };
 }
 
@@ -83,4 +94,5 @@ export async function eliminarDocumentoCapacitacion(documentoId: string) {
   await requerirAdmin();
   await db.delete(documentosCapacitacion).where(eq(documentosCapacitacion.id, documentoId));
   revalidatePath("/capacitacion");
+  revalidatePath("/capacitacion/subir");
 }
