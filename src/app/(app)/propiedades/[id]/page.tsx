@@ -132,9 +132,9 @@ export default async function PropiedadDetallePage({
     url: `/api/fotos/${propiedad.id}/${i}?v=${createHash("sha1").update(f).digest("hex").slice(0, 10)}`,
   }));
 
-  // Datos listos para copiar en Facebook Marketplace (solo el agente a cargo).
+  // Datos listos para copiar en Facebook Marketplace (cualquier agente).
   let datosMarketplace: DatosMarketplace | null = null;
-  if (esPropia) {
+  if (true) {
     // Marketplace pide los m² construidos: primero la superficie privada.
     const m2 = propiedad.m2Privados ?? propiedad.m2Cubiertos ?? propiedad.m2Terreno;
     const tipoMk: Record<string, string> = { Apartamento: "Apartamento", Casa: "Casa" };
