@@ -13,7 +13,7 @@ import { limpiarTitulo, ESTADO_LABEL, ESTADO_COLOR } from "@/lib/propiedades";
 import { armarTarjetasPipeline } from "@/lib/pipeline-datos";
 import { MapaUbicacion } from "@/components/mapa-ubicacion";
 import { tituloPublico, precioTexto } from "@/lib/sitio";
-import { numeroWhatsApp } from "@/lib/seguimientos";
+import { BotonWhatsApp } from "@/components/boton-whatsapp";
 import { PrepararMarketplace, type DatosMarketplace } from "./preparar-marketplace";
 import { CambiarEstado } from "./cambiar-estado";
 import { SubirFotosForm } from "./subir-fotos-form";
@@ -369,7 +369,17 @@ export default async function PropiedadDetallePage({
                   >
                     {dueno.nombre}
                   </Link>
-                  {dueno.telefono && <TelefonoConWhatsApp telefono={dueno.telefono} />}
+                  {dueno.telefono && (
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-gray-600 dark:text-gray-300">📞 {dueno.telefono}</p>
+                      <BotonWhatsApp
+                        telefono={dueno.telefono}
+                        nombre={dueno.nombre}
+                        propiedad={tituloPublico(propiedad.titulo)}
+                        codigoPropiedad={propiedad.publicadaWeb ? propiedad.codigo : null}
+                      />
+                    </div>
+                  )}
                   {dueno.email && <p className="text-sm text-gray-600 dark:text-gray-300">✉️ {dueno.email}</p>}
                 </div>
               )}
@@ -377,7 +387,12 @@ export default async function PropiedadDetallePage({
                 <div className={tarjeta}>
                   <p className={subtitulo}>Agente a cargo</p>
                   <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{agenteACargo.nombre}</p>
-                  {agenteACargo.telefono && <TelefonoConWhatsApp telefono={agenteACargo.telefono} />}
+                  {agenteACargo.telefono && (
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-gray-600 dark:text-gray-300">📞 {agenteACargo.telefono}</p>
+                      <BotonWhatsApp telefono={agenteACargo.telefono} nombre={agenteACargo.nombre} />
+                    </div>
+                  )}
                   {agenteACargo.email && (
                     <p className="text-sm text-gray-600 dark:text-gray-300">✉️ {agenteACargo.email}</p>
                   )}
@@ -445,25 +460,6 @@ export default async function PropiedadDetallePage({
             </div>
           )}
         </>
-      )}
-    </div>
-  );
-}
-
-function TelefonoConWhatsApp({ telefono }: { telefono: string }) {
-  const wa = numeroWhatsApp(telefono);
-  return (
-    <div className="flex items-center gap-2">
-      <p className="text-sm text-gray-600 dark:text-gray-300">📞 {telefono}</p>
-      {wa && (
-        <a
-          href={`https://wa.me/${wa}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="rounded bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700 hover:bg-green-200 dark:bg-green-900/40 dark:text-green-300"
-        >
-          WhatsApp
-        </a>
       )}
     </div>
   );

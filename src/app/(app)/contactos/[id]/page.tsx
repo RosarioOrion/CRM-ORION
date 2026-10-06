@@ -18,10 +18,7 @@ import {
 } from "@/lib/seguimientos";
 import { AccionesContacto } from "./acciones-contacto";
 import { FormularioDetalles } from "./formulario-detalles";
-
-function soloDigitos(telefono: string) {
-  return telefono.replace(/[^\d]/g, "");
-}
+import { BotonWhatsApp } from "@/components/boton-whatsapp";
 
 export default async function ContactoDetallePage({
   params,
@@ -111,9 +108,6 @@ export default async function ContactoDetallePage({
   );
 
   const inicial = contacto.nombre.trim().charAt(0).toUpperCase() || "?";
-  const whatsappHref = contacto.telefono
-    ? `https://wa.me/${soloDigitos(contacto.telefono)}`
-    : null;
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -164,16 +158,7 @@ export default async function ContactoDetallePage({
             {contacto.telefono ? (
               <div className="flex items-center gap-2">
                 <p className="text-sm text-gray-700 dark:text-gray-200">{contacto.telefono}</p>
-                {whatsappHref && (
-                  <a
-                    href={whatsappHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700 hover:bg-green-200 dark:bg-green-900/40 dark:text-green-300"
-                  >
-                    Abrir WhatsApp
-                  </a>
-                )}
+                <BotonWhatsApp telefono={contacto.telefono} nombre={contacto.nombre} />
               </div>
             ) : (
               <p className="text-sm text-gray-400">—</p>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useEffect, useState, useTransition } from "react";
+import { BotonWhatsApp } from "@/components/boton-whatsapp";
 import {
   registrarAccionPipeline,
   registrarAjustePrecio,
@@ -434,14 +435,14 @@ function BloqueRecurrentes({ p }: { p: TarjetaPipelineProps }) {
             {p.dueno.nombre}
             {p.dueno.telefono ? ` · ${p.dueno.telefono}` : ""}
             {p.dueno.whatsapp && !p.soloLectura && (
-              <a
-                href={`https://wa.me/${p.dueno.whatsapp}`}
-                target="_blank"
-                rel="noreferrer"
-                className="ml-2 font-semibold text-emerald-600 hover:underline"
-              >
-                WhatsApp
-              </a>
+              <span className="ml-2">
+                <BotonWhatsApp
+                  telefono={p.dueno.telefono}
+                  nombre={p.dueno.nombre}
+                  propiedad={p.titulo}
+                  className="font-semibold text-emerald-600 hover:underline"
+                />
+              </span>
             )}
           </p>
         )}
