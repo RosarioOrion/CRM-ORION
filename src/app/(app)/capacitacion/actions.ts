@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { documentosCapacitacion } from "@/db/schema";
 import { obtenerSesion, esAdmin } from "@/lib/auth";
 import { esTipoMaterial } from "@/lib/capacitacion";
+import { asegurarColumnaTipo } from "./datos";
 
 async function requerirAdmin() {
   const sesion = await obtenerSesion();
@@ -73,6 +74,7 @@ export async function subirDocumentoCapacitacion(
     return { error: "Subí un PDF o pegá un link al documento." };
   }
 
+  await asegurarColumnaTipo();
   await db.insert(documentosCapacitacion).values({
     tipo,
     titulo,

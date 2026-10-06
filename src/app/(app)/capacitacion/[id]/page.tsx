@@ -6,6 +6,7 @@ import { documentosCapacitacion, usuarios } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { fechaCorta, pesoLegible, visorDeLink } from "@/lib/capacitacion";
 import { VisorPdf } from "./visor-pdf";
+import { asegurarColumnaTipo } from "../datos";
 
 export default async function VerMaterialPage({
   params,
@@ -15,6 +16,7 @@ export default async function VerMaterialPage({
   const sesion = await obtenerSesion();
   if (!sesion) notFound();
   const { id } = await params;
+  await asegurarColumnaTipo();
 
   const [d] = await db
     .select({
