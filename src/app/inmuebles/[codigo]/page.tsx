@@ -9,6 +9,7 @@ import {
   numeroWhatsApp,
   precioTexto,
   propiedadPublica,
+  telefonoEmpresa,
   tituloPublico,
   urlFoto,
 } from "@/lib/sitio";
@@ -63,7 +64,9 @@ export default async function FichaPublica({ params }: { params: Promise<{ codig
     ] as [string, string | null][]
   ).filter((c): c is [string, string] => Boolean(c[1]));
 
-  const wa = numeroWhatsApp(p.agenteTelefono);
+  // El celular del agente a cargo (se edita en Usuarios); si no tiene, el de la inmobiliaria.
+  const telefono = p.agenteTelefono || (await telefonoEmpresa());
+  const wa = numeroWhatsApp(telefono);
   const mensaje = `Hola ${p.agenteNombre.split(" ")[0]}, vi en ${NOMBRE_SITIO} la propiedad ${p.codigo} (${titulo}) y me gustaría recibir más información.`;
   const linkWa = wa ? `https://wa.me/${wa}?text=${encodeURIComponent(mensaje)}` : null;
 
@@ -169,9 +172,9 @@ export default async function FichaPublica({ params }: { params: Promise<{ codig
                   💬 Consultar por WhatsApp
                 </a>
               )}
-              {p.agenteTelefono && (
+              {telefono && (
                 <a
-                  href={`tel:${p.agenteTelefono.replace(/\s/g, "")}`}
+                  href={`tel:${telefono.replace(/\s/g, "")}`}
                   className="flex w-full items-center justify-center gap-2 rounded-xl border border-orion-navy/20 py-3 text-sm font-semibold text-orion-navy hover:bg-gray-50"
                 >
                   📞 Llamar

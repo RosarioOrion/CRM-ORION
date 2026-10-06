@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { usuarios, nivelesComision } from "@/db/schema";
 import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { numeroWhatsApp } from "@/lib/seguimientos";
 
 async function requerirAdmin() {
   const sesion = await obtenerSesion();
@@ -132,5 +133,67 @@ export async function crearUsuarioAdmin(
   });
 
   revalidatePath("/admin/usuarios");
+  return { ok: Date.now() };
+}
+
+const EditarUsuarioSchema = z.object({
+  nombre: z.string().trim().min(2, "Ingresá el nombre"),
+  email: z.string().trim().email("Ingresá un email válido"),
+  telefono: z.string().trim().optional(),
+  descripcion: z.string().trim().optional(),
+});
+
+export type EditarUsuarioState = { error?: string; ok?: number };
+
+// Editar los datos de un usuario desde Usuarios (admin / team leader).
+// El celular es el que usan los botones de WhatsApp de sus propiedades.
+export async function editarUsuarioAdmin(
+  usuarioId: string,
+  _prevState: EditarUsuarioState,
+  formData: FormData
+): Promise<EditarUsuarioState> {
+  try {
+    await requerirAdmin();
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No autorizado." };
+  }
+
+  const parsed = EditarUsuarioSchema.safeParse({
+    nombre: formData.get("nombre"),
+    email: formData.get("email"),
+    telefono: formData.get("telefono") || undefined,
+    descripcion: formData.get("descripcion") || undefined,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  const telefono = parsed.data.telefono || null;
+  if (telefono && !numeroWhatsApp(telefono)) {
+    return { error: "El celular no parece válido. Escribilo así: 099 123 456." };
+  }
+
+  const email = parsed.data.email.toLowerCase();
+  const [otro] = await db
+    .select({ id: usuarios.id })
+    .from(usuarios)
+    .where(eq(usuarios.email, email))
+    .limit(1);
+  if (otro && otro.id !== usuarioId) {
+    return { error: "Ya existe otra cuenta con ese email." };
+  }
+
+  await db
+    .update(usuarios)
+    .set({
+      nombre: parsed.data.nombre,
+      email,
+      telefono,
+      descripcion: parsed.data.descripcion || null,
+    })
+    .where(eq(usuarios.id, usuarioId));
+
+  revalidatePath("/admin/usuarios");
+  revalidatePath(`/admin/usuarios/${usuarioId}`);
   return { ok: Date.now() };
 }
