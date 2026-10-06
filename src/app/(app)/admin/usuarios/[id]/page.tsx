@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { usuarios, propiedades, captaciones, visitas } from "@/db/schema";
 import { obtenerSesion, esAdmin } from "@/lib/auth";
 import { eq, and, count, isNull } from "drizzle-orm";
+import { EditarUsuarioForm } from "./editar-usuario-form";
 
 const ROL_LABEL: Record<string, string> = {
   AGENTE: "Agente",
@@ -82,29 +83,19 @@ export default async function PerfilUsuarioPage({
       </p>
 
       <div className="mb-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:bg-gray-800 dark:border-gray-700">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Datos de contacto
+        <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-gray-400">
+          Datos del usuario
         </p>
-        <p className="text-sm text-gray-700 dark:text-gray-200">
-          Email: <span className="font-semibold">{usuario.email}</span>
-        </p>
-        {usuario.telefono && (
-          <p className="text-sm text-gray-700 dark:text-gray-200">
-            Teléfono: <span className="font-semibold">{usuario.telefono}</span>
-          </p>
-        )}
+        <EditarUsuarioForm
+          usuario={{
+            id: usuario.id,
+            nombre: usuario.nombre,
+            email: usuario.email,
+            telefono: usuario.telefono,
+            descripcion: usuario.descripcion,
+          }}
+        />
       </div>
-
-      {usuario.descripcion && (
-        <div className="mb-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:bg-gray-800 dark:border-gray-700">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Presentación profesional
-          </p>
-          <p className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-200">
-            {usuario.descripcion}
-          </p>
-        </div>
-      )}
 
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:bg-gray-800 dark:border-gray-700">
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">

@@ -1,6 +1,6 @@
 import { and, desc, eq, gte, ilike, inArray, lte, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
-import { propiedades, usuarios } from "@/db/schema";
+import { configuracionEmpresa, propiedades, usuarios } from "@/db/schema";
 
 // Página web pública "Orion Propiedades": lee directo de las propiedades del
 // CRM. Solo se muestran las Activas y Reservadas que tengan "Mostrar en la
@@ -43,15 +43,17 @@ export function precioTexto(precio: number | null, moneda: string) {
   return `${simbolo} ${precio.toLocaleString("es-UY")}`;
 }
 
-/** Teléfono uruguayo → número para wa.me (598 + sin el 0 inicial). */
-export function numeroWhatsApp(telefono: string | null | undefined): string | null {
-  if (!telefono) return null;
-  let d = telefono.replace(/\D/g, "");
-  if (!d) return null;
-  if (d.startsWith("598")) return d;
-  if (d.startsWith("0")) d = d.slice(1);
-  return `598${d}`;
+/** Teléfono de la inmobiliaria (Ajustes): respaldo si el agente no cargó su celular. */
+export async function telefonoEmpresa(): Promise<string | null> {
+  const [c] = await db
+    .select({ telefono: configuracionEmpresa.telefonoEmpresa })
+    .from(configuracionEmpresa)
+    .limit(1);
+  return c?.telefono || null;
 }
+
+// Mismo criterio que en el resto de Orion ("099 123 456" → "59899123456").
+export { numeroWhatsApp } from "@/lib/seguimientos";
 
 export type Filtros = {
   operacion?: string;
