@@ -50,6 +50,11 @@ export function MenuLateral({ children }: { children: React.ReactNode }) {
       )}
 
       <aside
+        // Al tocar una sección, el menú se cierra en el acto (antes quedaba
+        // abierto hasta que terminaba de cargar la página y parecía trabado).
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("a")) setAbierto(false);
+        }}
         className={[
           "fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col overflow-y-auto bg-orion-navy text-white transition-transform duration-200",
           "md:sticky md:top-0 md:h-screen md:w-60 md:translate-x-0",

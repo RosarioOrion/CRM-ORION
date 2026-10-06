@@ -31,7 +31,8 @@ import {
 } from "@/lib/pipeline";
 import type { TarjetaPipelineProps } from "@/app/(app)/pipeline/tarjeta-pipeline";
 
-type Propiedad = typeof propiedades.$inferSelect;
+// Sin las fotos: el Pipeline no las usa y pesan mucho.
+type Propiedad = Omit<typeof propiedades.$inferSelect, "fotos">;
 
 /** Marca que usa "Republicar" en pipeline_acciones. */
 export const DESCRIPCION_REPUBLICADO = "REPUBLICADO";
