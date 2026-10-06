@@ -19,6 +19,7 @@ const NAV = [
   { href: "/kaizen", label: "Kaizen 5S", icon: "🧹" },
   { href: "/ranking", label: "Ranking", icon: "🏆" },
   { href: "/capacitacion", label: "Capacitación", icon: "📚" },
+  { href: "/mensajes", label: "Mensajes WhatsApp", icon: "💬" },
   { href: "/tasaciones", label: "Tasaciones", icon: "📐" },
   { href: "/papelera", label: "Papelera", icon: "🗑️" },
 ];

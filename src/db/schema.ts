@@ -685,6 +685,19 @@ export const documentosCapacitacionRelations = relations(documentosCapacitacion,
       }),
 }));
 
+// Mensajes preestablecidos de WhatsApp (captación, seguimiento, saludo,
+// fidelización…). Los arma el team leader en /mensajes y cualquier agente
+// los usa desde el botón WhatsApp. El texto admite variables como
+// {nombre} o {propiedad} (ver src/lib/plantillas-whatsapp.ts).
+export const plantillasWhatsapp = pgTable("plantillas_whatsapp", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      titulo: text("titulo").notNull(),
+      emoji: text("emoji"),
+      texto: text("texto").notNull(),
+      orden: integer("orden").notNull().default(0),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});
+
 // Tasaciones: Método Comparativo de Mercado. Se carga la propiedad a tasar
 // más un mínimo de 4 comparables (cada uno con su propio precio, m²,
 // estado 1-4 y ubicación 1-4); el cálculo pondera cada comparable según
