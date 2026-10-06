@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
+import type { RespuestasEncuesta } from "../lib/encuestas";
 
 export const rolEnum = pgEnum("rol", ["AGENTE", "TEAM_LEADER", "ADMINISTRADOR"]);
 export const estadoPropiedadEnum = pgEnum("estado_propiedad", [
@@ -684,6 +685,22 @@ export const documentosCapacitacionRelations = relations(documentosCapacitacion,
               references: [usuarios.id],
       }),
 }));
+
+// Encuesta post-visita: el agente la manda por WhatsApp con un link
+// (/encuesta/<token>) y el cliente responde con clics, sin usuario. Las
+// respuestas (ver src/lib/encuestas.ts) quedan en la visita y se resumen
+// en la ficha de la propiedad para el seguimiento con el dueño.
+export const encuestasVisita = pgTable("encuestas_visita", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      visitaId: text("visita_id")
+        .notNull()
+        .unique()
+        .references(() => visitas.id, { onDelete: "cascade" }),
+      token: text("token").notNull().unique(),
+      respuestas: jsonb("respuestas").$type<RespuestasEncuesta>(),
+      enviadaEn: timestamp("enviada_en").notNull().defaultNow(),
+      respondidaEn: timestamp("respondida_en"),
+});
 
 // Mensajes preestablecidos de WhatsApp (captación, seguimiento, saludo,
 // fidelización…). Los arma el team leader en /mensajes y cualquier agente

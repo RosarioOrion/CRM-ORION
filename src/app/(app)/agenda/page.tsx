@@ -25,6 +25,8 @@ import {
 } from "@/lib/calendario";
 import { AgendarForm } from "./agendar-form";
 import { AccionesVisita } from "./acciones-visita";
+import { EncuestaVisita } from "./encuesta-visita";
+import { encuestasPorVisita } from "@/lib/encuestas-db";
 import { AccionesActividad } from "./acciones-actividad";
 import { TarjetaEditable } from "./tarjeta-editable";
 import { SelectorAgente } from "./selector-agente";
@@ -64,6 +66,7 @@ type Item =
       resultado: string | null;
       propiedadId: string;
       propiedadTexto: string;
+      operacion: string;
       contactoId: string;
       contactoTexto: string;
       lugar: null;
@@ -155,6 +158,7 @@ export default async function AgendaPage({
       propiedadId: propiedades.id,
       propiedadCodigo: propiedades.codigo,
       propiedadTitulo: propiedades.titulo,
+      propiedadOperacion: propiedades.operacion,
       contactoId: contactos.id,
       contactoNombre: contactos.nombre,
       contactoTelefono: contactos.telefono,
@@ -255,6 +259,7 @@ export default async function AgendaPage({
         resultado: v.resultado,
         propiedadId: v.propiedadId,
         propiedadTexto: `${v.propiedadCodigo} — ${limpiarTitulo(v.propiedadTitulo)}`,
+        operacion: v.propiedadOperacion,
         contactoId: v.contactoId,
         contactoTexto: `${v.contactoNombre}${v.contactoTelefono ? ` · ${v.contactoTelefono}` : ""}`,
         lugar: null,
@@ -288,6 +293,11 @@ export default async function AgendaPage({
   const resueltas = items
     .filter((i) => !i.pendiente)
     .sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
+
+  // Encuestas de las visitas realizadas que se muestran en el historial.
+  const encuestas = await encuestasPorVisita(
+    resueltas.filter((it) => it.clase === "visita" && it.estado === "REALIZADA").map((it) => it.id)
+  );
 
   const finDe = (i: Item) =>
     i.fecha.getTime() + (i.duracionMin ?? DURACION_POR_DEFECTO) * 60000;
@@ -587,6 +597,15 @@ export default async function AgendaPage({
                   <p className="mt-1 italic text-gray-500 dark:text-gray-400">
                     &quot;{it.resultado}&quot;
                   </p>
+                )}
+                {it.clase === "visita" && it.estado === "REALIZADA" && (
+                  <EncuestaVisita
+                    visitaId={it.id}
+                    operacion={it.operacion}
+                    enviada={encuestas.has(it.id)}
+                    respuestas={encuestas.get(it.id)?.respuestas ?? null}
+                    propia={it.agenteId === agenteId}
+                  />
                 )}
                 {it.agenteId === agenteId &&
                   it.tipo === "VISITA_CAPTACION" &&

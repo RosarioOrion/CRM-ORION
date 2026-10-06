@@ -14,6 +14,9 @@ import { armarTarjetasPipeline } from "@/lib/pipeline-datos";
 import { MapaUbicacion } from "@/components/mapa-ubicacion";
 import { tituloPublico, precioTexto } from "@/lib/sitio";
 import { BotonWhatsApp } from "@/components/boton-whatsapp";
+import { encuestasDePropiedad } from "@/lib/encuestas-db";
+import { resumirEncuestas } from "@/lib/encuestas";
+import { OpinionVisitas } from "./opinion-visitas";
 import { PrepararMarketplace, type DatosMarketplace } from "./preparar-marketplace";
 import { CambiarEstado } from "./cambiar-estado";
 import { SubirFotosForm } from "./subir-fotos-form";
@@ -79,6 +82,8 @@ export default async function PropiedadDetallePage({
   // edita. En las ajenas se oculta el contacto del dueño y se muestra el
   // agente a cargo para coordinar con él.
   const esPropia = propiedad.agenteId === sesion.userId;
+  const encuestas = esPropia ? await encuestasDePropiedad(propiedad.id) : [];
+  const respuestasEncuestas = encuestas.flatMap((e) => (e.respuestas ? [e.respuestas] : []));
 
   const [dueno, agenteACargo, portales] = await Promise.all([
     esPropia
@@ -360,6 +365,16 @@ export default async function PropiedadDetallePage({
                 )}
               </div>
 
+              {esPropia && respuestasEncuestas.length > 0 && (
+                <div className={tarjeta}>
+                  <p className={subtitulo}>📋 Opinión de las visitas</p>
+                  <OpinionVisitas
+                    resumen={resumirEncuestas(respuestasEncuestas, propiedad.operacion)}
+                    propiedad={tituloPublico(propiedad.titulo)}
+                    comentarios={respuestasEncuestas.flatMap((r) => (r.comentario ? [r.comentario] : []))}
+                  />
+                </div>
+              )}
               {esPropia && dueno && (
                 <div className={tarjeta}>
                   <p className={subtitulo}>Dueño</p>

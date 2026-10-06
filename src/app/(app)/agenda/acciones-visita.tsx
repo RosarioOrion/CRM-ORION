@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { cambiarEstadoVisita, eliminarVisita } from "./actions";
 import type { EstadoVisita } from "@/lib/visitas";
+import { enviarEncuestaPorWhatsApp } from "./enviar-encuesta";
 
 export function AccionesVisita({
   visitaId,
@@ -19,16 +20,26 @@ export function AccionesVisita({
   function marcar(nuevoEstado: EstadoVisita) {
     setError(null);
     let resultado: string | undefined;
+    let mandarEncuesta = false;
     if (nuevoEstado === "REALIZADA") {
       resultado =
         window.prompt(
           "¿Cómo salió? (opcional — ej. interesado, va a pensarlo, no le gustó...)"
         ) ?? undefined;
-    }
-    startTransition(() => {
-      cambiarEstadoVisita(visitaId, nuevoEstado, resultado).catch((e) =>
-        setError(e instanceof Error ? e.message : "No se pudo actualizar.")
+      mandarEncuesta = window.confirm(
+        "¿Le mandás ahora la encuesta de la visita por WhatsApp? (responde con clics)"
       );
+    }
+    // La encuesta abre WhatsApp en el mismo clic (si no, el navegador lo bloquea).
+    const encuesta = mandarEncuesta ? enviarEncuestaPorWhatsApp(visitaId) : null;
+    startTransition(async () => {
+      try {
+        await cambiarEstadoVisita(visitaId, nuevoEstado, resultado);
+        const errorEncuesta = await encuesta;
+        if (errorEncuesta) window.alert(errorEncuesta);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "No se pudo actualizar.");
+      }
     });
   }
 
