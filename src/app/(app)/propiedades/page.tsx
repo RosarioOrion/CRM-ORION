@@ -2,7 +2,7 @@ import Link from "next/link";
 import { db } from "@/db";
 import { propiedades, contactos, usuarios } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
-import { eq, desc, and, ilike, or } from "drizzle-orm";
+import { eq, desc, and, ilike, or, sql } from "drizzle-orm";
 import { NuevaPropiedadForm } from "./nueva-propiedad-form";
 import {
   ESTADO_LABEL,
@@ -61,7 +61,30 @@ export default async function PropiedadesPage({
 
   const [misPropiedades, misContactos] = await Promise.all([
     db
-      .select({ p: propiedades, agenteNombre: usuarios.nombre })
+      // Sin la columna de fotos (pesa muchísimo): la primera foto se pide
+      // aparte a /api/fotos, así la lista abre rápido también en el celular.
+      .select({
+        p: {
+          id: propiedades.id,
+          agenteId: propiedades.agenteId,
+          codigo: propiedades.codigo,
+          titulo: propiedades.titulo,
+          estado: propiedades.estado,
+          operacion: propiedades.operacion,
+          tipo: propiedades.tipo,
+          precio: propiedades.precio,
+          moneda: propiedades.moneda,
+          m2Cubiertos: propiedades.m2Cubiertos,
+          m2Privados: propiedades.m2Privados,
+          m2Terreno: propiedades.m2Terreno,
+          hectareas: propiedades.hectareas,
+          dormitorios: propiedades.dormitorios,
+          banos: propiedades.banos,
+          // Huella de la primera foto: cambia si cambia la portada.
+          huellaFoto: sql<string | null>`left(md5(${propiedades.fotos} ->> 0), 10)`,
+        },
+        agenteNombre: usuarios.nombre,
+      })
       .from(propiedades)
       .leftJoin(usuarios, eq(propiedades.agenteId, usuarios.id))
       .where(and(...condiciones))
@@ -149,7 +172,7 @@ export default async function PropiedadesPage({
         ) : (
           misPropiedades.map(({ p, agenteNombre }) => {
             const esPropia = p.agenteId === sesion!.userId;
-            const primeraFoto = p.fotos?.[0];
+            const primeraFoto = p.huellaFoto ? `/api/fotos/${p.id}/0?v=${p.huellaFoto}` : null;
             const resumen = resumenCaracteristicas(p);
             return (
               <Link
@@ -163,6 +186,8 @@ export default async function PropiedadesPage({
                     <img
                       src={primeraFoto}
                       alt={limpiarTitulo(p.titulo)}
+                      loading="lazy"
+                      decoding="async"
                       className="h-full w-full object-cover transition group-hover:scale-105"
                     />
                   ) : (

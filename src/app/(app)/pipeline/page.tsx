@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { propiedades, usuarios } from "@/db/schema";
 import { obtenerSesion, esAdmin } from "@/lib/auth";
-import { and, eq } from "drizzle-orm";
+import { and, eq, getTableColumns } from "drizzle-orm";
 import { MINIMO_PROPIEDADES_ACTIVAS } from "@/lib/pipeline";
 import { armarTarjetasPipeline } from "@/lib/pipeline-datos";
 import { TarjetaPipeline } from "./tarjeta-pipeline";
@@ -31,8 +31,11 @@ export default async function PipelinePage({
   const soloLectura = agenteObjetivoId !== sesion!.userId;
   const agenteObjetivo = agentes.find((a) => a.id === agenteObjetivoId);
 
+  // Todas las columnas menos las fotos (pesan mucho y acá no se usan).
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { fotos, ...columnasSinFotos } = getTableColumns(propiedades);
   const props = await db
-    .select()
+    .select(columnasSinFotos)
     .from(propiedades)
     .where(and(eq(propiedades.agenteId, agenteObjetivoId), eq(propiedades.estado, "ACTIVA")))
     .orderBy(propiedades.fechaInicioPipeline);
