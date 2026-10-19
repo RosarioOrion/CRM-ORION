@@ -57,10 +57,19 @@ export function estadoSeguimiento(
   ahora: Date
 ): EstadoSeguimiento {
   const orden = [...lista].sort((a, b) => b.fecha.getTime() - a.fecha.getTime());
+  // Un intento por día: si el dueño tiene varias propiedades, el mismo
+  // mensaje queda registrado en cada una y no tiene que contar varias veces.
   let sinRespuesta = 0;
+  let filasSinRespuesta = 0;
+  const dias = new Set<string>();
   for (const s of orden) {
     if (s.respondio) break;
-    sinRespuesta++;
+    filasSinRespuesta++;
+    const dia = s.fecha.toDateString();
+    if (!dias.has(dia)) {
+      dias.add(dia);
+      sinRespuesta++;
+    }
   }
   if (frioDesde) return { tipo: "FRIO", sinRespuesta, proxima: null, vencido: false, desde: frioDesde };
   if (orden.length === 0) return { tipo: "SIN_SEGUIMIENTOS", sinRespuesta: 0, proxima: null, vencido: false };
@@ -71,7 +80,7 @@ export function estadoSeguimiento(
 
   if (sinRespuesta === 0) return { tipo: "AL_DIA", sinRespuesta: 0, proxima, vencido };
 
-  const aviso = orden.slice(0, sinRespuesta).find((s) => s.avisoFinal);
+  const aviso = orden.slice(0, filasSinRespuesta).find((s) => s.avisoFinal);
   if (aviso || sinRespuesta >= SIN_RESPUESTA_TOPE) {
     const avisoEl = (aviso ?? ultimo).fecha;
     const limite = new Date(avisoEl.getTime() + DIAS_ENTRE_SEGUIMIENTOS * DIA);
