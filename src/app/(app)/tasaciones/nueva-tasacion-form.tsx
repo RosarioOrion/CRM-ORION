@@ -1,13 +1,15 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
-import { crearTasacion, type TasacionState } from "./actions";
+import { useActionState, useMemo, useState, useTransition } from "react";
+import { crearTasacion, sugerirComparables, type TasacionState } from "./actions";
 import {
+  busquedasEnPortales,
   calcularTasacion,
   MINIMO_COMPARABLES,
   OPCIONES_ESTADO,
   OPCIONES_UBICACION,
   type Comparable,
+  type ComparableSugerido,
 } from "@/lib/tasaciones";
 
 const initialState: TasacionState = {};
@@ -49,6 +51,42 @@ export function NuevaTasacionForm() {
       prev.map((c, idx) => (idx === i ? { ...c, [campo]: valor } : c))
     );
   }
+
+  const [buscando, iniciarBusqueda] = useTransition();
+  const [sugeridos, setSugeridos] = useState<ComparableSugerido[] | null>(null);
+  const [errorSugeridos, setErrorSugeridos] = useState("");
+
+  function buscarSugeridos() {
+    setErrorSugeridos("");
+    iniciarBusqueda(async () => {
+      const r = await sugerirComparables(tipo, zona, Number(m2));
+      if (r.error) {
+        setErrorSugeridos(r.error);
+        setSugeridos(null);
+      } else {
+        setSugeridos(r.sugeridos ?? []);
+      }
+    });
+  }
+
+  // Ocupa primero los comparables vacíos y después agrega al final.
+  function usarSugeridos(lista: ComparableSugerido[]) {
+    setComparables((prev) => {
+      const nuevos = [...prev];
+      for (const s of lista) {
+        if (nuevos.some((c) => c.link === s.link)) continue;
+        const { link, m2, precio, esCierre, estado, ubicacion } = s;
+        const comparable = { link, m2, precio, esCierre, estado, ubicacion };
+        const vacio = nuevos.findIndex((c) => !c.link && !c.m2 && !c.precio);
+        if (vacio >= 0) nuevos[vacio] = comparable;
+        else nuevos.push(comparable);
+      }
+      return nuevos;
+    });
+  }
+
+  const yaCargado = (s: ComparableSugerido) => comparables.some((c) => c.link === s.link);
+  const portales = busquedasEnPortales(tipo, zona, Number(m2));
 
   function agregarComparable() {
     setComparables((prev) => [...prev, { ...COMPARABLE_VACIO }]);
@@ -149,6 +187,91 @@ export function NuevaTasacionForm() {
           <span className="text-xs text-gray-400">
             {comparablesCompletos.length} completo(s) de {comparables.length} cargado(s)
           </span>
+        </div>
+
+        <div className="mb-4 rounded-lg bg-gray-50 p-3 dark:bg-gray-900/50">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={buscarSugeridos}
+              disabled={buscando}
+              className="rounded-lg bg-orion-navy px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+            >
+              {buscando ? "Buscando…" : "🔎 Sugerir comparables de Orion"}
+            </button>
+            {portales.map((p) => (
+              <a
+                key={p.portal}
+                href={p.url}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:border-gray-600 dark:text-gray-200"
+              >
+                Buscar en {p.portal} ↗
+              </a>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] text-gray-400">
+            Orion busca propiedades en venta del mismo tipo y zona, con ±25% de m². Las vendidas o reservadas
+            entran como Cierre y las activas como Dinámico. En los portales, copiá el link del aviso que elijas
+            y cargalo en un comparable.
+          </p>
+          {errorSugeridos && <p className="mt-2 text-xs text-red-600">{errorSugeridos}</p>}
+          {sugeridos && sugeridos.length === 0 && (
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              No hay propiedades parecidas en Orion. Probá con una zona más amplia o buscá en los portales.
+            </p>
+          )}
+          {sugeridos && sugeridos.length > 0 && (
+            <div className="mt-3 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  {sugeridos.length} encontrada(s)
+                </span>
+                {sugeridos.some((s) => !yaCargado(s)) && (
+                  <button
+                    type="button"
+                    onClick={() => usarSugeridos(sugeridos)}
+                    className="text-xs font-semibold text-orion-navy hover:underline dark:text-orion-gold"
+                  >
+                    Agregar todas
+                  </button>
+                )}
+              </div>
+              {sugeridos.map((s) => (
+                <div
+                  key={s.link}
+                  className="flex items-center justify-between gap-3 rounded border border-gray-200 bg-white px-3 py-2 text-xs dark:border-gray-700 dark:bg-gray-800"
+                >
+                  <div className="min-w-0">
+                    <a
+                      href={s.link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block truncate font-semibold text-gray-700 hover:underline dark:text-gray-200"
+                    >
+                      {s.codigo} · {s.titulo}
+                    </a>
+                    <span className="text-gray-400">
+                      {s.zona} · {s.m2} m² · {formatoUsd(s.precio)} ·{" "}
+                      {s.esCierre ? "✅ Cierre" : "📊 Dinámico"}
+                    </span>
+                  </div>
+                  {yaCargado(s) ? (
+                    <span className="shrink-0 text-gray-400">Agregada</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => usarSugeridos([s])}
+                      className="shrink-0 rounded border border-orion-navy px-2 py-1 font-semibold text-orion-navy dark:border-orion-gold dark:text-orion-gold"
+                    >
+                      Agregar
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-3">

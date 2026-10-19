@@ -29,6 +29,7 @@ import { createHash } from "node:crypto";
 import { EliminarPropiedad } from "./eliminar-propiedad";
 import { MostrarEnWeb } from "./mostrar-en-web";
 import { EditarPropiedad } from "./editar-propiedad";
+import { FotoMarca } from "./foto-marca";
 
 type Propiedad = typeof propiedades.$inferSelect;
 
@@ -164,6 +165,19 @@ export default async function PropiedadDetallePage({
       fotos: fotosVista.map((f) => f.url),
     };
   }
+
+  // Foto con marca: la versión cambia si cambia algo de lo que se muestra.
+  const versionFotoMarca = createHash("sha1")
+    .update(
+      JSON.stringify([
+        propiedad.operacion, propiedad.tipo, propiedad.precio, propiedad.moneda, propiedad.estado,
+        propiedad.dormitorios, propiedad.banos, propiedad.m2Cubiertos, propiedad.m2Privados,
+        propiedad.m2Terreno, propiedad.hectareas, propiedad.zona, propiedad.departamento,
+        fotosVista[0]?.url,
+      ])
+    )
+    .digest("hex")
+    .slice(0, 10);
 
   // Solo los campos del formulario (sin fotos ni fechas, que pesan o no se editan acá).
   const {
@@ -452,6 +466,12 @@ export default async function PropiedadDetallePage({
               departamento={propiedad.departamento}
             />
           </div>
+
+          {fotosVista.length > 0 && (
+            <div className={`${tarjeta} mb-4`}>
+              <FotoMarca propiedadId={propiedad.id} version={versionFotoMarca} />
+            </div>
+          )}
 
           {datosMarketplace && (
             <div className="mb-4">
