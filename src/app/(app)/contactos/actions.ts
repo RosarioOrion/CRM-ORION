@@ -260,6 +260,55 @@ export async function actualizarDetalles(
   return { ok: true };
 }
 
+export type DatosContactoState = {
+  error?: string;
+  ok?: number;
+  /** Otros contactos con el mismo teléfono o email (sin contar este). */
+  duplicados?: Duplicado[];
+};
+
+const DatosContactoSchema = ContactoSchema.pick({ nombre: true, telefono: true, email: true });
+
+/** Editar nombre, teléfono y email desde la ficha del contacto. */
+export async function actualizarDatosContacto(
+  contactoId: string,
+  _prevState: DatosContactoState,
+  formData: FormData
+): Promise<DatosContactoState> {
+  const sesion = await obtenerSesion();
+  if (!sesion) return { error: "Sesión expirada, volvé a ingresar." };
+  const contacto = await requerirPropietario(contactoId);
+
+  const parsed = DatosContactoSchema.safeParse({
+    nombre: String(formData.get("nombre") ?? "").trim(),
+    telefono: String(formData.get("telefono") ?? "").trim() || undefined,
+    email: String(formData.get("email") ?? "").trim() || undefined,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const { nombre, telefono, email } = parsed.data;
+
+  // Mismo aviso de repetido que al crear, pero solo si cambió el teléfono o
+  // el email y sin contarse a sí mismo.
+  const cambioContacto = (telefono ?? null) !== contacto.telefono || (email ?? null) !== contacto.email;
+  if (cambioContacto && formData.get("confirmarDuplicado") !== "1") {
+    const duplicados = (await buscarDuplicados(sesion.userId, telefono, email)).filter(
+      (d) => d.id !== contactoId
+    );
+    if (duplicados.length > 0) return { duplicados };
+  }
+
+  await db
+    .update(contactos)
+    .set({ nombre, telefono: telefono || null, email: email || null })
+    .where(eq(contactos.id, contactoId));
+
+  revalidatePath("/contactos");
+  revalidatePath(`/contactos/${contactoId}`);
+  return { ok: Date.now() };
+}
+
 export async function archivarContacto(contactoId: string, archivado: boolean) {
   await requerirPropietario(contactoId);
 
