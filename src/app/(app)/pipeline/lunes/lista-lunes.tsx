@@ -181,6 +181,11 @@ function TarjetaDueno({
           {p.atrasado ? " · atrasado" : ""}
         </Link>
       ))}
+      {d.version && (
+        <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[11px] font-semibold text-sky-800 dark:bg-sky-900/40 dark:text-sky-300">
+          {d.version}
+        </span>
+      )}
       {d.avisoFinal && (
         <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
           ⚠️ Aviso final (3º sin respuesta)

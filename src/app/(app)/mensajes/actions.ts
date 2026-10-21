@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { configuracionEmpresa, plantillasWhatsapp, usuarios } from "@/db/schema";
 import { obtenerSesion, esAdmin } from "@/lib/auth";
 import { NOMBRE_SITIO } from "@/lib/sitio";
-import { PLANTILLAS_INICIALES, type Plantilla } from "@/lib/plantillas-whatsapp";
+import { PLANTILLAS_INICIALES, VERSIONES_SEGUIMIENTO_SEMANAL, type Plantilla } from "@/lib/plantillas-whatsapp";
 
 // La tabla se creó después: si todavía no existe (no se corrió Admin →
 // Migrar), se crea acá con los mensajes iniciales. Solo la primera vez: si
@@ -19,20 +19,43 @@ function asegurarTabla(): Promise<void> {
       const [fila] = await tx.execute<{ existe: string | null }>(
         sql`SELECT to_regclass('public.plantillas_whatsapp')::text AS existe`
       );
-      if (fila?.existe) return;
+      const existia = !!fila?.existe;
+      if (!existia) {
+        await tx.execute(sql`
+          CREATE TABLE IF NOT EXISTS plantillas_whatsapp (
+            id text PRIMARY KEY,
+            titulo text NOT NULL,
+            emoji text,
+            texto text NOT NULL,
+            orden integer NOT NULL DEFAULT 0,
+            creado_en timestamp NOT NULL DEFAULT now()
+          )
+        `);
+        await tx
+          .insert(plantillasWhatsapp)
+          .values(PLANTILLAS_INICIALES.map((p, i) => ({ ...p, orden: i })));
+      }
+
+      // Mensajes que se agregaron después: se cargan una sola vez (queda
+      // anotado en datos_cargados), así si el team leader los borra no vuelven.
       await tx.execute(sql`
-        CREATE TABLE IF NOT EXISTS plantillas_whatsapp (
-          id text PRIMARY KEY,
-          titulo text NOT NULL,
-          emoji text,
-          texto text NOT NULL,
-          orden integer NOT NULL DEFAULT 0,
+        CREATE TABLE IF NOT EXISTS datos_cargados (
+          clave text PRIMARY KEY,
           creado_en timestamp NOT NULL DEFAULT now()
         )
       `);
-      await tx
-        .insert(plantillasWhatsapp)
-        .values(PLANTILLAS_INICIALES.map((p, i) => ({ ...p, orden: i })));
+      const nuevos = await tx.execute(sql`
+        INSERT INTO datos_cargados (clave) VALUES ('seguimiento-semanal-versiones')
+        ON CONFLICT DO NOTHING RETURNING clave
+      `);
+      if (existia && nuevos.length > 0) {
+        const [{ maximo }] = await tx
+          .select({ maximo: sql<number>`coalesce(max(${plantillasWhatsapp.orden}), -1)`.mapWith(Number) })
+          .from(plantillasWhatsapp);
+        await tx
+          .insert(plantillasWhatsapp)
+          .values(VERSIONES_SEGUIMIENTO_SEMANAL.map((p, i) => ({ ...p, orden: maximo + 1 + i })));
+      }
     })
     .catch((e) => {
       tablaLista = null; // reintenta en el próximo pedido

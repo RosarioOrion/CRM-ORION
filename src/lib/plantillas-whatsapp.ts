@@ -37,6 +37,35 @@ export function completarMensaje(texto: string, v: VariablesMensaje): string {
     .trim();
 }
 
+/**
+ * Todos los mensajes cuyo nombre empieza con "Seguimiento semanal" son
+ * versiones del mensaje de los lunes; se usan por turno, en el orden de la
+ * lista de /mensajes.
+ */
+export const TITULO_SEGUIMIENTO_SEMANAL = /^\W*seguimiento semanal/i;
+
+/** Versiones 2 a 4 del mensaje semanal (la 1 es "Seguimiento semanal"). */
+export const VERSIONES_SEGUIMIENTO_SEMANAL: Omit<Plantilla, "id">[] = [
+  {
+    emoji: "📅",
+    titulo: "Seguimiento semanal 2",
+    texto:
+      "Hola {nombre}, ¿qué tal tu semana? Te escribo para ponernos al día con la propiedad. ¿Sigue todo igual de tu lado o hubo algún cambio? Por nuestra parte la seguimos difundiendo y te aviso apenas tenga novedades de interesados. ¡Un saludo!",
+  },
+  {
+    emoji: "📅",
+    titulo: "Seguimiento semanal 3",
+    texto:
+      "¡Buen día, {nombre}! ¿Cómo va todo? Paso a confirmar que la propiedad siga disponible y a preguntarte si te llegó alguna consulta por otro lado o si pensaste algún ajuste en las condiciones. Cualquier dato me ayuda a seguir moviéndola. ¡Gracias!",
+  },
+  {
+    emoji: "📅",
+    titulo: "Seguimiento semanal 4",
+    texto:
+      "Hola {nombre}, ¿cómo andás? Te escribo para saber cómo seguimos con la propiedad. Si en algún momento querés que nos juntemos o hablemos por teléfono para ver cómo viene la comercialización, decime y lo coordinamos. ¡Saludos!",
+  },
+];
+
 /** Mensajes con los que arranca Orion; después se editan desde /mensajes. */
 export const PLANTILLAS_INICIALES: Omit<Plantilla, "id">[] = [
   {
@@ -51,6 +80,9 @@ export const PLANTILLAS_INICIALES: Omit<Plantilla, "id">[] = [
     texto:
       "Hola {nombre}, ¿cómo estás? Espero que hayas comenzado bien la semana. Te consulto si la propiedad sigue disponible y si hubo alguna novedad de tu lado: consultas, visitas o algún cambio en el precio o las condiciones. Así mantengo la información actualizada para seguir trabajándola. ¡Gracias!",
   },
+  // Versiones 2 a 4: el Seguimiento del lunes las va rotando para que el
+  // dueño no reciba siempre el mismo texto.
+  ...VERSIONES_SEGUIMIENTO_SEMANAL,
   {
     emoji: "🔁",
     titulo: "Seguimiento de visita",

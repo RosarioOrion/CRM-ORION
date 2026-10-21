@@ -3,8 +3,9 @@ import { db } from "@/db";
 import { contactos, propiedades, seguimientos } from "@/db/schema";
 import { armarTarjetasPipeline } from "@/lib/pipeline-datos";
 import { ahoraUY } from "@/lib/calendario";
+import { lunesDe } from "@/lib/pipeline";
 import { estadoSeguimiento, numeroWhatsApp, textoAvisoFinal } from "@/lib/seguimientos";
-import { completarMensaje, PLANTILLAS_INICIALES } from "@/lib/plantillas-whatsapp";
+import { completarMensaje, PLANTILLAS_INICIALES, TITULO_SEGUIMIENTO_SEMANAL } from "@/lib/plantillas-whatsapp";
 import { listarPlantillas, datosParaWhatsApp } from "@/app/(app)/mensajes/actions";
 
 // "Seguimiento del lunes": todos los dueños a los que les toca el mensaje
@@ -24,13 +25,13 @@ export type DuenoLunes = {
   propiedades: { id: string; codigo: string; titulo: string; atrasado: boolean }[];
   mensaje: string;
   avisoFinal: boolean;
+  /** Qué versión del mensaje semanal le toca (ej. "Seguimiento semanal 2"). */
+  version: string | null;
   /** Ya se le mandó el de esta semana. */
   hecho: boolean;
   /** Frío o sin respuesta al aviso final: decide el agente. */
   paraDecidir: string | null;
 };
-
-const TITULO_PLANTILLA = /seguimiento semanal/i;
 
 function listaPropiedades(titulos: string[]): string {
   if (titulos.length <= 1) return titulos[0] ?? "la propiedad";
@@ -68,9 +69,12 @@ export async function armarSeguimientoLunes(agenteId: string): Promise<DuenoLune
     datosParaWhatsApp(),
   ]);
 
-  const plantilla =
-    plantillas.find((p) => TITULO_PLANTILLA.test(p.titulo))?.texto ??
-    PLANTILLAS_INICIALES.find((p) => TITULO_PLANTILLA.test(p.titulo))!.texto;
+  // Versiones del mensaje semanal, en el orden de /mensajes. Se van rotando
+  // para que el dueño no reciba siempre el mismo texto.
+  const versiones = plantillas.filter((p) => TITULO_SEGUIMIENTO_SEMANAL.test(p.titulo));
+  if (versiones.length === 0) {
+    versiones.push({ id: "", ...PLANTILLAS_INICIALES.find((p) => TITULO_SEGUIMIENTO_SEMANAL.test(p.titulo))! });
+  }
   const ahora = ahoraUY();
 
   const resultado: DuenoLunes[] = [];
@@ -95,6 +99,15 @@ export async function armarSeguimientoLunes(agenteId: string): Promise<DuenoLune
       ahora
     );
     const titulos = lista.map((t) => t.titulo);
+    // Le toca la versión siguiente a la última que recibió: se cuenta cuántos
+    // seguimientos tuvo (un día = uno) antes de esta semana.
+    const lunes = lunesDe(ahora).getTime();
+    const contactosPrevios = new Set(
+      historial
+        .filter((h) => h.contactoId === d.id && h.fecha.getTime() < lunes)
+        .map((h) => h.fecha.toDateString())
+    ).size;
+    const version = versiones[contactosPrevios % versiones.length];
     const avisoFinal = estado.tipo === "SIN_RESPUESTA" && estado.siguienteEsAviso;
 
     let mensaje = avisoFinal
@@ -104,7 +117,7 @@ export async function armarSeguimientoLunes(agenteId: string): Promise<DuenoLune
           propiedades: lista.map((t) => t.codigo),
           esComprador: false,
         })
-      : completarMensaje(plantilla, {
+      : completarMensaje(version.texto, {
           nombre: d.nombre,
           agente: datos.agente,
           inmobiliaria: datos.inmobiliaria,
@@ -132,6 +145,7 @@ export async function armarSeguimientoLunes(agenteId: string): Promise<DuenoLune
       })),
       mensaje,
       avisoFinal,
+      version: avisoFinal || versiones.length < 2 ? null : version.titulo,
       hecho: pendientes.length === 0,
       paraDecidir:
         estado.tipo === "FRIO"
