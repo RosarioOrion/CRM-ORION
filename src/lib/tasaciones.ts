@@ -22,6 +22,8 @@
 export const DESCUENTO_DINAMICO = 0.1;
 export const FACTOR_POR_PUNTO = 0.05;
 export const MINIMO_COMPARABLES = 4;
+// "Sugerir comparables" busca propiedades con ±25% de la superficie.
+export const MARGEN_M2_SUGERIDOS = 0.25;
 
 export const OPCIONES_ESTADO = [
   { valor: 1, label: "1 – Malo" },
@@ -45,6 +47,52 @@ export type Comparable = {
   estado: number;
   ubicacion: number;
 };
+
+export type ComparableSugerido = Comparable & {
+  codigo: string;
+  titulo: string;
+  zona: string;
+  estadoPropiedad: string;
+};
+
+function slug(t: string) {
+  return t
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+const TIPO_PLURAL: Record<string, string> = {
+  apartamento: "apartamentos",
+  casa: "casas",
+  terreno: "terrenos",
+  local: "locales-comerciales",
+  oficina: "oficinas",
+};
+
+/**
+ * Búsquedas ya filtradas en los portales para buscar comparables a mano.
+ * Los portales no tienen un acceso abierto, así que se abren en otra
+ * pestaña y el link del aviso elegido se pega en el comparable.
+ */
+export function busquedasEnPortales(tipo: string, zona: string, m2: number) {
+  const tipoSlug = slug(tipo);
+  const zonaSlug = slug(zona);
+  if (!tipoSlug || !zonaSlug) return [];
+  const palabras = [tipo, "venta", zona, m2 > 0 ? `${Math.round(m2)} m2` : ""].filter(Boolean).join(" ");
+  return [
+    {
+      portal: "Mercado Libre",
+      url: `https://listado.mercadolibre.com.uy/${slug(palabras)}`,
+    },
+    {
+      portal: "InfoCasas",
+      url: `https://www.infocasas.com.uy/venta/${TIPO_PLURAL[tipoSlug] ?? tipoSlug}/${zonaSlug}`,
+    },
+  ];
+}
 
 export function precioEfectivo(c: Comparable): number {
   return c.esCierre ? c.precio : c.precio * (1 - DESCUENTO_DINAMICO);

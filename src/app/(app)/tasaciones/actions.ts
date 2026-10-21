@@ -1,15 +1,17 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq, ilike, inArray, isNotNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { tasaciones } from "@/db/schema";
+import { propiedades, tasaciones } from "@/db/schema";
 import { obtenerSesion, esAdmin } from "@/lib/auth";
 import {
   calcularTasacion,
   MINIMO_COMPARABLES,
+  MARGEN_M2_SUGERIDOS,
   type Comparable,
+  type ComparableSugerido,
 } from "@/lib/tasaciones";
 
 export type TasacionState = { error?: string; ok?: number };
@@ -124,4 +126,65 @@ export async function actualizarAjusteManual(
     .where(eq(tasaciones.id, tasacionId));
 
   revalidatePath(`/tasaciones/${tasacionId}`);
+}
+
+// "Sugerir comparables": propiedades en venta de Orion del mismo tipo y zona,
+// con superficie parecida. Las vendidas o reservadas entran como Cierre y las
+// activas como Dinámico. Solo en dólares, para no mezclar monedas.
+export async function sugerirComparables(
+  tipo: string,
+  zona: string,
+  m2: number
+): Promise<{ error?: string; sugeridos?: ComparableSugerido[] }> {
+  const sesion = await obtenerSesion();
+  if (!sesion) return { error: "No autorizado." };
+
+  tipo = tipo.trim();
+  zona = zona.trim();
+  if (!tipo || !zona || !m2 || m2 <= 0) {
+    return { error: "Completá tipo, zona y m² para buscar comparables." };
+  }
+
+  const m2Prop = sql<number>`coalesce(${propiedades.m2Cubiertos}, ${propiedades.m2Privados}, ${propiedades.m2Terreno})`;
+  const escapar = (t: string) => t.replace(/[\\%_]/g, (c) => `\\${c}`);
+
+  const filas = await db
+    .select({
+      id: propiedades.id,
+      codigo: propiedades.codigo,
+      titulo: propiedades.titulo,
+      zona: propiedades.zona,
+      estado: propiedades.estado,
+      precio: propiedades.precio,
+      m2: m2Prop.mapWith(Number),
+    })
+    .from(propiedades)
+    .where(
+      and(
+        eq(propiedades.operacion, "VENTA"),
+        eq(propiedades.moneda, "USD"),
+        isNotNull(propiedades.precio),
+        inArray(propiedades.estado, ["ACTIVA", "RESERVADA", "VENDIDA"]),
+        ilike(propiedades.tipo, escapar(tipo)),
+        ilike(propiedades.zona, `%${escapar(zona)}%`),
+        sql`${m2Prop} between ${m2 * (1 - MARGEN_M2_SUGERIDOS)} and ${m2 * (1 + MARGEN_M2_SUGERIDOS)}`
+      )
+    )
+    .orderBy(sql`abs(${m2Prop} - ${m2})`)
+    .limit(8);
+
+  return {
+    sugeridos: filas.map((f) => ({
+      link: `/propiedades/${f.id}`,
+      m2: f.m2,
+      precio: f.precio ?? 0,
+      esCierre: f.estado !== "ACTIVA",
+      estado: 3,
+      ubicacion: 3,
+      codigo: f.codigo,
+      titulo: f.titulo,
+      zona: f.zona,
+      estadoPropiedad: f.estado,
+    })),
+  };
 }

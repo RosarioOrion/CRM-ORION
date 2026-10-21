@@ -18,6 +18,7 @@ import {
 } from "@/lib/seguimientos";
 import { AccionesContacto } from "./acciones-contacto";
 import { FormularioDetalles } from "./formulario-detalles";
+import { EditarDatosContacto } from "./editar-datos-contacto";
 import { BotonWhatsApp } from "@/components/boton-whatsapp";
 
 export default async function ContactoDetallePage({
@@ -146,7 +147,17 @@ export default async function ContactoDetallePage({
           <AccionesContacto contactoId={contacto.id} archivado={contacto.archivado} />
         </div>
 
-        <div className="-mt-2 mb-4">
+        <div className="-mt-2 mb-3">
+          <EditarDatosContacto
+            key={`${contacto.nombre}|${contacto.telefono ?? ""}|${contacto.email ?? ""}`}
+            contactoId={contacto.id}
+            nombre={contacto.nombre}
+            telefono={contacto.telefono}
+            email={contacto.email}
+          />
+        </div>
+
+        <div className="mb-4">
           <UnirContacto contactoId={contacto.id} nombre={contacto.nombre} />
         </div>
 

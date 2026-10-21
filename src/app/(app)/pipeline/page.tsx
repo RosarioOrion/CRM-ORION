@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { db } from "@/db";
 import { propiedades, usuarios } from "@/db/schema";
 import { obtenerSesion, esAdmin } from "@/lib/auth";
@@ -60,13 +61,23 @@ export default async function PipelinePage({
 
   return (
     <div>
-      <div className="mb-6">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
         <h1 className="text-2xl font-bold text-orion-navy dark:text-white">Pipeline</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           Cadencia de 14 semanas (venta) y 7 semanas (alquiler) — {tarjetas.length}{" "}
           propiedad(es) activa(s) en seguimiento
           {soloLectura && agenteObjetivo ? ` de ${agenteObjetivo.nombre}` : ""}
         </p>
+        </div>
+        {!soloLectura && tarjetas.length > 0 && (
+          <Link
+            href="/pipeline/lunes"
+            className="rounded-lg bg-orion-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-orion-navy-light"
+          >
+            ⚡ Seguimiento del lunes
+          </Link>
+        )}
       </div>
 
       {admin && agentes.length > 0 && (

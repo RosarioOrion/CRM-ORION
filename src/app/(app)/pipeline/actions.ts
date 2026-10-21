@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { propiedades, historialPrecios, pipelineAcciones, seguimientos, contactos } from "@/db/schema";
 import { reemplazarPrecio } from "@/lib/precio-texto";
@@ -276,4 +276,104 @@ export async function registrarRepublicacion(propiedadId: string) {
     descripcion: DESCRIPCION_REPUBLICADO,
   });
   revalidarPipeline(propiedadId);
+}
+
+/**
+ * "Seguimiento del lunes": se mandó el mensaje semanal por WhatsApp a un
+ * dueño (una o varias propiedades). Queda como seguimiento sin respuesta
+ * todavía (cuenta para la regla de contacto frío hasta que se anote la
+ * respuesta) y marca la tarea de la semana en el Pipeline.
+ */
+export async function registrarEnvioLunes(
+  propiedadIds: string[],
+  avisoFinal: boolean
+): Promise<{ error?: string; ok?: boolean }> {
+  const sesion = await obtenerSesion();
+  if (!sesion) return { error: "Sesión expirada, volvé a ingresar." };
+  if (propiedadIds.length === 0) return { error: "Sin propiedades." };
+
+  const props = await db
+    .select()
+    .from(propiedades)
+    .where(and(inArray(propiedades.id, propiedadIds), eq(propiedades.agenteId, sesion.userId)));
+  if (props.length !== propiedadIds.length) return { error: "Propiedad no encontrada." };
+
+  const ahora = ahoraUY();
+  const real = new Date();
+  const fecha = new Date(ahora.getTime() + real.getSeconds() * 1000 + real.getMilliseconds());
+  const nota = avisoFinal ? "Aviso final enviado desde Seguimiento del lunes" : "Mensaje semanal enviado desde Seguimiento del lunes";
+
+  for (const p of props) {
+    // Sin frecuencia elegida: el seguimiento del lunes la deja semanal.
+    const frecuencia = esFrecuencia(p.frecuenciaSeguimiento) ? p.frecuenciaSeguimiento : 7;
+    if (!esFrecuencia(p.frecuenciaSeguimiento)) {
+      await db.update(propiedades).set({ frecuenciaSeguimiento: 7 }).where(eq(propiedades.id, p.id));
+    }
+    const proxLunes = proximoLunesQueToca(fecha, p.fechaInicioPipeline, frecuencia);
+    await db.insert(seguimientos).values({
+      contactoId: p.duenoId,
+      propiedadId: p.id,
+      agenteId: sesion.userId,
+      fecha,
+      canal: "WHATSAPP",
+      respondio: false,
+      avisoFinal,
+      nota,
+      proximaFecha: new Date(proxLunes.getFullYear(), proxLunes.getMonth(), proxLunes.getDate(), 10, 0),
+    });
+    await db.insert(pipelineAcciones).values({
+      propiedadId: p.id,
+      agenteId: sesion.userId,
+      categoria: "SEGUIMIENTO_DUENO",
+      semana: semanaActual(diasEnMercado(p.fechaInicioPipeline), p.operacion),
+      descripcion: "Seguimiento al dueño — mensaje enviado",
+    });
+    revalidatePath(`/propiedades/${p.id}`);
+  }
+
+  revalidatePath("/pipeline");
+  revalidatePath("/dashboard");
+  revalidatePath(`/contactos/${props[0].duenoId}`);
+  return { ok: true };
+}
+
+/** El dueño respondió el mensaje del lunes: se anota y deja de contar como sin respuesta. */
+export async function registrarRespuestaLunes(
+  propiedadIds: string[],
+  nota: string
+): Promise<{ error?: string; ok?: boolean }> {
+  const sesion = await obtenerSesion();
+  if (!sesion) return { error: "Sesión expirada, volvé a ingresar." };
+  nota = nota.trim();
+  if (!nota) return { error: "Anotá qué respondió el dueño." };
+
+  const props = await db
+    .select()
+    .from(propiedades)
+    .where(and(inArray(propiedades.id, propiedadIds), eq(propiedades.agenteId, sesion.userId)));
+  if (props.length === 0 || props.length !== propiedadIds.length) return { error: "Propiedad no encontrada." };
+
+  const ahora = ahoraUY();
+  const real = new Date();
+  const fecha = new Date(ahora.getTime() + real.getSeconds() * 1000 + real.getMilliseconds());
+  for (const p of props) {
+    const frecuencia = esFrecuencia(p.frecuenciaSeguimiento) ? p.frecuenciaSeguimiento : 7;
+    const proxLunes = proximoLunesQueToca(fecha, p.fechaInicioPipeline, frecuencia);
+    await db.insert(seguimientos).values({
+      contactoId: p.duenoId,
+      propiedadId: p.id,
+      agenteId: sesion.userId,
+      fecha,
+      canal: "WHATSAPP",
+      respondio: true,
+      nota,
+      proximaFecha: new Date(proxLunes.getFullYear(), proxLunes.getMonth(), proxLunes.getDate(), 10, 0),
+    });
+    revalidatePath(`/propiedades/${p.id}`);
+  }
+  await db.update(contactos).set({ frioDesde: null }).where(eq(contactos.id, props[0].duenoId));
+
+  revalidatePath("/pipeline");
+  revalidatePath(`/contactos/${props[0].duenoId}`);
+  return { ok: true };
 }
