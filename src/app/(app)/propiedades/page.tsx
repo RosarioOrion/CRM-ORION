@@ -23,10 +23,18 @@ const TABS: { estado: string; label: string }[] = [
   { estado: "todas", label: "Todas" },
 ];
 
+// Filtro de operación. Va en "op" porque "operacion" ya lo usa el alta de
+// propiedad (desde la ficha de un contacto propietario).
+const OPERACIONES: { op: string; label: string }[] = [
+  { op: "", label: "Venta y alquiler" },
+  { op: "VENTA", label: "Solo ventas" },
+  { op: "ALQUILER", label: "Solo alquileres" },
+];
+
 export default async function PropiedadesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ estado?: string; q?: string; dueno?: string; operacion?: string }>;
+  searchParams: Promise<{ estado?: string; q?: string; dueno?: string; operacion?: string; op?: string }>;
 }) {
   const params = await searchParams;
   const estadoParam = params.estado ?? "ACTIVA";
@@ -36,6 +44,7 @@ export default async function PropiedadesPage({
     ? estadoParam
     : "todas";
   const q = params.q?.trim() ?? "";
+  const op = params.op === "VENTA" || params.op === "ALQUILER" ? params.op : "";
 
   const sesion = await obtenerSesion();
 
@@ -48,6 +57,9 @@ export default async function PropiedadesPage({
     condiciones.push(
       eq(propiedades.estado, estadoActivo as (typeof ESTADOS_PROPIEDAD)[number])
     );
+  }
+  if (op) {
+    condiciones.push(eq(propiedades.operacion, op));
   }
   if (q) {
     condiciones.push(
@@ -100,12 +112,20 @@ export default async function PropiedadesPage({
     ? params.dueno
     : undefined;
 
-  function hrefTab(estado: string) {
+  function hrefFiltro(estado: string, operacion: string) {
     const sp = new URLSearchParams();
     sp.set("estado", estado);
+    if (operacion) sp.set("op", operacion);
     if (q) sp.set("q", q);
     return `/propiedades?${sp.toString()}`;
   }
+
+  const chip = (activo: boolean) =>
+    `rounded-full px-3 py-1 text-xs font-semibold transition ${
+      activo
+        ? "bg-orion-navy text-white"
+        : "bg-white text-gray-600 border border-gray-200 hover:border-orion-navy dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700"
+    }`;
 
   return (
     <div>
@@ -116,6 +136,7 @@ export default async function PropiedadesPage({
         <p className="text-sm text-gray-500 dark:text-gray-400">
           {misPropiedades.length} propiedad(es)
           {q ? ` · resultados de todos los agentes para "${q}"` : " · mis propiedades"}
+          {op === "VENTA" ? " · solo ventas" : op === "ALQUILER" ? " · solo alquileres" : ""}
         </p>
       </div>
 
@@ -127,17 +148,17 @@ export default async function PropiedadesPage({
         />
       </div>
 
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        {OPERACIONES.map((o) => (
+          <Link key={o.op || "todas"} href={hrefFiltro(estadoActivo, o.op)} className={chip(op === o.op)}>
+            {o.label}
+          </Link>
+        ))}
+      </div>
+
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {TABS.map((t) => (
-          <Link
-            key={t.estado}
-            href={hrefTab(t.estado)}
-            className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-              estadoActivo === t.estado
-                ? "bg-orion-navy text-white"
-                : "bg-white text-gray-600 border border-gray-200 hover:border-orion-navy dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700"
-            }`}
-          >
+          <Link key={t.estado} href={hrefFiltro(t.estado, op)} className={chip(estadoActivo === t.estado)}>
             {t.label}
           </Link>
         ))}
@@ -148,6 +169,7 @@ export default async function PropiedadesPage({
           className="ml-auto flex items-center gap-2"
         >
           <input type="hidden" name="estado" value={estadoActivo} />
+          {op && <input type="hidden" name="op" value={op} />}
           <input
             type="search"
             name="q"
