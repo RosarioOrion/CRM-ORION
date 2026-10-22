@@ -128,8 +128,27 @@ export function TablaAgentes({
                   </p>
                 </td>
                 <td className="px-4 py-3">
-                  {a.id === usuarioActualId ? (
+                  {a.id === usuarioActualId && roles[a.id] === "ADMINISTRADOR" ? (
                     <span className="text-gray-500">{ROL_LABEL[roles[a.id]]}</span>
+                  ) : a.id === usuarioActualId ? (
+                    // Tu propio rol: solo se puede subir, no bajar.
+                    <select
+                      value={roles[a.id]}
+                      onChange={(e) => {
+                        const rol = e.target.value as Agente["rol"];
+                        if (
+                          rol !== roles[a.id] &&
+                          window.confirm(`¿Cambiar tu rol a ${ROL_LABEL[rol]}? Después no lo vas a poder bajar vos mismo.`)
+                        ) {
+                          handleRolChange(a.id, rol);
+                        }
+                      }}
+                      className="rounded border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
+                    >
+                      {roles[a.id] === "AGENTE" && <option value="AGENTE">Agente</option>}
+                      <option value="TEAM_LEADER">Team Leader</option>
+                      <option value="ADMINISTRADOR">Administrador</option>
+                    </select>
                   ) : (
                     <select
                       value={roles[a.id]}
