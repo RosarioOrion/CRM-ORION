@@ -6,9 +6,10 @@ import {
   contactos,
   portalesPublicados,
   usuarios,
+  consultasPropiedad,
 } from "@/db/schema";
-import { obtenerSesion } from "@/lib/auth";
-import { eq, desc } from "drizzle-orm";
+import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { eq, desc, sql } from "drizzle-orm";
 import { limpiarTitulo, ESTADO_LABEL, ESTADO_COLOR } from "@/lib/propiedades";
 import { armarTarjetasPipeline } from "@/lib/pipeline-datos";
 import { MapaUbicacion } from "@/components/mapa-ubicacion";
@@ -30,6 +31,7 @@ import { EliminarPropiedad } from "./eliminar-propiedad";
 import { MostrarEnWeb } from "./mostrar-en-web";
 import { EditarPropiedad } from "./editar-propiedad";
 import { FotoMarca } from "./foto-marca";
+import { ConsultasPropiedad } from "./consultas-propiedad";
 
 type Propiedad = typeof propiedades.$inferSelect;
 
@@ -106,6 +108,27 @@ export default async function PropiedadDetallePage({
       .where(eq(portalesPublicados.propiedadId, propiedad.id))
       .orderBy(desc(portalesPublicados.creadoEn)),
   ]);
+
+  const consultas = await db
+    .select({
+      id: consultasPropiedad.id,
+      canal: consultasPropiedad.canal,
+      nombre: consultasPropiedad.nombre,
+      telefono: consultasPropiedad.telefono,
+      nota: consultasPropiedad.nota,
+      creadoEn: consultasPropiedad.creadoEn,
+      agenteId: consultasPropiedad.agenteId,
+      agente: usuarios.nombre,
+      dias: sql<number>`floor(extract(epoch from (now() - ${consultasPropiedad.creadoEn})) / 86400)`.mapWith(Number),
+    })
+    .from(consultasPropiedad)
+    .leftJoin(usuarios, eq(consultasPropiedad.agenteId, usuarios.id))
+    .where(eq(consultasPropiedad.propiedadId, propiedad.id))
+    .orderBy(desc(consultasPropiedad.creadoEn))
+    .catch(() => []);
+  const fechaConsulta = (d: Date) =>
+    d.toLocaleDateString("es-UY", { timeZone: "America/Montevideo", day: "2-digit", month: "2-digit", year: "2-digit" });
+  const diasDesdeUltimaConsulta = consultas[0]?.dias ?? null;
 
   const ubicacion = [propiedad.direccion, propiedad.zona, propiedad.departamento, "Uruguay"]
     .filter(Boolean)
@@ -478,6 +501,25 @@ export default async function PropiedadDetallePage({
               <PrepararMarketplace datos={datosMarketplace} />
             </div>
           )}
+
+          {/* Consultas que llegaron por la propiedad */}
+          <div className={`${tarjeta} mb-4`}>
+            <ConsultasPropiedad
+              key={consultas.length}
+              propiedadId={propiedad.id}
+              diasDesdeUltima={diasDesdeUltimaConsulta}
+              consultas={consultas.map((c) => ({
+                id: c.id,
+                canal: c.canal,
+                nombre: c.nombre,
+                telefono: c.telefono,
+                nota: c.nota,
+                fecha: fechaConsulta(c.creadoEn),
+                agente: c.agente ?? "",
+                puedeBorrar: c.agenteId === sesion.userId || esAdmin(sesion.rol),
+              }))}
+            />
+          </div>
 
           {/* 5. Portales */}
           <div className={`${tarjeta} mb-4`}>

@@ -23,7 +23,7 @@ const TABS: { key: string; label: string }[] = [
 export default async function ContactosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; tab?: string }>;
+  searchParams: Promise<{ q?: string; tab?: string; nuevo?: string }>;
 }) {
   const params = await searchParams;
   const q = params.q?.trim() ?? "";
@@ -142,7 +142,7 @@ export default async function ContactosPage({
       </div>
 
       <div className="mb-6">
-        <NuevoContactoForm />
+        <NuevoContactoForm key={params.nuevo ?? ""} abiertoInicial={params.nuevo === "1"} />
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">

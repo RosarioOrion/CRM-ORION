@@ -15,13 +15,13 @@ import { AccionesCaptacion } from "./acciones-captacion";
 export default async function CaptacionesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ desde?: string }>;
+  searchParams: Promise<{ desde?: string; nuevo?: string }>;
 }) {
   const sesion = await obtenerSesion();
 
   // "🚀 Crear captación" desde una visita de captación de la Agenda:
   // /captaciones?desde=<id de la actividad> → el formulario se abre precargado.
-  const { desde } = await searchParams;
+  const { desde, nuevo } = await searchParams;
   let inicial: CaptacionInicial | undefined;
   if (desde) {
     try {
@@ -92,7 +92,12 @@ export default async function CaptacionesPage({
       </div>
 
       <div className="mb-6">
-        <NuevaCaptacionForm key={desde ?? "nueva"} contactos={misContactos} inicial={inicial} />
+        <NuevaCaptacionForm
+          key={`${desde ?? "nueva"}-${nuevo ?? ""}`}
+          contactos={misContactos}
+          inicial={inicial}
+          abiertoInicial={nuevo === "1"}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

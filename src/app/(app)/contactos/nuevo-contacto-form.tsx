@@ -16,12 +16,13 @@ import {
 
 const initialState: ContactoState = {};
 
-export function NuevoContactoForm() {
+/** `abiertoInicial`: se abre solo (desde el botón "+ Nuevo"). */
+export function NuevoContactoForm({ abiertoInicial = false }: { abiertoInicial?: boolean }) {
   const [state, formAction, pending] = useActionState(
     crearContacto,
     initialState
   );
-  const [abierto, setAbierto] = useState(false);
+  const [abierto, setAbierto] = useState(abiertoInicial);
   // Se cierra solo cuando el contacto se guardó (no cuando aparece el aviso
   // de repetido o un error).
   const router = useRouter();

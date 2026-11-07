@@ -11,12 +11,19 @@ type Contacto = { id: string; nombre: string };
 const inputClass =
   "rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy dark:border-gray-700 dark:bg-gray-800 dark:text-white";
 
-export function NuevaBusquedaForm({ contactos }: { contactos: Contacto[] }) {
+/** `abiertoInicial`: se abre solo (desde el botón "+ Nuevo"). */
+export function NuevaBusquedaForm({
+  contactos,
+  abiertoInicial = false,
+}: {
+  contactos: Contacto[];
+  abiertoInicial?: boolean;
+}) {
   const [state, formAction, pending] = useActionState(
     crearBusqueda,
     initialState
   );
-  const [abierto, setAbierto] = useState(false);
+  const [abierto, setAbierto] = useState(abiertoInicial);
 
   if (contactos.length === 0) {
     return (

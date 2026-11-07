@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { obtenerSesion, cerrarSesion, esAdmin } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { MenuLateral } from "@/components/menu-lateral";
+import { AccionesRapidas } from "@/components/acciones-rapidas";
 
 const NAV = [
   { href: "/dashboard", label: "Inicio", icon: "🏠" },
@@ -42,7 +43,7 @@ export default async function AppLayout({
 
   return (
     <div className="flex min-h-screen">
-      <MenuLateral>
+      <MenuLateral barraCelular={<AccionesRapidas compacto />}>
         <Link href="/dashboard" className="block border-b border-white/10 px-5 py-5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/orion-logo.png" alt="Orion Propiedades" className="h-auto w-full max-w-[180px]" />
@@ -93,7 +94,12 @@ export default async function AppLayout({
       </MenuLateral>
 
       <main className="min-w-0 flex-1 bg-orion-bg pt-14 md:pt-0">
-        <div className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-8">{children}</div>
+        <div className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-8">
+          <div className="hidden md:block">
+            <AccionesRapidas />
+          </div>
+          {children}
+        </div>
       </main>
     </div>
   );

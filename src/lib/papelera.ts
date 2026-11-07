@@ -16,6 +16,7 @@ import {
   reservasAlquiler,
   actividades,
   seguimientos,
+  consultasPropiedad,
 } from "@/db/schema";
 
 // Papelera: lo que se elimina queda guardado 30 días y se puede restaurar.
@@ -52,6 +53,8 @@ export type FotoPropiedad = {
   reservasAlquilerIds: string[];
   captacionesIds: string[];
   actividadesIds: string[];
+  /** Consultas anotadas con "+ Consulta" (no está en las fotos viejas). */
+  consultas?: Filas;
 };
 
 // La tabla se crea sola la primera vez (no hace falta tocar "Migración").
@@ -141,6 +144,7 @@ export async function guardarPropiedadEnPapelera(tx: Tx, propiedadId: string, el
     reservasAlquilerIds: await ids(tx, reservasAlquiler, eq(reservasAlquiler.propiedadId, propiedadId)),
     captacionesIds: await ids(tx, captaciones, eq(captaciones.convertidaEnPropiedadId, propiedadId)),
     actividadesIds: await ids(tx, actividades, eq(actividades.propiedadId, propiedadId)).catch(() => []),
+    consultas: await filas(tx, consultasPropiedad, eq(consultasPropiedad.propiedadId, propiedadId)),
   };
   await tx.insert(papelera).values({
     id: propiedadId,
@@ -230,6 +234,7 @@ export async function restaurarDePapelera(
         salteadas += await insertarVarias(tx, pipelineAcciones, f.pipeline);
         salteadas += await insertarVarias(tx, visitas, f.visitas);
         salteadas += await insertarVarias(tx, coincidenciasAvisadas, f.coincidencias);
+        salteadas += await insertarVarias(tx, consultasPropiedad, f.consultas ?? []);
         const relinks: [PgTable, string[], Record<string, string>][] = [
           [reservasVenta, f.reservasVentaIds, { propiedadId: id }],
           [reservasAlquiler, f.reservasAlquilerIds, { propiedadId: id }],

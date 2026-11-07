@@ -144,8 +144,11 @@ export function NuevaPropiedadForm({
   contactos,
   duenoInicial,
   operacionInicial,
+  abiertoInicial = false,
 }: {
   contactos: Contacto[];
+  /** Se abre solo (desde el botón "+ Nuevo"). */
+  abiertoInicial?: boolean;
   /** Dueño ya elegido (al venir desde la ficha de un contacto propietario). */
   duenoInicial?: string;
   operacionInicial?: "VENTA" | "ALQUILER";
@@ -155,7 +158,7 @@ export function NuevaPropiedadForm({
     initialState
     );
   // Si viene con dueño elegido, el formulario se abre directamente.
-  const [abierto, setAbierto] = useState(!!duenoInicial);
+  const [abierto, setAbierto] = useState(!!duenoInicial || abiertoInicial);
   const router = useRouter();
   // Fotos elegidas en el alta: se suben apenas se crea la propiedad.
   const [fotos, setFotos] = useState<File[]>([]);

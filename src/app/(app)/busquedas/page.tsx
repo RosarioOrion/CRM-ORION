@@ -24,7 +24,7 @@ function formatearPrecio(min: number | null, max: number | null, moneda: string)
 export default async function BusquedasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; tab?: string }>;
+  searchParams: Promise<{ q?: string; tab?: string; nuevo?: string }>;
 }) {
   const params = await searchParams;
   const q = params.q?.trim() ?? "";
@@ -134,7 +134,7 @@ export default async function BusquedasPage({
       </div>
 
       <div className="mb-6">
-        <NuevaBusquedaForm contactos={misContactos} />
+        <NuevaBusquedaForm key={params.nuevo ?? ""} contactos={misContactos} abiertoInicial={params.nuevo === "1"} />
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">

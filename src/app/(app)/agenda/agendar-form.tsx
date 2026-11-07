@@ -23,12 +23,15 @@ export function AgendarForm({
   propiedades,
   contactos,
   fechaInicial,
+  abiertoInicial = false,
 }: {
   propiedades: Propiedad[];
   contactos: Contacto[];
   fechaInicial?: string;
+  /** Se abre solo (desde el botón "+ Nuevo"). */
+  abiertoInicial?: boolean;
 }) {
-  const [abierto, setAbierto] = useState(Boolean(fechaInicial));
+  const [abierto, setAbierto] = useState(Boolean(fechaInicial) || abiertoInicial);
   const [tipo, setTipo] = useState<TipoEvento | null>(null);
 
   function cerrar() {

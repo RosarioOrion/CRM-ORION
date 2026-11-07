@@ -657,6 +657,24 @@ export const comisionesRelations = relations(comisiones, ({ one }) => ({
       }),
 }));
 
+// Consultas que llegan por una propiedad (WhatsApp, portales, llamadas…),
+// anotadas desde la ficha con "+ Consulta". Cuentan para las etapas del
+// panel "Mis propiedades" y el aviso de 21 días sin consultas.
+export const consultasPropiedad = pgTable("consultas_propiedad", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      propiedadId: text("propiedad_id")
+        .notNull()
+        .references(() => propiedades.id),
+      agenteId: text("agente_id")
+        .notNull()
+        .references(() => usuarios.id),
+      canal: text("canal").notNull(),
+      nombre: text("nombre"),
+      telefono: text("telefono"),
+      nota: text("nota"),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});
+
 // Objetivo de comisiones cobradas de cada agente, por mes ("2026-11").
 // Si el agente no lo define, Orion lo asigna con el promedio de sus
 // últimos 3 meses (automatico = true) y se lo avisa en el Inicio.
