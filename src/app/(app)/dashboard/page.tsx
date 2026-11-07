@@ -18,6 +18,8 @@ import { PlanDelDia } from "./plan-del-dia";
 import { cargarPlanDelDia } from "@/lib/plan-del-dia";
 import { resumenMisPropiedades } from "@/lib/mis-propiedades";
 import { MisPropiedades } from "./mis-propiedades";
+import { cargarObjetivoMes } from "@/lib/objetivo-mes";
+import { ObjetivoMes } from "./objetivo-mes";
 
 /**
  * Todo lo agendado de los agentes `ids` (normalmente solo el usuario; el
@@ -212,13 +214,21 @@ export default async function DashboardPage({
 
   const eventos = await cargarEventos(ids, yo, nombres);
   // El Plan del día es siempre el propio (no el del agente que se esté mirando).
-  const [plan, misPropiedades] = await Promise.all([cargarPlanDelDia(yo), resumenMisPropiedades(yo)]);
+  // Objetivo, plan y propiedades son siempre los propios.
+  const [objetivo, plan, misPropiedades] = await Promise.all([
+    cargarObjetivoMes(yo),
+    cargarPlanDelDia(yo),
+    resumenMisPropiedades(yo),
+  ]);
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-orion-navy">
         Hola, {sesion?.nombre?.split(" ")[0]} 👋
       </h1>
+      <div className="mt-4">
+        <ObjetivoMes key={`${objetivo.mes}-${objetivo.objetivo}`} datos={objetivo} />
+      </div>
       <div className="mt-4">
         <PlanDelDia plan={plan} />
       </div>

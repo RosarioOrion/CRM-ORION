@@ -657,6 +657,26 @@ export const comisionesRelations = relations(comisiones, ({ one }) => ({
       }),
 }));
 
+// Objetivo de comisiones cobradas de cada agente, por mes ("2026-11").
+// Si el agente no lo define, Orion lo asigna con el promedio de sus
+// últimos 3 meses (automatico = true) y se lo avisa en el Inicio.
+export const objetivosMensuales = pgTable(
+  "objetivos_mensuales",
+  {
+        id: text("id").primaryKey().$defaultFn(() => createId()),
+        usuarioId: text("usuario_id")
+          .notNull()
+          .references(() => usuarios.id),
+        mes: text("mes").notNull(),
+        monto: integer("monto").notNull(),
+        automatico: boolean("automatico").notNull().default(false),
+        creadoEn: timestamp("creado_en").notNull().defaultNow(),
+  },
+  (table) => ({
+        unicoPorMes: unique("objetivos_mensuales_usuario_mes").on(table.usuarioId, table.mes),
+  })
+);
+
 // Biblioteca de Capacitación: documentos de entrenamiento (PDF subido acá,
 // o un link externo cuando el archivo es muy pesado para guardarlo en la
 // base). El buscador inteligente con IA (preguntar en lenguaje natural)
