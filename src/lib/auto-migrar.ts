@@ -30,6 +30,16 @@ const SENTENCIAS = [
   // Ubicación de la propiedad en el mapa.
   sql`ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS lat double precision`,
   sql`ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS lng double precision`,
+  // Objetivo mensual de comisiones de cada agente (Inicio).
+  sql`CREATE TABLE IF NOT EXISTS objetivos_mensuales (
+    id text PRIMARY KEY,
+    usuario_id text NOT NULL REFERENCES usuarios(id),
+    mes text NOT NULL,
+    monto integer NOT NULL,
+    automatico boolean NOT NULL DEFAULT false,
+    creado_en timestamp NOT NULL DEFAULT now(),
+    CONSTRAINT objetivos_mensuales_usuario_mes UNIQUE (usuario_id, mes)
+  )`,
 ];
 
 export async function autoMigrar() {

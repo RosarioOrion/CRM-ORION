@@ -3,7 +3,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { contactos, propiedades, seguimientos } from "@/db/schema";
+import { contactos, objetivosMensuales, propiedades, seguimientos } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { ahoraUY } from "@/lib/calendario";
 import { estadoSeguimiento } from "@/lib/seguimientos";
@@ -135,5 +135,24 @@ export async function responderSeguimientoPlan(
   if (respuesta === "CAMBIO_PRECIO") revalidatePath("/propiedades");
 
   revalidar(contactoId, props.map((p) => p.id));
+  return { ok: true };
+}
+
+/** El agente define (o cambia) su objetivo de comisiones del mes en curso. */
+export async function guardarObjetivoMes(monto: number): Promise<{ error?: string; ok?: boolean }> {
+  const sesion = await obtenerSesion();
+  if (!sesion) return { error: "Sesión expirada, volvé a ingresar." };
+  monto = Math.round(Number(monto));
+  if (!Number.isFinite(monto) || monto <= 0) return { error: "Ingresá un monto en dólares." };
+  const ahora = ahoraUY();
+  const mes = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}`;
+  await db
+    .insert(objetivosMensuales)
+    .values({ usuarioId: sesion.userId, mes, monto, automatico: false })
+    .onConflictDoUpdate({
+      target: [objetivosMensuales.usuarioId, objetivosMensuales.mes],
+      set: { monto, automatico: false },
+    });
+  revalidatePath("/dashboard");
   return { ok: true };
 }
