@@ -19,6 +19,7 @@ import {
   esEtapa,
   resumenMisPropiedades,
 } from "@/lib/mis-propiedades";
+import { revisarPropiedad } from "@/lib/revisar-propiedad";
 
 const TABS: { estado: string; label: string }[] = [
   { estado: "ACTIVA", label: "Activas" },
@@ -41,7 +42,7 @@ const OPERACIONES: { op: string; label: string }[] = [
 export default async function PropiedadesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ estado?: string; q?: string; dueno?: string; operacion?: string; op?: string; etapa?: string }>;
+  searchParams: Promise<{ estado?: string; q?: string; dueno?: string; operacion?: string; op?: string; etapa?: string; revisar?: string }>;
 }) {
   const params = await searchParams;
   // Desde el panel "Mis propiedades" del Inicio: una etapa (o el aviso de
@@ -57,6 +58,8 @@ export default async function PropiedadesPage({
     : "todas";
   const q = params.q?.trim() ?? "";
   const op = params.op === "VENTA" || params.op === "ALQUILER" ? params.op : "";
+  // "Con datos a revisar": solo las que tienen el título en contradicción con los datos.
+  const revisar = params.revisar === "1";
 
   const sesion = await obtenerSesion();
   let idsEtapa: string[] | null = null;
@@ -100,7 +103,7 @@ export default async function PropiedadesPage({
     );
   }
 
-  const [misPropiedades, misContactos] = await Promise.all([
+  const [todasLasFilas, misContactos] = await Promise.all([
     db
       // Sin la columna de fotos (pesa muchísimo): la primera foto se pide
       // aparte a /api/fotos, así la lista abre rápido también en el celular.
@@ -120,6 +123,7 @@ export default async function PropiedadesPage({
           m2Terreno: propiedades.m2Terreno,
           hectareas: propiedades.hectareas,
           dormitorios: propiedades.dormitorios,
+          zona: propiedades.zona,
           banos: propiedades.banos,
           // Huella de la primera foto: cambia si cambia la portada.
           huellaFoto: sql<string | null>`left(md5(${propiedades.fotos} ->> 0), 10)`,
@@ -136,6 +140,9 @@ export default async function PropiedadesPage({
       .where(eq(contactos.agenteId, sesion!.userId)),
   ]);
 
+  const conAvisos = todasLasFilas.map((f) => ({ ...f, avisos: revisarPropiedad({ ...f.p, titulo: f.p.titulo }) }));
+  const misPropiedades = revisar ? conAvisos.filter((f) => f.avisos.length > 0) : conAvisos;
+
   // Desde la ficha de un contacto propietario: abre el alta con ese dueño.
   const duenoInicial = misContactos.some((c) => c.id === params.dueno)
     ? params.dueno
@@ -146,6 +153,7 @@ export default async function PropiedadesPage({
     sp.set("estado", estado);
     if (operacion) sp.set("op", operacion);
     if (etapa) sp.set("etapa", etapa);
+    if (revisar) sp.set("revisar", "1");
     if (q) sp.set("q", q);
     return `/propiedades?${sp.toString()}`;
   }
@@ -199,6 +207,16 @@ export default async function PropiedadesPage({
             {o.label}
           </Link>
         ))}
+        <Link
+          href={
+            revisar
+              ? hrefFiltro(estadoActivo, op).replace(/&?revisar=1/, "")
+              : `${hrefFiltro(estadoActivo, op)}&revisar=1`
+          }
+          className={`${chip(revisar)} ${revisar ? "" : "!border-amber-300 !text-amber-700 dark:!text-amber-300"}`}
+        >
+          ⚠️ Con datos a revisar
+        </Link>
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -238,7 +256,7 @@ export default async function PropiedadesPage({
             No hay propiedades para este filtro.
           </p>
         ) : (
-          misPropiedades.map(({ p, agenteNombre }) => {
+          misPropiedades.map(({ p, agenteNombre, avisos }) => {
             const esPropia = p.agenteId === sesion!.userId;
             const primeraFoto = p.huellaFoto ? `/api/fotos/${p.id}/0?v=${p.huellaFoto}` : null;
             const resumen = resumenCaracteristicas(p);
@@ -281,6 +299,13 @@ export default async function PropiedadesPage({
                   <p className="line-clamp-2 text-xs font-semibold leading-snug text-gray-800 dark:text-gray-100">
                     {limpiarTitulo(p.titulo)}
                   </p>
+                  {revisar && avisos.length > 0 && (
+                    <ul className="mt-1 space-y-0.5 rounded bg-amber-50 px-1.5 py-1 text-[10px] leading-snug text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+                      {avisos.map((a) => (
+                        <li key={a.campo}>⚠️ {a.texto}</li>
+                      ))}
+                    </ul>
+                  )}
                   {resumen && (
                     <p className="mt-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
                       {resumen}

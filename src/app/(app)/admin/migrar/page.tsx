@@ -3,6 +3,7 @@ import { obtenerSesion, esAdmin } from "@/lib/auth";
 import { listarTitulosConCorchetes } from "./actions";
 import { EjecutarMigracionBoton } from "./ejecutar-boton";
 import { DiagnosticoFotos } from "./diagnostico-fotos";
+import { UbicarPropiedades } from "./ubicar-propiedades";
 
 export default async function MigrarPage() {
   const sesion = await obtenerSesion();
@@ -50,6 +51,8 @@ export default async function MigrarPage() {
           </ul>
         )}
       </div>
+
+      <UbicarPropiedades />
 
       <DiagnosticoFotos />
     </div>

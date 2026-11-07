@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { crearPropiedad, type PropiedadState } from "./actions";
 import { subirFotosPropiedad } from "./[id]/subir-fotos-form";
 import { MapaUbicacion } from "@/components/mapa-ubicacion";
+import { revisarPropiedad, type AvisoRevision } from "@/lib/revisar-propiedad";
 import { leerDescripcion, type LecturaDescripcion } from "@/lib/leer-descripcion";
 
 const initialState: PropiedadState = {};
@@ -291,6 +292,36 @@ export function PropiedadFormFields({
     return v === null || v === undefined ? porDefecto : String(v);
   };
   const formRef = useRef<HTMLFormElement>(null);
+  // Revisión de datos: antes de enviar se busca si el título contradice lo
+  // cargado. Se frena en el navegador (no en el servidor) para no perder lo
+  // escrito; "Guardar igual" vuelve a enviar sin revisar.
+  const [avisos, setAvisos] = useState<AvisoRevision[] | null>(null);
+  const guardarIgual = useRef(false);
+  function revisarAntesDeGuardar(e: React.FormEvent<HTMLFormElement>) {
+    if (guardarIgual.current) {
+      guardarIgual.current = false;
+      setAvisos(null);
+      return;
+    }
+    const f = e.currentTarget;
+    const val = (n: string) => String((f.elements.namedItem(n) as HTMLInputElement | null)?.value ?? "").trim();
+    const num = (n: string) => (val(n) === "" ? null : Number(val(n)));
+    const encontrados = revisarPropiedad({
+      titulo: val("titulo"),
+      operacion: val("operacion"),
+      zona: val("zona"),
+      dormitorios: num("dormitorios"),
+      m2Cubiertos: num("m2Cubiertos"),
+      m2Privados: num("m2Privados"),
+      m2Terreno: num("m2Terreno"),
+    });
+    if (encontrados.length) {
+      e.preventDefault();
+      setAvisos(encontrados);
+    } else {
+      setAvisos(null);
+    }
+  }
   const [copy, setCopy] = useState("");
   const [resumenLectura, setResumenLectura] = useState<string[] | null>(null);
 
@@ -368,6 +399,7 @@ export function PropiedadFormFields({
       ref={formRef}
       id={formId}
       action={formAction}
+      onSubmit={revisarAntesDeGuardar}
       className="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:grid-cols-2"
       >
     <div className="sm:col-span-2">
@@ -870,6 +902,35 @@ export function PropiedadFormFields({
           {error}
         </p>
         )}
+      {avisos && (
+        <div className="sm:col-span-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-100">
+          <p className="font-semibold">⚠️ Revisá estos datos antes de guardar:</p>
+          <ul className="mt-1 list-disc pl-5 text-xs">
+            {avisos.map((a) => (
+              <li key={a.campo}>{a.texto}</li>
+            ))}
+          </ul>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                guardarIgual.current = true;
+                formRef.current?.requestSubmit();
+              }}
+              className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
+            >
+              Guardar igual
+            </button>
+            <button
+              type="button"
+              onClick={() => setAvisos(null)}
+              className="rounded-lg border border-amber-400 px-3 py-1.5 text-xs font-semibold"
+            >
+              Corregir
+            </button>
+          </div>
+        </div>
+      )}
     <div className="sm:col-span-2">
     <button
       type="submit"
