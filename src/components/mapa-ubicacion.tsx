@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { esGuardable, ubicarPropiedad, type Precision } from "@/lib/geocodificar";
 
 // Mapa con OpenStreetMap + Leaflet (gratis, sin clave). Leaflet se carga
 // desde unpkg la primera vez que se muestra un mapa.
@@ -38,40 +39,6 @@ function cargarLeaflet(): Promise<L> {
   return cargando;
 }
 
-/** Busca un lugar en OpenStreetMap. Devuelve [lat, lng] o null. */
-async function buscarLugar(texto: string): Promise<[number, number] | null> {
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=uy&q=${encodeURIComponent(texto)}`;
-    const r = await fetch(url, { headers: { Accept: "application/json" } });
-    if (!r.ok) return null;
-    const j = (await r.json()) as { lat: string; lon: string }[];
-    if (!j.length) return null;
-    return [Number(j[0].lat), Number(j[0].lon)];
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Prueba de lo más preciso a lo más general: dirección + barrio +
- * departamento, después barrio + departamento y por último el departamento.
- */
-async function ubicarAproximado(
-  direccion: string,
-  zona: string,
-  departamento: string
-): Promise<{ punto: [number, number]; zoom: number } | null> {
-  const intentos: [string, number][] = [];
-  if (direccion) intentos.push([[direccion, zona, departamento].filter(Boolean).join(", "), 17]);
-  if (zona) intentos.push([[zona, departamento].filter(Boolean).join(", "), 15]);
-  if (departamento) intentos.push([departamento, 11]);
-  for (const [q, zoom] of intentos) {
-    const p = await buscarLugar(q);
-    if (p) return { punto: p, zoom };
-  }
-  return null;
-}
-
 /** Saca las coordenadas de un link de Google Maps (o de "lat, lng" escrito). */
 export function coordenadasDeTexto(texto: string): [number, number] | null {
   const t = decodeURIComponent(texto.trim());
@@ -91,6 +58,14 @@ export function coordenadasDeTexto(texto: string): [number, number] | null {
   }
   return null;
 }
+
+const TEXTO_PRECISION: Record<Precision, string> = {
+  exacta: "",
+  calle: " (por la calle, sin el número)",
+  esquina: " (por la esquina)",
+  barrio: " (por el barrio; no se guarda hasta que lo muevas)",
+  departamento: " (solo el departamento; no se guarda hasta que lo muevas)",
+};
 
 const icono = (L: L) =>
   L.divIcon({
@@ -135,6 +110,8 @@ export function MapaUbicacion({
     lat != null && lng != null ? [lat, lng] : null
   );
   const [aproximado, setAproximado] = useState(lat == null || lng == null);
+  // Qué tan precisa es la ubicación encontrada (null = guardada o marcada a mano).
+  const [precision, setPrecision] = useState<Precision | null>(null);
   const [estado, setEstado] = useState<string | null>("Cargando mapa…");
   const [link, setLink] = useState("");
 
@@ -148,6 +125,7 @@ export function MapaUbicacion({
           const ll = marcadorRef.current.getLatLng();
           setPunto([redondear(ll.lat), redondear(ll.lng)]);
           setAproximado(false);
+          setPrecision(null);
         });
       }
     } else {
@@ -181,6 +159,7 @@ export function MapaUbicacion({
           ponerMarcador(L, p, mapa.getZoom());
           setPunto(p);
           setAproximado(false);
+          setPrecision(null);
         });
       }
 
@@ -190,11 +169,12 @@ export function MapaUbicacion({
         return;
       }
       setEstado("Buscando la zona…");
-      const r = await ubicarAproximado(direccion ?? "", zona ?? "", departamento ?? "");
+      const r = await ubicarPropiedad(direccion ?? "", zona ?? "", departamento ?? "");
       if (cancelado) return;
       if (r) {
         ponerMarcador(L, r.punto, r.zoom);
-        setAproximado(r.zoom < 17);
+        setAproximado(!esGuardable(r.precision));
+        setPrecision(r.precision);
         if (editable) setPunto(r.punto);
         setEstado(null);
       } else {
@@ -218,12 +198,13 @@ export function MapaUbicacion({
     const valor = (n: string) =>
       String((form?.elements.namedItem(n) as HTMLInputElement | HTMLSelectElement | null)?.value ?? "").trim();
     setEstado("Buscando…");
-    const r = await ubicarAproximado(valor("direccion"), valor("zona"), valor("departamento"));
+    const r = await ubicarPropiedad(valor("direccion"), valor("zona"), valor("departamento"));
     const L = (window as any).L;
     if (r && L) {
       ponerMarcador(L, r.punto, r.zoom);
       setPunto(r.punto);
-      setAproximado(r.zoom < 17);
+      setAproximado(!esGuardable(r.precision));
+      setPrecision(r.precision);
       setEstado(null);
     } else {
       setEstado("No lo encontré. Tocá el mapa o arrastrá el marcador hasta la propiedad.");
@@ -240,6 +221,7 @@ export function MapaUbicacion({
     if (L) ponerMarcador(L, p, 17);
     setPunto(p);
     setAproximado(false);
+    setPrecision(null);
     setLink("");
     setEstado(null);
   }
@@ -254,7 +236,7 @@ export function MapaUbicacion({
     <div className={editable ? "sm:col-span-2" : ""}>
       {editable && (
         <>
-          {/* Solo se guarda una ubicación precisa (dirección encontrada o marcada a mano). */}
+          {/* Se guarda la dirección o esquina encontrada, o la marcada a mano; no el barrio solo. */}
           <input type="hidden" name="lat" value={punto && !aproximado ? punto[0] : ""} />
           <input type="hidden" name="lng" value={punto && !aproximado ? punto[1] : ""} />
           <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -305,9 +287,13 @@ export function MapaUbicacion({
               Usar
             </button>
             {punto && (
-              <span className={aproximado ? "text-amber-700 dark:text-amber-300" : "text-emerald-600"}>
-                {aproximado
-                  ? "Ubicación aproximada (barrio): arrastrá el marcador hasta la propiedad"
+              <span
+                className={
+                  precision && precision !== "exacta" ? "text-amber-700 dark:text-amber-300" : "text-emerald-600"
+                }
+              >
+                {precision && precision !== "exacta"
+                  ? `Ubicación aproximada${TEXTO_PRECISION[precision]}, arrastrá el marcador`
                   : "✓ Ubicación marcada — revisá que esté en el lugar correcto"}
               </span>
             )}
