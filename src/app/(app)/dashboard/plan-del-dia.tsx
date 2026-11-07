@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ItemPlan, PlanDelDia as Plan } from "@/lib/plan-del-dia";
+import { SeguimientosPlan } from "./seguimientos-plan";
 
 const MAX = 5;
 
@@ -65,12 +66,7 @@ export function PlanDelDia({ plan }: { plan: Plan }) {
       </div>
       <div className="flex flex-col gap-5">
         <Seccion titulo="⛔ No respondieron al aviso final" items={plan.avisos} verTodos="/contactos?tab=seguimiento" />
-        <Seccion
-          titulo="⏰ Seguimientos para hoy"
-          items={plan.seguimientos}
-          verTodos="/contactos?tab=seguimiento"
-          vacio="No tenés seguimientos pendientes para hoy."
-        />
+        <SeguimientosPlan items={plan.seguimientos} verTodos="/contactos?tab=seguimiento" />
         <div>
           <Seccion titulo="📅 Hoy en la agenda" items={plan.hoy} verTodos="/agenda" vacio="Nada agendado para hoy." />
           {plan.agendaVencida > 0 && (

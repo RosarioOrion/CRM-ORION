@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { usuarios, nivelesComision } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion, esAdmin, crearSesion } from "@/lib/auth";
 import { numeroWhatsApp } from "@/lib/seguimientos";
 
 async function requerirAdmin() {
@@ -39,15 +39,16 @@ const ROLES = ["AGENTE", "TEAM_LEADER", "ADMINISTRADOR"] as const;
 export async function cambiarRolUsuario(usuarioId: string, rol: string) {
   const sesion = await requerirAdmin();
   if (!ROLES.includes(rol as (typeof ROLES)[number])) return;
-  if (usuarioId === sesion.userId) {
-    // No te podés bajar de rango a vos mismo por accidente desde acá.
-    return;
-  }
-  await db
-    .update(usuarios)
-    .set({ rol: rol as (typeof ROLES)[number] })
-    .where(eq(usuarios.id, usuarioId));
+  const nuevo = rol as (typeof ROLES)[number];
+  const propio = usuarioId === sesion.userId;
+  // A vos mismo solo te podés subir de rango (ej. Team Leader →
+  // Administrador), nunca bajar: así no te quedás sin acceso por accidente.
+  if (propio && ROLES.indexOf(nuevo) <= ROLES.indexOf(sesion.rol)) return;
+  await db.update(usuarios).set({ rol: nuevo }).where(eq(usuarios.id, usuarioId));
+  // La sesión guarda el rol: se renueva para que el cambio se vea ya.
+  if (propio) await crearSesion({ ...sesion, rol: nuevo });
   revalidatePath("/admin/usuarios");
+  revalidatePath("/", "layout");
 }
 
 export async function cambiarNivelComisionUsuario(usuarioId: string, nivel: string) {

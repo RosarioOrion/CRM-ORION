@@ -10,7 +10,9 @@ import {
 } from "@/db/schema";
 import { ahoraUY, TIPO_EVENTO_ICONO, TIPO_EVENTO_LABEL, esTipoEvento } from "@/lib/calendario";
 import { limpiarTitulo } from "@/lib/propiedades";
-import { estadoSeguimiento, SIN_RESPUESTA_TOPE, type SeguimientoMin } from "@/lib/seguimientos";
+import { estadoSeguimiento, numeroWhatsApp, SIN_RESPUESTA_TOPE, type SeguimientoMin } from "@/lib/seguimientos";
+import { mensajeSeguimientoSemanal, versionesSeguimientoSemanal } from "@/lib/seguimiento-lunes";
+import { datosParaWhatsApp, listarPlantillas } from "@/app/(app)/mensajes/actions";
 
 // Inicio "Plan del día": qué hacer primero, en este orden (decidido en el
 // Mapa único de Orion):
@@ -31,9 +33,23 @@ export type ItemPlan = {
   urgente?: boolean;
 };
 
+/** Lo que necesita la tarjeta de un seguimiento para resolverlo ahí mismo. */
+export type AccionSeguimiento = {
+  contactoId: string;
+  whatsapp: string | null;
+  /** Mensaje sugerido ("Qué decir"): la versión del Seguimiento semanal que le toca. */
+  mensaje: string;
+  avisoFinal: boolean;
+  version: string | null;
+  /** Propiedades activas de las que es dueño (vacío si es comprador, inquilino…). */
+  propiedades: { id: string; codigo: string; titulo: string; precio: number | null; moneda: string }[];
+};
+
+export type ItemSeguimiento = ItemPlan & { accion: AccionSeguimiento };
+
 export type PlanDelDia = {
   avisos: ItemPlan[];
-  seguimientos: ItemPlan[];
+  seguimientos: ItemSeguimiento[];
   hoy: ItemPlan[];
   agendaVencida: number;
   quietas: ItemPlan[];
@@ -49,7 +65,7 @@ export async function cargarPlanDelDia(yo: string): Promise<PlanDelDia> {
 
   // --- 1 y 2: seguimientos ---------------------------------------------------
   const avisos: ItemPlan[] = [];
-  const segsHoy: (ItemPlan & { orden: number })[] = [];
+  const segsHoy: (ItemSeguimiento & { orden: number })[] = [];
   try {
     const segs = await db
       .select({
@@ -68,7 +84,13 @@ export async function cargarPlanDelDia(yo: string): Promise<PlanDelDia> {
     }
     if (porContacto.size) {
       const cs = await db
-        .select({ id: contactos.id, nombre: contactos.nombre, frioDesde: contactos.frioDesde, archivado: contactos.archivado })
+        .select({
+          id: contactos.id,
+          nombre: contactos.nombre,
+          telefono: contactos.telefono,
+          frioDesde: contactos.frioDesde,
+          archivado: contactos.archivado,
+        })
         .from(contactos)
         .where(and(inArray(contactos.id, [...porContacto.keys()]), eq(contactos.agenteId, yo)));
       for (const c of cs) {
@@ -90,10 +112,26 @@ export async function cargarPlanDelDia(yo: string): Promise<PlanDelDia> {
             detalle += ` · ${e.sinRespuesta} de ${SIN_RESPUESTA_TOPE} sin respuesta`;
             if (e.siguienteEsAviso) detalle += " · toca el AVISO FINAL";
           }
-          segsHoy.push({ id: c.id, titulo: c.nombre, detalle, href, urgente: vencido, orden: e.proxima.getTime() });
+          segsHoy.push({
+            id: c.id,
+            titulo: c.nombre,
+            detalle,
+            href,
+            urgente: vencido,
+            orden: e.proxima.getTime(),
+            accion: {
+              contactoId: c.id,
+              whatsapp: numeroWhatsApp(c.telefono),
+              mensaje: "",
+              avisoFinal: false,
+              version: null,
+              propiedades: [],
+            },
+          });
         }
       }
     }
+    await completarAcciones(yo, segsHoy, porContacto, ahora);
   } catch {
     // tabla de seguimientos todavía no creada
   }
@@ -226,4 +264,80 @@ export async function cargarPlanDelDia(yo: string): Promise<PlanDelDia> {
     agendaVencida,
     quietas,
   };
+}
+
+/**
+ * Para cada seguimiento del día: sus propiedades activas, las visitas desde
+ * el último contacto y el mensaje sugerido (misma lógica que el
+ * "Seguimiento del lunes" del Pipeline, incluido el aviso final).
+ */
+async function completarAcciones(
+  yo: string,
+  items: ItemSeguimiento[],
+  historial: Map<string, SeguimientoMin[]>,
+  ahora: Date
+) {
+  if (items.length === 0) return;
+  const ids = items.map((i) => i.accion.contactoId);
+  const [props, plantillas, datos, cs] = await Promise.all([
+    db
+      .select({
+        id: propiedades.id,
+        codigo: propiedades.codigo,
+        titulo: propiedades.titulo,
+        precio: propiedades.precio,
+        moneda: propiedades.moneda,
+        duenoId: propiedades.duenoId,
+      })
+      .from(propiedades)
+      .where(and(eq(propiedades.agenteId, yo), eq(propiedades.estado, "ACTIVA"), inArray(propiedades.duenoId, ids))),
+    listarPlantillas(),
+    datosParaWhatsApp(),
+    db
+      .select({ id: contactos.id, nombre: contactos.nombre, frioDesde: contactos.frioDesde })
+      .from(contactos)
+      .where(inArray(contactos.id, ids)),
+  ]);
+  const vis = props.length
+    ? await db
+        .select({ propiedadId: visitas.propiedadId, fecha: visitas.fecha })
+        .from(visitas)
+        .where(and(inArray(visitas.propiedadId, props.map((p) => p.id)), ne(visitas.estado, "CANCELADA")))
+    : [];
+  const versiones = versionesSeguimientoSemanal(plantillas);
+  const hoy0 = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate()).getTime();
+
+  for (const it of items) {
+    const c = cs.find((x) => x.id === it.accion.contactoId);
+    if (!c) continue;
+    const segs = historial.get(c.id) ?? [];
+    const suyas = props.filter((p) => p.duenoId === c.id);
+    const ultimo = Math.max(0, ...segs.map((s) => s.fecha.getTime()));
+    const visitasDesde = vis.filter(
+      (v) => suyas.some((p) => p.id === v.propiedadId) && v.fecha.getTime() >= ultimo && v.fecha.getTime() < hoy0
+    ).length;
+    const titulos = suyas.map((p) => ({ codigo: p.codigo, titulo: limpiarTitulo(p.titulo) }));
+    const m = mensajeSeguimientoSemanal({
+      nombre: c.nombre,
+      agente: datos.agente,
+      inmobiliaria: datos.inmobiliaria,
+      propiedades: titulos,
+      visitas: visitasDesde,
+      estado: estadoSeguimiento(segs, c.frioDesde, ahora),
+      fechasPrevias: segs.map((s) => s.fecha),
+      versiones,
+      ahora,
+    });
+    it.accion = {
+      ...it.accion,
+      ...m,
+      propiedades: suyas.map((p) => ({
+        id: p.id,
+        codigo: p.codigo,
+        titulo: limpiarTitulo(p.titulo),
+        precio: p.precio,
+        moneda: p.moneda,
+      })),
+    };
+  }
 }

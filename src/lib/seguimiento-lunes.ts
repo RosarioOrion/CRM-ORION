@@ -4,8 +4,13 @@ import { contactos, propiedades, seguimientos } from "@/db/schema";
 import { armarTarjetasPipeline } from "@/lib/pipeline-datos";
 import { ahoraUY } from "@/lib/calendario";
 import { lunesDe } from "@/lib/pipeline";
-import { estadoSeguimiento, numeroWhatsApp, textoAvisoFinal } from "@/lib/seguimientos";
-import { completarMensaje, PLANTILLAS_INICIALES, TITULO_SEGUIMIENTO_SEMANAL } from "@/lib/plantillas-whatsapp";
+import { estadoSeguimiento, numeroWhatsApp, textoAvisoFinal, type EstadoSeguimiento } from "@/lib/seguimientos";
+import {
+  completarMensaje,
+  PLANTILLAS_INICIALES,
+  TITULO_SEGUIMIENTO_SEMANAL,
+  type Plantilla,
+} from "@/lib/plantillas-whatsapp";
 import { listarPlantillas, datosParaWhatsApp } from "@/app/(app)/mensajes/actions";
 
 // "Seguimiento del lunes": todos los dueños a los que les toca el mensaje
@@ -36,6 +41,73 @@ export type DuenoLunes = {
 function listaPropiedades(titulos: string[]): string {
   if (titulos.length <= 1) return titulos[0] ?? "la propiedad";
   return `${titulos.slice(0, -1).join(", ")} y ${titulos[titulos.length - 1]}`;
+}
+
+/** Versiones del mensaje semanal, en el orden de /mensajes (siempre al menos una). */
+export function versionesSeguimientoSemanal(plantillas: Plantilla[]): Plantilla[] {
+  const versiones = plantillas.filter((p) => TITULO_SEGUIMIENTO_SEMANAL.test(p.titulo));
+  if (versiones.length === 0) {
+    versiones.push({ id: "", ...PLANTILLAS_INICIALES.find((p) => TITULO_SEGUIMIENTO_SEMANAL.test(p.titulo))! });
+  }
+  return versiones;
+}
+
+// Para contactos sin propiedades (compradores, inquilinos): la plantilla
+// semanal pregunta por "la propiedad", así que se usa este texto.
+const TEXTO_SEGUIMIENTO_BUSQUEDA =
+  "Hola {nombre}, ¿cómo estás? Te escribo para saber cómo seguís con la búsqueda y si cambió algo de lo que necesitás. Apenas tenga algo que se ajuste, te aviso. ¡Saludos!";
+
+/**
+ * Mensaje semanal para un contacto. Las versiones se rotan: le toca la
+ * siguiente a la última que recibió (se cuentan sus seguimientos antes de
+ * esta semana, un día = uno). Al 3º sin respuesta va el aviso final.
+ */
+export function mensajeSeguimientoSemanal(o: {
+  nombre: string;
+  agente: string;
+  inmobiliaria: string;
+  propiedades: { codigo: string; titulo: string }[];
+  visitas: number;
+  estado: EstadoSeguimiento;
+  fechasPrevias: Date[];
+  versiones: Plantilla[];
+  ahora: Date;
+}): { mensaje: string; avisoFinal: boolean; version: string | null } {
+  const esDueno = o.propiedades.length > 0;
+  const avisoFinal = o.estado.tipo === "SIN_RESPUESTA" && o.estado.siguienteEsAviso;
+  if (avisoFinal) {
+    return {
+      mensaje: textoAvisoFinal({
+        nombre: o.nombre,
+        agente: o.agente,
+        propiedades: o.propiedades.map((p) => p.codigo),
+        esComprador: !esDueno,
+      }),
+      avisoFinal,
+      version: null,
+    };
+  }
+  const variables = {
+    nombre: o.nombre,
+    agente: o.agente,
+    inmobiliaria: o.inmobiliaria,
+    propiedad: listaPropiedades(o.propiedades.map((p) => p.titulo)),
+    link: null,
+  };
+  if (!esDueno) {
+    return { mensaje: completarMensaje(TEXTO_SEGUIMIENTO_BUSQUEDA, variables), avisoFinal, version: null };
+  }
+  const lunes = lunesDe(o.ahora).getTime();
+  const previos = new Set(o.fechasPrevias.filter((f) => f.getTime() < lunes).map((f) => f.toDateString())).size;
+  const version = o.versiones[previos % o.versiones.length];
+  let mensaje = completarMensaje(version.texto, variables);
+  // Le muestra al dueño que la propiedad se está trabajando.
+  if (o.visitas > 0) {
+    mensaje += `\n\nTe cuento que desde nuestro último contacto tuvimos ${o.visitas} ${
+      o.visitas === 1 ? "visita" : "visitas"
+    }.`;
+  }
+  return { mensaje, avisoFinal, version: o.versiones.length < 2 ? null : version.titulo };
 }
 
 export async function armarSeguimientoLunes(agenteId: string): Promise<DuenoLunes[]> {
@@ -69,12 +141,7 @@ export async function armarSeguimientoLunes(agenteId: string): Promise<DuenoLune
     datosParaWhatsApp(),
   ]);
 
-  // Versiones del mensaje semanal, en el orden de /mensajes. Se van rotando
-  // para que el dueño no reciba siempre el mismo texto.
-  const versiones = plantillas.filter((p) => TITULO_SEGUIMIENTO_SEMANAL.test(p.titulo));
-  if (versiones.length === 0) {
-    versiones.push({ id: "", ...PLANTILLAS_INICIALES.find((p) => TITULO_SEGUIMIENTO_SEMANAL.test(p.titulo))! });
-  }
+  const versiones = versionesSeguimientoSemanal(plantillas);
   const ahora = ahoraUY();
 
   const resultado: DuenoLunes[] = [];
@@ -98,39 +165,17 @@ export async function armarSeguimientoLunes(agenteId: string): Promise<DuenoLune
       d.frioDesde,
       ahora
     );
-    const titulos = lista.map((t) => t.titulo);
-    // Le toca la versión siguiente a la última que recibió: se cuenta cuántos
-    // seguimientos tuvo (un día = uno) antes de esta semana.
-    const lunes = lunesDe(ahora).getTime();
-    const contactosPrevios = new Set(
-      historial
-        .filter((h) => h.contactoId === d.id && h.fecha.getTime() < lunes)
-        .map((h) => h.fecha.toDateString())
-    ).size;
-    const version = versiones[contactosPrevios % versiones.length];
-    const avisoFinal = estado.tipo === "SIN_RESPUESTA" && estado.siguienteEsAviso;
-
-    let mensaje = avisoFinal
-      ? textoAvisoFinal({
-          nombre: d.nombre,
-          agente: datos.agente,
-          propiedades: lista.map((t) => t.codigo),
-          esComprador: false,
-        })
-      : completarMensaje(version.texto, {
-          nombre: d.nombre,
-          agente: datos.agente,
-          inmobiliaria: datos.inmobiliaria,
-          propiedad: listaPropiedades(titulos),
-          link: null,
-        });
-    // Le muestra al dueño que la propiedad se está trabajando.
-    const visitas = lista.reduce((n, t) => n + t.visitasDesdeUltimoSeg, 0);
-    if (!avisoFinal && visitas > 0) {
-      mensaje += `\n\nTe cuento que desde nuestro último contacto tuvimos ${visitas} ${
-        visitas === 1 ? "visita" : "visitas"
-      }.`;
-    }
+    const { mensaje, avisoFinal, version } = mensajeSeguimientoSemanal({
+      nombre: d.nombre,
+      agente: datos.agente,
+      inmobiliaria: datos.inmobiliaria,
+      propiedades: lista,
+      visitas: lista.reduce((n, t) => n + t.visitasDesdeUltimoSeg, 0),
+      estado,
+      fechasPrevias: historial.filter((h) => h.contactoId === d.id).map((h) => h.fecha),
+      versiones,
+      ahora,
+    });
 
     resultado.push({
       contactoId: d.id,
@@ -145,7 +190,7 @@ export async function armarSeguimientoLunes(agenteId: string): Promise<DuenoLune
       })),
       mensaje,
       avisoFinal,
-      version: avisoFinal || versiones.length < 2 ? null : version.titulo,
+      version,
       hecho: pendientes.length === 0,
       paraDecidir:
         estado.tipo === "FRIO"
