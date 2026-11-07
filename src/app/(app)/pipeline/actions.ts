@@ -4,8 +4,8 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { propiedades, historialPrecios, pipelineAcciones, seguimientos, contactos } from "@/db/schema";
-import { reemplazarPrecio } from "@/lib/precio-texto";
+import { propiedades, pipelineAcciones, seguimientos, contactos } from "@/db/schema";
+import { aplicarAjustePrecio, registrarSeguimientoSemanal } from "@/lib/seguimiento-registro";
 import { obtenerSesion } from "@/lib/auth";
 import { ahoraUY } from "@/lib/calendario";
 import { esCanal } from "@/lib/seguimientos";
@@ -59,49 +59,6 @@ export async function registrarAccionPipeline(
   revalidatePath("/pipeline");
 }
 
-
-/** Cambia el precio (y el precio escrito en título/descripción) y lo deja en el historial. */
-async function aplicarAjustePrecio(
-  propiedadId: string,
-  precio: number,
-  moneda: "USD" | "UYU",
-  agenteId: string
-) {
-  const [actual] = await db
-    .select({
-      precio: propiedades.precio,
-      moneda: propiedades.moneda,
-      titulo: propiedades.titulo,
-      descripcion: propiedades.descripcion,
-    })
-    .from(propiedades)
-    .where(eq(propiedades.id, propiedadId));
-
-  // El precio viejo escrito en el título y la descripción también se actualiza.
-  let titulo = actual?.titulo;
-  let descripcion = actual?.descripcion ?? null;
-  if (actual?.precio) {
-    const ant = { precio: actual.precio, moneda: actual.moneda };
-    const nue = { precio: precio, moneda: moneda };
-    if (titulo) titulo = reemplazarPrecio(titulo, ant, nue).texto;
-    if (descripcion) descripcion = reemplazarPrecio(descripcion, ant, nue).texto;
-  }
-
-  await db.insert(historialPrecios).values({
-    propiedadId,
-    precioAnterior: actual?.precio ?? null,
-    monedaAnterior: actual?.moneda ?? null,
-    precioNuevo: precio,
-    monedaNueva: moneda,
-    agenteId: agenteId,
-  });
-
-  await db
-    .update(propiedades)
-    .set({ precio: precio, moneda: moneda, titulo, descripcion })
-    .where(eq(propiedades.id, propiedadId));
-
-}
 
 const AjustePrecioSchema = z.object({
   precio: z.coerce.number().positive("Ingresá un precio válido"),
@@ -298,39 +255,19 @@ export async function registrarEnvioLunes(
     .where(and(inArray(propiedades.id, propiedadIds), eq(propiedades.agenteId, sesion.userId)));
   if (props.length !== propiedadIds.length) return { error: "Propiedad no encontrada." };
 
-  const ahora = ahoraUY();
-  const real = new Date();
-  const fecha = new Date(ahora.getTime() + real.getSeconds() * 1000 + real.getMilliseconds());
-  const nota = avisoFinal ? "Aviso final enviado desde Seguimiento del lunes" : "Mensaje semanal enviado desde Seguimiento del lunes";
+  await registrarSeguimientoSemanal({
+    agenteId: sesion.userId,
+    contactoId: props[0].duenoId,
+    props,
+    respondio: false,
+    avisoFinal,
+    nota: avisoFinal
+      ? "Aviso final enviado desde Seguimiento del lunes"
+      : "Mensaje semanal enviado desde Seguimiento del lunes",
+    tarea: "Seguimiento al dueño — mensaje enviado",
+  });
 
-  for (const p of props) {
-    // Sin frecuencia elegida: el seguimiento del lunes la deja semanal.
-    const frecuencia = esFrecuencia(p.frecuenciaSeguimiento) ? p.frecuenciaSeguimiento : 7;
-    if (!esFrecuencia(p.frecuenciaSeguimiento)) {
-      await db.update(propiedades).set({ frecuenciaSeguimiento: 7 }).where(eq(propiedades.id, p.id));
-    }
-    const proxLunes = proximoLunesQueToca(fecha, p.fechaInicioPipeline, frecuencia);
-    await db.insert(seguimientos).values({
-      contactoId: p.duenoId,
-      propiedadId: p.id,
-      agenteId: sesion.userId,
-      fecha,
-      canal: "WHATSAPP",
-      respondio: false,
-      avisoFinal,
-      nota,
-      proximaFecha: new Date(proxLunes.getFullYear(), proxLunes.getMonth(), proxLunes.getDate(), 10, 0),
-    });
-    await db.insert(pipelineAcciones).values({
-      propiedadId: p.id,
-      agenteId: sesion.userId,
-      categoria: "SEGUIMIENTO_DUENO",
-      semana: semanaActual(diasEnMercado(p.fechaInicioPipeline), p.operacion),
-      descripcion: "Seguimiento al dueño — mensaje enviado",
-    });
-    revalidatePath(`/propiedades/${p.id}`);
-  }
-
+  for (const p of props) revalidatePath(`/propiedades/${p.id}`);
   revalidatePath("/pipeline");
   revalidatePath("/dashboard");
   revalidatePath(`/contactos/${props[0].duenoId}`);
@@ -353,27 +290,17 @@ export async function registrarRespuestaLunes(
     .where(and(inArray(propiedades.id, propiedadIds), eq(propiedades.agenteId, sesion.userId)));
   if (props.length === 0 || props.length !== propiedadIds.length) return { error: "Propiedad no encontrada." };
 
-  const ahora = ahoraUY();
-  const real = new Date();
-  const fecha = new Date(ahora.getTime() + real.getSeconds() * 1000 + real.getMilliseconds());
-  for (const p of props) {
-    const frecuencia = esFrecuencia(p.frecuenciaSeguimiento) ? p.frecuenciaSeguimiento : 7;
-    const proxLunes = proximoLunesQueToca(fecha, p.fechaInicioPipeline, frecuencia);
-    await db.insert(seguimientos).values({
-      contactoId: p.duenoId,
-      propiedadId: p.id,
-      agenteId: sesion.userId,
-      fecha,
-      canal: "WHATSAPP",
-      respondio: true,
-      nota,
-      proximaFecha: new Date(proxLunes.getFullYear(), proxLunes.getMonth(), proxLunes.getDate(), 10, 0),
-    });
-    revalidatePath(`/propiedades/${p.id}`);
-  }
-  await db.update(contactos).set({ frioDesde: null }).where(eq(contactos.id, props[0].duenoId));
+  await registrarSeguimientoSemanal({
+    agenteId: sesion.userId,
+    contactoId: props[0].duenoId,
+    props,
+    respondio: true,
+    nota,
+  });
 
+  for (const p of props) revalidatePath(`/propiedades/${p.id}`);
   revalidatePath("/pipeline");
+  revalidatePath("/dashboard");
   revalidatePath(`/contactos/${props[0].duenoId}`);
   return { ok: true };
 }
