@@ -2,7 +2,7 @@ import Link from "next/link";
 import { db } from "@/db";
 import { propiedades, contactos, usuarios } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
-import { eq, desc, and, ilike, or, sql } from "drizzle-orm";
+import { eq, desc, and, ilike, inArray, or, sql } from "drizzle-orm";
 import { NuevaPropiedadForm } from "./nueva-propiedad-form";
 import {
   ESTADO_LABEL,
@@ -12,6 +12,13 @@ import {
   limpiarTitulo,
   resumenCaracteristicas,
 } from "@/lib/propiedades";
+import {
+  DIAS_SIN_CONSULTAS,
+  ETAPA_LABEL,
+  FILTRO_SIN_CONSULTAS_21,
+  esEtapa,
+  resumenMisPropiedades,
+} from "@/lib/mis-propiedades";
 
 const TABS: { estado: string; label: string }[] = [
   { estado: "ACTIVA", label: "Activas" },
@@ -34,10 +41,15 @@ const OPERACIONES: { op: string; label: string }[] = [
 export default async function PropiedadesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ estado?: string; q?: string; dueno?: string; operacion?: string; op?: string }>;
+  searchParams: Promise<{ estado?: string; q?: string; dueno?: string; operacion?: string; op?: string; etapa?: string }>;
 }) {
   const params = await searchParams;
-  const estadoParam = params.estado ?? "ACTIVA";
+  // Desde el panel "Mis propiedades" del Inicio: una etapa (o el aviso de
+  // 21 días sin consultas). Abarca activas y reservadas, así que el estado
+  // por defecto pasa a "todas".
+  const etapa =
+    esEtapa(params.etapa) || params.etapa === FILTRO_SIN_CONSULTAS_21 ? params.etapa : null;
+  const estadoParam = params.estado ?? (etapa ? "todas" : "ACTIVA");
   const estadoActivo = ESTADOS_PROPIEDAD.includes(
     estadoParam as (typeof ESTADOS_PROPIEDAD)[number]
   )
@@ -47,6 +59,19 @@ export default async function PropiedadesPage({
   const op = params.op === "VENTA" || params.op === "ALQUILER" ? params.op : "";
 
   const sesion = await obtenerSesion();
+  let idsEtapa: string[] | null = null;
+  if (etapa) {
+    const r = await resumenMisPropiedades(sesion!.userId);
+    idsEtapa =
+      etapa === FILTRO_SIN_CONSULTAS_21
+        ? [...r.sinConsultas21]
+        : [...r.etapa].filter(([, e]) => e === etapa).map(([id]) => id);
+  }
+  const etapaLabel = etapa
+    ? etapa === FILTRO_SIN_CONSULTAS_21
+      ? `${DIAS_SIN_CONSULTAS}+ días sin consultas`
+      : ETAPA_LABEL[etapa as keyof typeof ETAPA_LABEL]
+    : null;
 
   // Sin búsqueda se muestran solo las propiedades propias. Con búsqueda se
   // busca en las de TODOS los agentes (por código, título o nombre del
@@ -60,6 +85,10 @@ export default async function PropiedadesPage({
   }
   if (op) {
     condiciones.push(eq(propiedades.operacion, op));
+  }
+  if (idsEtapa) {
+    // Sin ninguna, se fuerza una condición que no devuelve filas.
+    condiciones.push(idsEtapa.length ? inArray(propiedades.id, idsEtapa) : sql`false`);
   }
   if (q) {
     condiciones.push(
@@ -116,6 +145,7 @@ export default async function PropiedadesPage({
     const sp = new URLSearchParams();
     sp.set("estado", estado);
     if (operacion) sp.set("op", operacion);
+    if (etapa) sp.set("etapa", etapa);
     if (q) sp.set("q", q);
     return `/propiedades?${sp.toString()}`;
   }
@@ -138,6 +168,21 @@ export default async function PropiedadesPage({
           {q ? ` · resultados de todos los agentes para "${q}"` : " · mis propiedades"}
           {op === "VENTA" ? " · solo ventas" : op === "ALQUILER" ? " · solo alquileres" : ""}
         </p>
+        {etapaLabel && (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-orion-gold/15 px-3 py-1 text-xs font-semibold text-orion-navy dark:text-orion-gold">
+              Etapa: {etapaLabel}
+            </span>
+            <Link href="/propiedades" className="text-xs text-gray-500 hover:underline dark:text-gray-400">
+              ✕ Quitar filtro
+            </Link>
+          </div>
+        )}
+        {etapa === FILTRO_SIN_CONSULTAS_21 && (
+          <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+            💡 Planteale al dueño un ajuste de precio en el próximo seguimiento.
+          </p>
+        )}
       </div>
 
       <div className="mb-6">
@@ -170,6 +215,7 @@ export default async function PropiedadesPage({
         >
           <input type="hidden" name="estado" value={estadoActivo} />
           {op && <input type="hidden" name="op" value={op} />}
+          {etapa && <input type="hidden" name="etapa" value={etapa} />}
           <input
             type="search"
             name="q"
