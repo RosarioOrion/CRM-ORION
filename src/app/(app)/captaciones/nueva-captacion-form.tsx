@@ -23,15 +23,18 @@ const inputClass =
 export function NuevaCaptacionForm({
   contactos,
   inicial,
+  abiertoInicial = false,
 }: {
   contactos: Contacto[];
   inicial?: CaptacionInicial;
+  /** Se abre solo (desde el botón "+ Nuevo"). */
+  abiertoInicial?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(
     crearCaptacion,
     initialState
   );
-  const [abierto, setAbierto] = useState(Boolean(inicial));
+  const [abierto, setAbierto] = useState(Boolean(inicial) || abiertoInicial);
 
   if (contactos.length === 0) {
     return (

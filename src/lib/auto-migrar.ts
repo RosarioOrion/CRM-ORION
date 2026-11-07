@@ -30,6 +30,18 @@ const SENTENCIAS = [
   // Ubicación de la propiedad en el mapa.
   sql`ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS lat double precision`,
   sql`ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS lng double precision`,
+  // Consultas por propiedad ("+ Consulta" en la ficha).
+  sql`CREATE TABLE IF NOT EXISTS consultas_propiedad (
+    id text PRIMARY KEY,
+    propiedad_id text NOT NULL REFERENCES propiedades(id),
+    agente_id text NOT NULL REFERENCES usuarios(id),
+    canal text NOT NULL,
+    nombre text,
+    telefono text,
+    nota text,
+    creado_en timestamp NOT NULL DEFAULT now()
+  )`,
+  sql`CREATE INDEX IF NOT EXISTS consultas_propiedad_idx ON consultas_propiedad (propiedad_id, creado_en)`,
   // Objetivo mensual de comisiones de cada agente (Inicio).
   sql`CREATE TABLE IF NOT EXISTS objetivos_mensuales (
     id text PRIMARY KEY,

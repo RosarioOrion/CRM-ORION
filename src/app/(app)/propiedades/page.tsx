@@ -42,7 +42,7 @@ const OPERACIONES: { op: string; label: string }[] = [
 export default async function PropiedadesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ estado?: string; q?: string; dueno?: string; operacion?: string; op?: string; etapa?: string; revisar?: string }>;
+  searchParams: Promise<{ estado?: string; q?: string; dueno?: string; operacion?: string; op?: string; etapa?: string; revisar?: string; nuevo?: string }>;
 }) {
   const params = await searchParams;
   // Desde el panel "Mis propiedades" del Inicio: una etapa (o el aviso de
@@ -195,6 +195,8 @@ export default async function PropiedadesPage({
 
       <div className="mb-6">
         <NuevaPropiedadForm
+          key={params.nuevo ?? ""}
+          abiertoInicial={params.nuevo === "1"}
           contactos={misContactos}
           duenoInicial={duenoInicial}
           operacionInicial={params.operacion === "ALQUILER" ? "ALQUILER" : "VENTA"}

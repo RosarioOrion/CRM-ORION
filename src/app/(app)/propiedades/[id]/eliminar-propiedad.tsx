@@ -20,6 +20,7 @@ export function EliminarPropiedad({ propiedadId, codigo }: { propiedadId: string
         d.portales && `${d.portales} registro(s) de portales`,
         d.pipeline && `${d.pipeline} acción(es) del pipeline`,
         d.coincidencias && `${d.coincidencias} coincidencia(s) avisada(s)`,
+        d.consultas && `${d.consultas} consulta(s)`,
       ].filter(Boolean);
       const seDesvincula = [
         d.reservas && `${d.reservas} reserva(s) (quedan guardadas con el nombre)`,

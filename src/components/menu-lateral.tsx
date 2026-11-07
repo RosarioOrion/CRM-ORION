@@ -8,7 +8,14 @@ import { useEffect, useState } from "react";
  * como siempre. En el celular se esconde y aparece una barra superior con
  * el botón ☰ que la abre como un panel deslizable.
  */
-export function MenuLateral({ children }: { children: React.ReactNode }) {
+export function MenuLateral({
+  children,
+  barraCelular,
+}: {
+  children: React.ReactNode;
+  /** Lo que va a la derecha de la barra superior del celular (buscar, + Nuevo). */
+  barraCelular?: React.ReactNode;
+}) {
   const pathname = usePathname();
   // Se guarda en qué sección se abrió el menú: al navegar a otra sección
   // deja de coincidir y el menú queda cerrado solo.
@@ -38,6 +45,7 @@ export function MenuLateral({ children }: { children: React.ReactNode }) {
         </button>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/brand/orion-logo.png" alt="Orion Propiedades" className="h-9 w-auto" />
+        {barraCelular}
       </header>
 
       {/* Fondo oscuro detrás del menú abierto (solo celular) */}

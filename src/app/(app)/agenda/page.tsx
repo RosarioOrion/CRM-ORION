@@ -99,7 +99,7 @@ const COLOR_ESTADO_ACTIVIDAD: Record<EstadoActividad, string> = {
 export default async function AgendaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ fecha?: string; agente?: string }>;
+  searchParams: Promise<{ fecha?: string; agente?: string; nuevo?: string }>;
 }) {
   const sesion = await obtenerSesion();
   const agenteId = sesion!.userId;
@@ -107,7 +107,7 @@ export default async function AgendaPage({
   const jefe = esAdmin(sesion!.rol);
 
   // "+ Agendar este día" desde el calendario de Inicio → /agenda?fecha=YYYY-MM-DD
-  const { fecha: fechaParam, agente: agenteParam } = await searchParams;
+  const { fecha: fechaParam, agente: agenteParam, nuevo } = await searchParams;
 
   // Team Leader / Administrador pueden ver la agenda de otro agente o la de
   // todo el equipo (?agente=todos | ?agente=<id>). Solo lectura: cada uno
@@ -388,10 +388,11 @@ export default async function AgendaPage({
       {vista !== "yo" && vista !== "todos" ? null : (
       <div className="mb-6">
         <AgendarForm
-          key={fechaInicial ?? "normal"}
+          key={`${fechaInicial ?? "normal"}-${nuevo ?? ""}`}
           propiedades={misPropiedades}
           contactos={misContactos}
           fechaInicial={fechaInicial}
+          abiertoInicial={nuevo === "1"}
         />
       </div>
       )}

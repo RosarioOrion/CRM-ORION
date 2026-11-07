@@ -14,6 +14,7 @@ import {
   reservasAlquiler,
   actividades,
   seguimientos,
+  consultasPropiedad,
 } from "@/db/schema";
 import {
   asegurarTablaPapelera,
@@ -27,7 +28,7 @@ import {
 //
 // Propiedad:
 //   se borra junto con ella → portales, historial de precios, pipeline,
-//     visitas y coincidencias avisadas de esa propiedad.
+//     visitas, coincidencias avisadas y consultas de esa propiedad.
 //   se desvincula (queda, sin la propiedad) → actividades de la Agenda,
 //     reservas (conservan el nombre en texto) y captaciones convertidas.
 // Contacto:
@@ -55,6 +56,7 @@ export async function dependenciasPropiedad(propiedadId: string) {
     portales: await contar(portalesPublicados, eq(portalesPublicados.propiedadId, propiedadId)),
     pipeline: await contar(pipelineAcciones, eq(pipelineAcciones.propiedadId, propiedadId)),
     coincidencias: await contar(coincidenciasAvisadas, eq(coincidenciasAvisadas.propiedadId, propiedadId)),
+    consultas: await contar(consultasPropiedad, eq(consultasPropiedad.propiedadId, propiedadId)).catch(() => 0),
     reservas:
       (await contar(reservasVenta, eq(reservasVenta.propiedadId, propiedadId))) +
       (await contar(reservasAlquiler, eq(reservasAlquiler.propiedadId, propiedadId))),
@@ -71,6 +73,7 @@ export async function borrarPropiedad(propiedadId: string, eliminadoPor: string)
     await tx.delete(pipelineAcciones).where(eq(pipelineAcciones.propiedadId, propiedadId));
     await tx.delete(coincidenciasAvisadas).where(eq(coincidenciasAvisadas.propiedadId, propiedadId));
     await tx.delete(visitas).where(eq(visitas.propiedadId, propiedadId));
+    await tx.delete(consultasPropiedad).where(eq(consultasPropiedad.propiedadId, propiedadId));
     await tx
       .update(reservasVenta)
       .set({ propiedadId: null })
