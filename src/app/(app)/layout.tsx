@@ -4,6 +4,7 @@ import { obtenerSesion, cerrarSesion, esAdmin } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { MenuLateral } from "@/components/menu-lateral";
 import { AccionesRapidas } from "@/components/acciones-rapidas";
+import { CompartirOrion } from "@/components/compartir-orion";
 
 const NAV = [
   { href: "/dashboard", label: "Inicio", icon: "🏠" },
@@ -74,6 +75,7 @@ export default async function AppLayout({
         </nav>
 
         <div className="border-t border-white/10 px-3 py-2">
+          <CompartirOrion />
           <ThemeToggle />
         </div>
 
