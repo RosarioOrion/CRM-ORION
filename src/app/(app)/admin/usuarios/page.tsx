@@ -14,7 +14,7 @@ export default async function UsuariosPage() {
   if (!sesion || !esSupervisor(sesion.rol)) {
     redirect("/dashboard");
   }
-  // La CEO gestiona; el Administrador ve a todos y el Líder a su equipo, sin cambiar nada.
+  // La CEO gestiona; Administrador y Líder ven su propio usuario y su equipo, sin cambiar nada.
   const ceo = esCEO(sesion.rol);
   const visibles = new Set((await usuariosVisibles(sesion.userId, sesion.rol)).map((u) => u.id));
 
@@ -101,9 +101,7 @@ export default async function UsuariosPage() {
       <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
         {ceo
           ? "Aprobá las solicitudes de nuevos agentes, dales de alta, armá los equipos (Responsable) y mirá qué tiene cada uno en marcha."
-          : sesion.rol === "ADMINISTRADOR"
-          ? "Los usuarios de Orion y qué tiene cada uno en marcha. Los cambios los hace la CEO."
-          : "Tu equipo y qué tiene cada uno en marcha. Los cambios los hace la CEO."}
+          : "Vos y tu equipo, y qué tiene cada uno en marcha. Los cambios los hace la CEO."}
       </p>
 
       {ceo && (
