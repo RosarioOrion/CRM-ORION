@@ -11,6 +11,7 @@ import {
 import { ORIGEN_LABEL, type OrigenContacto } from "@/lib/contactos";
 import { NuevaCaptacionForm, type CaptacionInicial } from "./nueva-captacion-form";
 import { AccionesCaptacion } from "./acciones-captacion";
+import { VerificarCaptacion } from "./verificar-captacion";
 
 export default async function CaptacionesPage({
   searchParams,
@@ -91,7 +92,12 @@ export default async function CaptacionesPage({
         </div>
       </div>
 
+      <div className="mb-4">
+        <VerificarCaptacion />
+      </div>
+
       <div className="mb-6">
+        <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">…o desde uno de tus contactos:</p>
         <NuevaCaptacionForm
           key={`${desde ?? "nueva"}-${nuevo ?? ""}`}
           contactos={misContactos}
