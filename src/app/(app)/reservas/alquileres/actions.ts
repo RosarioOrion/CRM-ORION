@@ -4,11 +4,11 @@ import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { reservasAlquiler, usuarios, comisiones } from "@/db/schema";
+import { reservasAlquiler } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { esCEO } from "@/lib/permisos";
 import { ESTADOS_RESERVA_ALQUILER, type EstadoReservaAlquiler } from "@/lib/reservas";
-import { calcularReparto, obtenerNivelesComision, resolverNivel } from "@/lib/comisiones";
+import { generarComisionesOperacion } from "@/lib/comisiones";
 
 const ReservaAlquilerSchema = z.object({
   nombrePropiedad: z.string().min(2, "Ingresá el nombre o dirección de la propiedad"),
@@ -134,42 +134,14 @@ export async function cambiarEstadoReservaAlquiler(
     !reserva.comisionesGeneradas &&
     reserva.comisionTotalUsd
   ) {
-    const [agente] = await db
-      .select({
-        id: usuarios.id,
-        nivelComision: usuarios.nivelComision,
-        teamLeaderId: usuarios.teamLeaderId,
-      })
-      .from(usuarios)
-      .where(eq(usuarios.id, reserva.agenteId));
+    const generadas = await generarComisionesOperacion({
+      tipo: "ALQUILER",
+      reservaAlquilerId: reserva.id,
+      agenteId: reserva.agenteId,
+      comisionTotal: reserva.comisionTotalUsd,
+    });
 
-    if (agente) {
-      const niveles = await obtenerNivelesComision();
-      const nivel = resolverNivel(agente.nivelComision, niveles);
-
-      const lineas = nivel
-        ? calcularReparto({
-            comisionTotal: reserva.comisionTotalUsd,
-            agenteId: agente.id,
-            pctAgente: nivel.porcentaje,
-            nivelLabel: nivel.nombre,
-            teamLeaderId: agente.teamLeaderId,
-          })
-        : [];
-
-      if (lineas.length > 0) {
-        await db.insert(comisiones).values(
-          lineas.map((l) => ({
-            tipoOperacion: "ALQUILER" as const,
-            reservaAlquilerId: reserva.id,
-            beneficiarioId: l.beneficiarioId,
-            concepto: l.concepto,
-            porcentaje: l.porcentaje,
-            monto: l.monto,
-          }))
-        );
-      }
-
+    if (generadas) {
       await db
         .update(reservasAlquiler)
         .set({ comisionesGeneradas: true })

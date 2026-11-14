@@ -112,8 +112,11 @@ export async function eliminarUsuario(usuarioId: string): Promise<{ error?: stri
   return { ok: true };
 }
 
+/** Nivel a mano: solo para Líder/Administrador; el de los agentes es automático. */
 export async function cambiarNivelComisionUsuario(usuarioId: string, nivel: string) {
   await requerirAdmin();
+  const [u] = await db.select({ rol: usuarios.rol }).from(usuarios).where(eq(usuarios.id, usuarioId));
+  if (!u || u.rol === "AGENTE") return;
   const [existe] = await db
     .select({ clave: nivelesComision.clave })
     .from(nivelesComision)

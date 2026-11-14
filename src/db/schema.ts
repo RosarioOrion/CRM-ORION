@@ -59,7 +59,7 @@ export const usuarios = pgTable("usuarios", {
       // escalones nuevos sin migración. Lo fija un admin/team leader desde
       // Usuarios a medida que el agente progresa, guiado por la
       // facturación acumulada que se calcula en src/lib/comisiones.ts.
-      nivelComision: text("nivel_comision").notNull().default("AGENTE_JUNIOR"),
+      nivelComision: text("nivel_comision").notNull().default("AGENTE"),
       creadoEn: timestamp("creado_en").notNull().defaultNow(),
 });
 
@@ -639,9 +639,8 @@ export const comisiones = pgTable("comisiones", {
       tipoOperacion: tipoOperacionComisionEnum("tipo_operacion").notNull(),
       reservaVentaId: text("reserva_venta_id").references(() => reservasVenta.id),
       reservaAlquilerId: text("reserva_alquiler_id").references(() => reservasAlquiler.id),
-      beneficiarioId: text("beneficiario_id")
-        .notNull()
-        .references(() => usuarios.id),
+      // Sin beneficiario = gastos de la empresa (10% de cada operación).
+      beneficiarioId: text("beneficiario_id").references(() => usuarios.id),
       concepto: text("concepto").notNull(),
       porcentaje: doublePrecision("porcentaje").notNull(),
       monto: integer("monto").notNull(),

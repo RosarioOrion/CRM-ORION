@@ -105,6 +105,7 @@ export default async function ProductividadPage({
 
   const mComisiones = new Map<string, number>();
   for (const f of filasComisiones) {
+    if (!f.beneficiarioId) continue; // gastos de la empresa
     mComisiones.set(f.beneficiarioId, (mComisiones.get(f.beneficiarioId) ?? 0) + f.monto);
   }
 

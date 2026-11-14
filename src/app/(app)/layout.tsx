@@ -20,7 +20,6 @@ const NAV = [
   { href: "/comisiones", label: "Comisiones", icon: "💵" },
   { href: "/novedades", label: "Novedades", icon: "📢" },
   { href: "/kaizen", label: "Kaizen 5S", icon: "🧹" },
-  { href: "/ranking", label: "Ranking", icon: "🏆" },
   { href: "/capacitacion", label: "Capacitación", icon: "📚" },
   { href: "/mensajes", label: "Mensajes WhatsApp", icon: "💬" },
   { href: "/tasaciones", label: "Tasaciones", icon: "📐" },

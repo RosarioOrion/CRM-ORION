@@ -1,5 +1,19 @@
 // Reglas de reparto de comisiones.
 //
+// Escala de los agentes (definida por Rosario, editable en Ajustes):
+//   Agente     desde USD 0       40%
+//   Asesor     desde USD 10.000  45%
+//   Ejecutivo  desde USD 20.000  50% (máximo)
+// El nivel de un AGENTE es automático: sale de su facturación acumulada
+// (comisiones generadas a su nombre). La operación que lo hace pasar de
+// nivel se paga con el nivel que tenía; desde la siguiente, con el nuevo.
+// Los porcentajes de Líder, Administrador y CEO se definirán más adelante:
+// por ahora usan el nivel que tengan asignado en Usuarios.
+//
+// Además, de cada operación se reserva un 10% del total para gastos de la
+// empresa: sale de la parte de la inmobiliaria (el agente cobra su % sobre
+// el total). Queda como una línea de Comisiones sin beneficiario.
+//
 // El % que le corresponde a cada agente ya NO es un enum fijo en el código:
 // vive en la tabla niveles_comision (editable desde /ajustes), justamente
 // para que Rosario pueda agregar escalones y metas nuevas sin pedir un
@@ -27,9 +41,11 @@
 
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { comisiones, nivelesComision } from "@/db/schema";
+import { comisiones, nivelesComision, usuarios } from "@/db/schema";
 
 export const PORCENTAJE_OVERRIDE_TEAM_LEADER = 10;
+export const PORCENTAJE_GASTOS_EMPRESA = 10;
+export const CONCEPTO_GASTOS_EMPRESA = `Gastos de la empresa (${PORCENTAJE_GASTOS_EMPRESA}%)`;
 
 export type NivelComisionConfig = {
   id: string;
@@ -81,7 +97,8 @@ export function resolverNivel(
 }
 
 export type LineaComision = {
-  beneficiarioId: string;
+  /** null = gastos de la empresa. */
+  beneficiarioId: string | null;
   concepto: string;
   porcentaje: number;
   monto: number;
@@ -114,11 +131,91 @@ export function calcularReparto(params: {
   if (teamLeaderId && teamLeaderId !== agenteId) {
     lineas.push({
       beneficiarioId: teamLeaderId,
-      concepto: `Override Team Leader (${PORCENTAJE_OVERRIDE_TEAM_LEADER}%)`,
+      concepto: `Override Líder (${PORCENTAJE_OVERRIDE_TEAM_LEADER}%)`,
       porcentaje: PORCENTAJE_OVERRIDE_TEAM_LEADER,
       monto: Math.round((comisionTotal * PORCENTAJE_OVERRIDE_TEAM_LEADER) / 100),
     });
   }
 
+  lineas.push({
+    beneficiarioId: null,
+    concepto: CONCEPTO_GASTOS_EMPRESA,
+    porcentaje: PORCENTAJE_GASTOS_EMPRESA,
+    monto: Math.round((comisionTotal * PORCENTAJE_GASTOS_EMPRESA) / 100),
+  });
+
   return lineas;
+}
+
+/**
+ * Genera las comisiones de una operación cerrada (venta a Boleto/Escritura
+ * o alquiler Firmado): la del agente según su nivel, la del responsable
+ * (override) y la de gastos de la empresa. Después actualiza el nivel
+ * automático del agente con lo que lleva facturado.
+ */
+export async function generarComisionesOperacion(op: {
+  tipo: "VENTA" | "ALQUILER";
+  reservaVentaId?: string;
+  reservaAlquilerId?: string;
+  agenteId: string;
+  comisionTotal: number;
+}): Promise<boolean> {
+  const [agente] = await db
+    .select({ id: usuarios.id, rol: usuarios.rol, nivelComision: usuarios.nivelComision, teamLeaderId: usuarios.teamLeaderId })
+    .from(usuarios)
+    .where(eq(usuarios.id, op.agenteId));
+  if (!agente) return false;
+
+  const niveles = await obtenerNivelesComision();
+  const nivel =
+    agente.rol === "AGENTE"
+      ? nivelSugerido(await facturacionAcumulada(agente.id), niveles)
+      : resolverNivel(agente.nivelComision, niveles);
+  if (!nivel) return false;
+
+  const lineas = calcularReparto({
+    comisionTotal: op.comisionTotal,
+    agenteId: agente.id,
+    pctAgente: nivel.porcentaje,
+    nivelLabel: nivel.nombre,
+    teamLeaderId: agente.teamLeaderId,
+  });
+  await db.insert(comisiones).values(
+    lineas.map((l) => ({
+      tipoOperacion: op.tipo,
+      reservaVentaId: op.reservaVentaId ?? null,
+      reservaAlquilerId: op.reservaAlquilerId ?? null,
+      beneficiarioId: l.beneficiarioId,
+      concepto: l.concepto,
+      porcentaje: l.porcentaje,
+      monto: l.monto,
+    }))
+  );
+
+  if (agente.rol === "AGENTE") {
+    const nuevo = nivelSugerido(await facturacionAcumulada(agente.id), niveles);
+    if (nuevo && nuevo.clave !== agente.nivelComision) {
+      await db.update(usuarios).set({ nivelComision: nuevo.clave }).where(eq(usuarios.id, agente.id));
+    }
+  }
+  return true;
+}
+
+export type EscalaAgente = {
+  facturado: number;
+  nivel: NivelComisionConfig | null;
+  siguiente: NivelComisionConfig | null;
+  /** 0 a 100: avance desde el nivel actual hasta el siguiente. */
+  avance: number;
+};
+
+/** Dónde está un agente en la escala, con cuánto le falta para el próximo nivel. */
+export function escalaDe(facturado: number, niveles: NivelComisionConfig[]): EscalaAgente {
+  const nivel = nivelSugerido(facturado, niveles);
+  const siguiente = niveles.find((n) => n.facturacionMinima > facturado) ?? null;
+  const desde = nivel?.facturacionMinima ?? 0;
+  const avance = siguiente
+    ? Math.min(100, Math.round(((facturado - desde) / Math.max(1, siguiente.facturacionMinima - desde)) * 100))
+    : 100;
+  return { facturado, nivel, siguiente, avance };
 }
