@@ -4,7 +4,8 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { consultasPropiedad, propiedades } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { esCEO } from "@/lib/permisos";
 import { CANALES_CONSULTA } from "@/lib/consultas";
 
 // "+ Consulta" en la ficha: cualquier agente puede anotar una consulta (la
@@ -44,7 +45,7 @@ export async function eliminarConsulta(consultaId: string): Promise<{ error?: st
   if (!sesion) return { error: "Sesión expirada, volvé a ingresar." };
   const [c] = await db.select().from(consultasPropiedad).where(eq(consultasPropiedad.id, consultaId));
   if (!c) return { ok: true };
-  if (c.agenteId !== sesion.userId && !esAdmin(sesion.rol)) return { error: "Solo la puede borrar quien la cargó." };
+  if (c.agenteId !== sesion.userId && !esCEO(sesion.rol)) return { error: "Solo la puede borrar quien la cargó." };
   await db.delete(consultasPropiedad).where(eq(consultasPropiedad.id, consultaId));
   revalidar(c.propiedadId);
   return { ok: true };

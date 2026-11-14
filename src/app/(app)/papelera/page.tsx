@@ -1,7 +1,8 @@
 import { inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { usuarios } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { equipoVisible, esCEO } from "@/lib/permisos";
 import { listarPapelera, DIAS_PAPELERA } from "@/lib/papelera";
 import { BotonRestaurar } from "./boton-restaurar";
 import { BotonVaciar } from "./boton-vaciar";
@@ -15,10 +16,12 @@ function diasRestantes(eliminadoEn: Date) {
 export default async function PapeleraPage() {
   const sesion = await obtenerSesion();
   const yo = sesion!.userId;
-  const jefe = esAdmin(sesion!.rol);
+  // CEO: todo; Administrador y Líder: lo de su equipo; agente: lo suyo.
+  // Restaurar lo de otro: solo la CEO.
+  const jefe = esCEO(sesion!.rol);
+  const visibles = (await equipoVisible(yo, sesion!.rol)).map((u) => u.id);
 
-  // Cada agente ve lo suyo; Team Leader / Administrador ven lo de todo el equipo.
-  const items = await listarPapelera(jefe ? "todos" : [yo]);
+  const items = await listarPapelera(jefe ? "todos" : visibles);
 
   const otros = [...new Set(items.map((i) => i.agenteId).filter((id) => id !== yo))];
   const nombres = new Map<string, string>();

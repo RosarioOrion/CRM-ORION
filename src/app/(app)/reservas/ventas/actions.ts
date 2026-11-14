@@ -5,7 +5,8 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { reservasVenta, usuarios, comisiones } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { esCEO } from "@/lib/permisos";
 import {
   ESTADOS_RESERVA_VENTA,
   ESTADOS_VENTA_QUE_GENERAN_COMISION,
@@ -124,7 +125,7 @@ export async function cambiarEstadoReservaVenta(
   if (!reserva) return;
 
   // Solo el agente dueño de la reserva o un admin/team leader pueden moverla.
-  if (reserva.agenteId !== sesion.userId && !esAdmin(sesion.rol)) return;
+  if (reserva.agenteId !== sesion.userId && !esCEO(sesion.rol)) return;
 
   await db
     .update(reservasVenta)

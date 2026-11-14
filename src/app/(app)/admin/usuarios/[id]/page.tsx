@@ -2,15 +2,11 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { db } from "@/db";
 import { usuarios, propiedades, captaciones, visitas } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { esCEO, ROL_LABEL } from "@/lib/permisos";
 import { eq, and, count, isNull } from "drizzle-orm";
 import { EditarUsuarioForm } from "./editar-usuario-form";
 
-const ROL_LABEL: Record<string, string> = {
-  AGENTE: "Agente",
-  TEAM_LEADER: "Team Leader",
-  ADMINISTRADOR: "Administrador",
-};
 
 export default async function PerfilUsuarioPage({
   params,
@@ -18,7 +14,7 @@ export default async function PerfilUsuarioPage({
   params: Promise<{ id: string }>;
 }) {
   const sesion = await obtenerSesion();
-  if (!sesion || !esAdmin(sesion.rol)) {
+  if (!sesion || !esCEO(sesion.rol)) {
     redirect("/dashboard");
   }
 

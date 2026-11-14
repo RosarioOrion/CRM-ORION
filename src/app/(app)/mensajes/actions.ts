@@ -4,7 +4,8 @@ import { asc, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { configuracionEmpresa, plantillasWhatsapp, usuarios } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { esCEO } from "@/lib/permisos";
 import { NOMBRE_SITIO } from "@/lib/sitio";
 import { PLANTILLAS_INICIALES, VERSIONES_SEGUIMIENTO_SEMANAL, type Plantilla } from "@/lib/plantillas-whatsapp";
 
@@ -99,7 +100,7 @@ export async function datosParaWhatsApp(): Promise<{
 
 async function requerirAdmin() {
   const sesion = await obtenerSesion();
-  if (!sesion || !esAdmin(sesion.rol)) throw new Error("No autorizado.");
+  if (!sesion || !esCEO(sesion.rol)) throw new Error("No autorizado.");
 }
 
 export type PlantillaState = { error?: string; ok?: number };

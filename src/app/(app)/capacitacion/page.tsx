@@ -1,12 +1,13 @@
 import Link from "next/link";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { esCEO } from "@/lib/permisos";
 import { listarMaterial } from "./datos";
 import { BuscadorDocumentos } from "./buscador-documentos";
 
 export default async function CapacitacionPage() {
   const sesion = await obtenerSesion();
   if (!sesion) return null;
-  const admin = esAdmin(sesion.rol);
+  const admin = esCEO(sesion.rol);
   const material = await listarMaterial();
 
   return (

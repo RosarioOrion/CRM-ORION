@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { contactos, propiedades, busquedas, seguimientos, usuarios } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
+import { puedeVerAgente, veDatosDeContacto } from "@/lib/permisos";
+import { ContactoSoloLectura } from "./contacto-solo-lectura";
 import { desc, eq, inArray } from "drizzle-orm";
 import { ORIGEN_LABEL, rolesDe } from "@/lib/contactos";
 import { limpiarTitulo } from "@/lib/propiedades";
@@ -32,7 +34,12 @@ export default async function ContactoDetallePage({
 
   const [contacto] = await db.select().from(contactos).where(eq(contactos.id, id));
 
-  if (!contacto || contacto.agenteId !== sesion.userId) notFound();
+  if (!contacto) notFound();
+  // De otro agente: su jefe (CEO, Administrador o Líder) lo ve en solo lectura.
+  if (contacto.agenteId !== sesion.userId) {
+    if (!(await puedeVerAgente(sesion, contacto.agenteId))) notFound();
+    return <ContactoSoloLectura contacto={contacto} verDatos={veDatosDeContacto(sesion, contacto.agenteId)} />;
+  }
 
   const propiedadesDelContacto = await db
     .select({

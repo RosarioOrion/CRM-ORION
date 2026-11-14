@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { esCEO } from "@/lib/permisos";
 import { fechaCorta, TIPO_MATERIAL_LABEL } from "@/lib/capacitacion";
 import { listarMaterial } from "../datos";
 import { NuevoDocumentoForm } from "../nuevo-documento-form";
@@ -8,7 +9,7 @@ import { EliminarDocumentoBoton } from "../eliminar-documento-boton";
 
 export default async function SubirMaterialPage() {
   const sesion = await obtenerSesion();
-  if (!sesion || !esAdmin(sesion.rol)) redirect("/capacitacion");
+  if (!sesion || !esCEO(sesion.rol)) redirect("/capacitacion");
   const material = await listarMaterial();
 
   return (

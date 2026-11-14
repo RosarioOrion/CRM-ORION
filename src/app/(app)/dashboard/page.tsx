@@ -8,7 +8,8 @@ import {
   actividades,
   usuarios,
 } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { equipoVisible, esSupervisor } from "@/lib/permisos";
 import { eq, and, count, ne, inArray, or } from "drizzle-orm";
 import { limpiarTitulo } from "@/lib/propiedades";
 import { aDiaHora, esTipoEvento, type EventoCalendario } from "@/lib/calendario";
@@ -23,7 +24,7 @@ import { ObjetivoMes } from "./objetivo-mes";
 
 /**
  * Todo lo agendado de los agentes `ids` (normalmente solo el usuario; el
- * Team Leader puede ver a otro agente o a todo el equipo). Las reuniones de
+ * jefe puede ver a alguien de su equipo o a todo su equipo). Las reuniones de
  * equipo se muestran siempre, las haya agendado quien sea.
  */
 async function cargarEventos(
@@ -176,7 +177,9 @@ export default async function DashboardPage({
 }) {
   const sesion = await obtenerSesion();
   const yo = sesion!.userId;
-  const jefe = esAdmin(sesion!.rol);
+  // CEO, Administrador y Líder pueden mirar la agenda de su equipo.
+  const jefe = esSupervisor(sesion!.rol);
+  const visibles = new Set((await equipoVisible(yo, sesion!.rol)).map((u) => u.id));
   const { agente: agenteParam } = await searchParams;
 
   // Nombres de todo el equipo (para "Organiza: X" y la vista del equipo).
@@ -185,7 +188,7 @@ export default async function DashboardPage({
     .from(usuarios)
     .orderBy(usuarios.nombre);
   const nombres = new Map(equipo.map((u) => [u.id, u.nombre]));
-  const activos = equipo.filter((u) => u.activo && u.aprobado);
+  const activos = equipo.filter((u) => u.activo && u.aprobado && visibles.has(u.id));
 
   let ids = [yo];
   let vista = "yo";

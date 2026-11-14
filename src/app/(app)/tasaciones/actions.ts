@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { propiedades, tasaciones } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { esCEO } from "@/lib/permisos";
 import {
   calcularTasacion,
   MINIMO_COMPARABLES,
@@ -105,7 +106,7 @@ export async function eliminarTasacion(tasacionId: string) {
     .where(eq(tasaciones.id, tasacionId));
   if (!fila) return;
 
-  if (fila.agenteId !== sesion.userId && !esAdmin(sesion.rol)) {
+  if (fila.agenteId !== sesion.userId && !esCEO(sesion.rol)) {
     throw new Error("No autorizado.");
   }
 

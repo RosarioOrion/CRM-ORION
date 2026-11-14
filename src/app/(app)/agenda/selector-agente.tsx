@@ -3,15 +3,22 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 /**
- * Para Team Leader / Administrador: elegir de quién se ve la agenda
+ * Para CEO, Administrador y Líder: elegir de quién de su equipo se ve la agenda
  * (la propia, la de un agente o la de todo el equipo).
  */
 export function SelectorAgente({
   valor,
   agentes,
+  etiqueta = "Ver agenda de:",
+  propio = "Mi agenda",
+  conTodos = true,
 }: {
   valor: string;
   agentes: { id: string; nombre: string }[];
+  etiqueta?: string;
+  propio?: string;
+  /** Ofrecer "Todo el equipo". */
+  conTodos?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -28,14 +35,14 @@ export function SelectorAgente({
 
   return (
     <label className="inline-flex items-center gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
-      Ver agenda de:
+      {etiqueta}
       <select
         value={valor}
         onChange={(e) => cambiar(e.target.value)}
         className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm font-normal text-gray-800 outline-none focus:border-orion-navy dark:border-gray-700 dark:bg-gray-800 dark:text-white"
       >
-        <option value="yo">Mi agenda</option>
-        <option value="todos">Todo el equipo</option>
+        <option value="yo">{propio}</option>
+        {conTodos && <option value="todos">Todo el equipo</option>}
         {agentes.map((a) => (
           <option key={a.id} value={a.id}>
             {a.nombre}

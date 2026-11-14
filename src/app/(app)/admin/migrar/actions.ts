@@ -4,7 +4,8 @@ import sharp from "sharp";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { propiedades, kaizenTareas, nivelesComision } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { esCEO } from "@/lib/permisos";
 import { SEED_KAIZEN_TAREAS } from "@/lib/kaizen";
 
 export type PasoMigracion = {
@@ -15,7 +16,7 @@ export type PasoMigracion = {
 
 async function requerirTeamLeader() {
   const sesion = await obtenerSesion();
-  if (!sesion || !esAdmin(sesion.rol)) {
+  if (!sesion || !esCEO(sesion.rol)) {
     throw new Error("No autorizado.");
   }
 }

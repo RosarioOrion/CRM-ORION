@@ -1,13 +1,17 @@
 import { db } from "@/db";
 import { comisiones, usuarios, reservasVenta, reservasAlquiler } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { equipoVisible, esCEO, esSupervisor } from "@/lib/permisos";
 import { eq, desc, inArray } from "drizzle-orm";
 import { TablaComisiones } from "./tabla-comisiones";
 
 export default async function ComisionesPage() {
   const sesion = await obtenerSesion();
   if (!sesion) return null;
-  const admin = esAdmin(sesion.rol);
+  // CEO: todas; Administrador y Líder: las de su equipo; agente: las suyas.
+  // Marcar como cobrada: solo la CEO.
+  const admin = esSupervisor(sesion.rol);
+  const visibles = (await equipoVisible(sesion.userId, sesion.rol)).map((u) => u.id);
 
   const filas = await db
     .select({
@@ -24,7 +28,7 @@ export default async function ComisionesPage() {
     })
     .from(comisiones)
     .innerJoin(usuarios, eq(comisiones.beneficiarioId, usuarios.id))
-    .where(admin ? undefined : eq(comisiones.beneficiarioId, sesion.userId))
+    .where(esCEO(sesion.rol) ? undefined : inArray(comisiones.beneficiarioId, visibles))
     .orderBy(desc(comisiones.creadoEn));
 
   const idsVenta = filas.map((f) => f.reservaVentaId).filter((id): id is string => !!id);
@@ -98,7 +102,7 @@ export default async function ComisionesPage() {
         </div>
       </div>
 
-      <TablaComisiones comisiones={comisionesConNombre} esAdmin={admin} />
+      <TablaComisiones comisiones={comisionesConNombre} esAdmin={esCEO(sesion.rol)} />
     </div>
   );
 }

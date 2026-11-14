@@ -5,7 +5,8 @@ import { eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { configuracionEmpresa, nivelesComision } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { esCEO } from "@/lib/permisos";
 import { obtenerNivelesComision } from "@/lib/comisiones";
 
 const LOGO_MAX_BYTES = 5 * 1024 * 1024;
@@ -43,7 +44,7 @@ export async function guardarConfiguracion(
 ): Promise<ConfiguracionState> {
   const sesion = await obtenerSesion();
   if (!sesion) return { error: "Sesión expirada, volvé a ingresar." };
-  if (!esAdmin(sesion.rol)) {
+  if (!esCEO(sesion.rol)) {
     return { error: "No tenés permisos para modificar la configuración de la cuenta." };
   }
 
@@ -133,7 +134,7 @@ export async function crearNivelComision(
   formData: FormData
 ): Promise<NivelState> {
   const sesion = await obtenerSesion();
-  if (!sesion || !esAdmin(sesion.rol)) return { error: "No autorizado." };
+  if (!sesion || !esCEO(sesion.rol)) return { error: "No autorizado." };
 
   const nombre = String(formData.get("nombre") || "").trim();
   const facturacionMinima = Math.round(Number(formData.get("facturacionMinima")) || 0);
@@ -164,7 +165,7 @@ export async function actualizarNivelComision(
   datos: { nombre: string; facturacionMinima: number; porcentaje: number }
 ) {
   const sesion = await obtenerSesion();
-  if (!sesion || !esAdmin(sesion.rol)) throw new Error("No autorizado.");
+  if (!sesion || !esCEO(sesion.rol)) throw new Error("No autorizado.");
 
   await db
     .update(nivelesComision)
@@ -181,7 +182,7 @@ export async function actualizarNivelComision(
 
 export async function eliminarNivelComision(nivelId: string) {
   const sesion = await obtenerSesion();
-  if (!sesion || !esAdmin(sesion.rol)) throw new Error("No autorizado.");
+  if (!sesion || !esCEO(sesion.rol)) throw new Error("No autorizado.");
 
   const restantes = await obtenerNivelesComision();
   if (restantes.length <= 1) {

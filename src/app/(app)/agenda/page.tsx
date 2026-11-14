@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { visitas, propiedades, contactos, actividades, usuarios } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { equipoVisible, esSupervisor } from "@/lib/permisos";
 import { eq, and, asc, inArray, or } from "drizzle-orm";
 import { limpiarTitulo } from "@/lib/propiedades";
 import {
@@ -104,20 +105,18 @@ export default async function AgendaPage({
   const sesion = await obtenerSesion();
   const agenteId = sesion!.userId;
   const ahora = ahoraUY();
-  const jefe = esAdmin(sesion!.rol);
+  const jefe = esSupervisor(sesion!.rol);
 
   // "+ Agendar este día" desde el calendario de Inicio → /agenda?fecha=YYYY-MM-DD
   const { fecha: fechaParam, agente: agenteParam, nuevo } = await searchParams;
 
-  // Team Leader / Administrador pueden ver la agenda de otro agente o la de
-  // todo el equipo (?agente=todos | ?agente=<id>). Solo lectura: cada uno
-  // edita lo suyo.
+  // CEO, Administrador y Líder pueden ver la agenda de alguien de su equipo
+  // o la de todo su equipo (?agente=todos | ?agente=<id>). Solo lectura:
+  // cada uno edita lo suyo.
   const equipo = jefe
-    ? await db
-        .select({ id: usuarios.id, nombre: usuarios.nombre })
-        .from(usuarios)
-        .where(and(eq(usuarios.activo, true), eq(usuarios.aprobado, true)))
-        .orderBy(usuarios.nombre)
+    ? (await equipoVisible(agenteId, sesion!.rol))
+        .filter((u) => u.activo && u.aprobado)
+        .map((u) => ({ id: u.id, nombre: u.nombre }))
     : [];
   const nombreAgente = new Map(equipo.map((u) => [u.id, u.nombre]));
   let idsVista = [agenteId];
