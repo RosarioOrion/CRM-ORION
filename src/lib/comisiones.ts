@@ -7,35 +7,25 @@
 // El nivel de un AGENTE es automático: sale de su facturación acumulada
 // (comisiones generadas a su nombre). La operación que lo hace pasar de
 // nivel se paga con el nivel que tenía; desde la siguiente, con el nuevo.
-// Los porcentajes de Líder, Administrador y CEO se definirán más adelante:
-// por ahora usan el nivel que tengan asignado en Usuarios.
+// Líder, Administrador y CEO, cuando cierran una operación propia, cobran
+// según el nivel que tengan asignado en Usuarios.
 //
-// Además, de cada operación se reserva un 10% del total para gastos de la
-// empresa: sale de la parte de la inmobiliaria (el agente cobra su % sobre
-// el total). Queda como una línea de Comisiones sin beneficiario.
+// Reparto PROVISORIO de cada operación (sobre el total, a definir con el
+// equipo; se cambia acá):
+//   agente que cerró     su % de la escala (40% al ingresar)
+//   Líder                20%  el primer Líder en su cadena de responsables
+//   Administrador        15%  el primer Administrador en esa cadena
+//   CEO                  15%
+//   gastos de la empresa 10%  línea sin beneficiario
+// Si en la cadena no hay Líder o Administrador, esa parte queda para la
+// inmobiliaria (no se genera línea).
 //
-// El % que le corresponde a cada agente ya NO es un enum fijo en el código:
-// vive en la tabla niveles_comision (editable desde /ajustes), justamente
-// para que Rosario pueda agregar escalones y metas nuevas sin pedir un
-// cambio de código. Escalafón inicial (sembrado por la migración):
-//
-//   Agente Junior   USD 0        40%
-//   Agente          USD 3.000    40%
-//   Asesor          USD 10.000   45%
-//   Ejecutivo       USD 20.000   50%
-//   Team Leader     50% de sus propias ventas + 10% de cada operación de
-//                    los agentes que capacitó (override, además de lo que
-//                    se lleva el agente)
-//
-// El nivel de comisión (nivelComision) es un dato del usuario, separado del
-// rol (rol = permisos: agente / team leader / administrador). Un Team
-// Leader que cierra una venta propia cobra lo mismo que un Ejecutivo (50%),
-// así que alcanza con tenerlo también en nivel "EJECUTIVO" — no hace falta
-// un caso especial. El 10% de override para el Team Leader se calcula
-// aparte, a partir de teamLeaderId del agente que cerró la operación.
+// El % de cada nivel de agente vive en la tabla niveles_comision (editable
+// desde /ajustes), para poder agregar escalones sin cambiar código. El
+// nivel (nivelComision) es un dato del usuario, separado del rol.
 //
 // "Facturación acumulada" (para saber si a un agente ya le toca subir de
-// nivel) es la suma de todas las comisiones que ese agente cobró o generó
+// nivel) es la suma de todas las comisiones que ese usuario cobró o generó
 // a lo largo del tiempo (tabla comisiones, por beneficiarioId) — no el
 // precio de las propiedades que cerró. Ver facturacionAcumulada() abajo.
 
@@ -43,7 +33,9 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { comisiones, nivelesComision, usuarios } from "@/db/schema";
 
-export const PORCENTAJE_OVERRIDE_TEAM_LEADER = 10;
+export const PORCENTAJE_LIDER = 20;
+export const PORCENTAJE_ADMINISTRADOR = 15;
+export const PORCENTAJE_CEO = 15;
 export const PORCENTAJE_GASTOS_EMPRESA = 10;
 export const CONCEPTO_GASTOS_EMPRESA = `Gastos de la empresa (${PORCENTAJE_GASTOS_EMPRESA}%)`;
 
@@ -105,36 +97,39 @@ export type LineaComision = {
 };
 
 /**
- * Calcula cómo se reparte una comisión total entre el agente que cerró la
- * operación y, si corresponde, su Team Leader (override del 10% sobre el
- * total de la operación, no sobre la parte del agente). El % y el nombre
- * del nivel del agente los resuelve el caller (ver obtenerNivelesComision)
- * — esta función ya no hace el lookup, así queda desacoplada de la tabla.
+ * Calcula cómo se reparte la comisión total de una operación: el agente
+ * que la cerró (según su nivel), el Líder, el Administrador y la CEO de su
+ * cadena de responsables, y los gastos de la empresa. Todos los % son sobre
+ * el total. El % y el nombre del nivel del agente los resuelve el caller.
  */
 export function calcularReparto(params: {
   comisionTotal: number;
   agenteId: string;
   pctAgente: number;
   nivelLabel: string;
-  teamLeaderId: string | null;
+  liderId: string | null;
+  administradorId: string | null;
+  ceoId: string | null;
 }): LineaComision[] {
-  const { comisionTotal, agenteId, pctAgente, nivelLabel, teamLeaderId } = params;
+  const { comisionTotal, agenteId, pctAgente, nivelLabel } = params;
+  const parte = (pct: number) => Math.round((comisionTotal * pct) / 100);
   const lineas: LineaComision[] = [];
 
   lineas.push({
     beneficiarioId: agenteId,
     concepto: `Comisión agente (${nivelLabel}, ${pctAgente}%)`,
     porcentaje: pctAgente,
-    monto: Math.round((comisionTotal * pctAgente) / 100),
+    monto: parte(pctAgente),
   });
 
-  if (teamLeaderId && teamLeaderId !== agenteId) {
-    lineas.push({
-      beneficiarioId: teamLeaderId,
-      concepto: `Override Líder (${PORCENTAJE_OVERRIDE_TEAM_LEADER}%)`,
-      porcentaje: PORCENTAJE_OVERRIDE_TEAM_LEADER,
-      monto: Math.round((comisionTotal * PORCENTAJE_OVERRIDE_TEAM_LEADER) / 100),
-    });
+  const roles: [string | null, string, number][] = [
+    [params.liderId, "Líder", PORCENTAJE_LIDER],
+    [params.administradorId, "Administrador", PORCENTAJE_ADMINISTRADOR],
+    [params.ceoId, "CEO", PORCENTAJE_CEO],
+  ];
+  for (const [id, rol, pct] of roles) {
+    if (!id) continue;
+    lineas.push({ beneficiarioId: id, concepto: `${rol} (${pct}%)`, porcentaje: pct, monto: parte(pct) });
   }
 
   lineas.push({
@@ -173,12 +168,31 @@ export async function generarComisionesOperacion(op: {
       : resolverNivel(agente.nivelComision, niveles);
   if (!nivel) return false;
 
+  // Cadena de responsables hacia arriba: el primer Líder y el primer
+  // Administrador que aparezcan (sin contar al propio agente).
+  const todos = await db
+    .select({ id: usuarios.id, rol: usuarios.rol, teamLeaderId: usuarios.teamLeaderId })
+    .from(usuarios);
+  let liderId: string | null = null;
+  let administradorId: string | null = null;
+  let actual = agente.teamLeaderId;
+  for (let i = 0; actual && i < todos.length; i++) {
+    const u = todos.find((x) => x.id === actual);
+    if (!u) break;
+    if (u.rol === "TEAM_LEADER" && !liderId) liderId = u.id;
+    if (u.rol === "ADMINISTRADOR" && !administradorId) administradorId = u.id;
+    actual = u.teamLeaderId;
+  }
+  const ceoId = todos.find((x) => x.rol === "CEO")?.id ?? null;
+
   const lineas = calcularReparto({
     comisionTotal: op.comisionTotal,
     agenteId: agente.id,
     pctAgente: nivel.porcentaje,
     nivelLabel: nivel.nombre,
-    teamLeaderId: agente.teamLeaderId,
+    liderId,
+    administradorId,
+    ceoId,
   });
   await db.insert(comisiones).values(
     lineas.map((l) => ({

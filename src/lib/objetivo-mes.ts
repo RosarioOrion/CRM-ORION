@@ -9,8 +9,8 @@ import { ahoraUY } from "@/lib/calendario";
 // los 3 meses anteriores y se le avisa. Cada agente ve el suyo.
 //
 // "Cierres del mes": operaciones (reservas de venta o alquiler) que le
-// generaron su comisión de agente este mes — los overrides de Team Leader
-// no cuentan como cierre propio.
+// generaron su comisión de agente este mes — lo que cobra como Líder,
+// Administrador o CEO por operaciones de otros no cuenta como cierre propio.
 
 const MESES = [
   "enero", "febrero", "marzo", "abril", "mayo", "junio",
@@ -79,7 +79,7 @@ export async function cargarObjetivoMes(usuarioId: string): Promise<ObjetivoMes>
 
   const cierres = new Set(
     generadas
-      .filter((c) => !c.concepto.startsWith("Override") && claveMesUTC(c.creadoEn) === mes)
+      .filter((c) => c.concepto.startsWith("Comisión agente") && claveMesUTC(c.creadoEn) === mes)
       .map((c) => c.reservaVentaId ?? c.reservaAlquilerId)
       .filter(Boolean)
   ).size;
