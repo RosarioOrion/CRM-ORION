@@ -6,6 +6,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { MenuLateral } from "@/components/menu-lateral";
 import { AccionesRapidas } from "@/components/acciones-rapidas";
 import { CompartirOrion } from "@/components/compartir-orion";
+import { volverAMiUsuario } from "./admin/usuarios/entrar-como-actions";
 
 const NAV = [
   { href: "/dashboard", label: "Inicio", icon: "🏠" },
@@ -98,6 +99,19 @@ export default async function AppLayout({
       </MenuLateral>
 
       <main className="min-w-0 flex-1 bg-orion-bg pt-14 md:pt-0">
+        {sesion.suplantadoPor && (
+          // "Entrar como": siempre visible, para no olvidar en qué usuario se está.
+          <div className="sticky top-14 z-20 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-amber-400 px-4 py-2 text-center text-sm font-semibold text-amber-950 md:top-0">
+            <span>
+              👁️ Estás usando Orion como {sesion.nombre} ({ROL_LABEL[sesion.rol]}). Lo que hagas queda a su nombre.
+            </span>
+            <form action={volverAMiUsuario}>
+              <button type="submit" className="rounded-lg bg-amber-950 px-3 py-1 text-xs font-semibold text-white hover:bg-black">
+                Volver a mi usuario
+              </button>
+            </form>
+          </div>
+        )}
         <div className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-8">
           <div className="hidden md:block">
             <AccionesRapidas />

@@ -9,6 +9,7 @@ import {
   cambiarResponsable,
   eliminarUsuario,
 } from "./actions";
+import { entrarComo } from "./entrar-como-actions";
 
 // Nota: no importamos src/lib/comisiones.ts acá porque ese archivo toca la
 // base (drizzle/postgres) a nivel de módulo, y esto es un componente
@@ -279,7 +280,22 @@ export function TablaAgentes({
                   {a.visitasProgramadas}
                 </td>
                 {puedeGestionar && (
-                  <td className="px-4 py-3 text-right">
+                  <td className="whitespace-nowrap px-4 py-3 text-right">
+                    {a.id !== usuarioActualId && roles[a.id] !== "CEO" && estados[a.id] && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!window.confirm(`¿Entrar a Orion como ${a.nombre}? Vas a ver y usar Orion como esa persona; lo que hagas queda a su nombre.`)) return;
+                          startTransition(async () => {
+                            const r = await entrarComo(a.id);
+                            if (r?.error) setError(r.error);
+                          });
+                        }}
+                        className="mr-3 text-xs font-semibold text-orion-navy hover:underline dark:text-orion-gold"
+                      >
+                        Entrar como
+                      </button>
+                    )}
                     {a.id !== usuarioActualId && roles[a.id] !== "CEO" && (
                       <button
                         type="button"
