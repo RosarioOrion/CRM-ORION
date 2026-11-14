@@ -383,6 +383,8 @@ export const captaciones = pgTable("captaciones", {
       tipo: text("tipo").notNull(),
       zona: text("zona"),
       direccion: text("direccion"),
+      // Link de la publicación del dueño (portal, Marketplace…), si lo hay.
+      link: text("link"),
       origen: text("origen").notNull().default("OTRO"),
       origenDetalle: text("origen_detalle"),
       notas: text("notas"),
