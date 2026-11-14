@@ -26,6 +26,7 @@ export default async function ComisionesPage() {
       pagada: comisiones.pagada,
       creadoEn: comisiones.creadoEn,
       beneficiarioNombre: usuarios.nombre,
+      beneficiarioId: comisiones.beneficiarioId,
     })
     .from(comisiones)
     .leftJoin(usuarios, eq(comisiones.beneficiarioId, usuarios.id))
@@ -62,6 +63,7 @@ export default async function ComisionesPage() {
     monto: f.monto,
     pagada: f.pagada,
     beneficiarioNombre: f.beneficiarioNombre ?? "🏢 Empresa",
+    beneficiarioId: f.beneficiarioId,
     esGasto: f.beneficiarioNombre === null,
     tipoOperacion: f.tipoOperacion,
     creadoEn: f.creadoEn.toISOString(),
@@ -70,6 +72,24 @@ export default async function ComisionesPage() {
       (f.reservaAlquilerId ? nombreAlquiler.get(f.reservaAlquilerId) : null) ??
       "—",
   }));
+
+  // Para la edición manual (solo CEO): usuarios y operaciones existentes.
+  const edicion = esCEO(sesion.rol)
+    ? await Promise.all([
+        db.select({ id: usuarios.id, nombre: usuarios.nombre }).from(usuarios).orderBy(usuarios.nombre),
+        db.select({ id: reservasVenta.id, nombre: reservasVenta.nombrePropiedad }).from(reservasVenta).orderBy(desc(reservasVenta.creadoEn)),
+        db
+          .select({ id: reservasAlquiler.id, nombre: reservasAlquiler.nombrePropiedad })
+          .from(reservasAlquiler)
+          .orderBy(desc(reservasAlquiler.creadoEn)),
+      ]).then(([us, vs, as]) => ({
+        usuarios: us,
+        operaciones: [
+          ...vs.map((v) => ({ id: `V:${v.id}`, nombre: `Venta · ${v.nombre}` })),
+          ...as.map((a) => ({ id: `A:${a.id}`, nombre: `Alquiler · ${a.nombre}` })),
+        ],
+      }))
+    : { usuarios: [], operaciones: [] };
 
   const deAgentes = comisionesConNombre.filter((c) => !c.esGasto);
   const pendiente = deAgentes.filter((c) => !c.pagada).reduce((acc, c) => acc + c.monto, 0);
@@ -114,7 +134,12 @@ export default async function ComisionesPage() {
         )}
       </div>
 
-      <TablaComisiones comisiones={comisionesConNombre} esAdmin={esCEO(sesion.rol)} />
+      <TablaComisiones
+        comisiones={comisionesConNombre}
+        esAdmin={esCEO(sesion.rol)}
+        usuarios={edicion.usuarios}
+        operaciones={edicion.operaciones}
+      />
     </div>
   );
 }
