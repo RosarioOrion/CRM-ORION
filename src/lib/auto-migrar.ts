@@ -30,6 +30,8 @@ const SENTENCIAS = [
   // Ubicación de la propiedad en el mapa.
   sql`ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS lat double precision`,
   sql`ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS lng double precision`,
+  // Link de la publicación en la captación.
+  sql`ALTER TABLE captaciones ADD COLUMN IF NOT EXISTS link text`,
   // Consultas por propiedad ("+ Consulta" en la ficha).
   sql`CREATE TABLE IF NOT EXISTS consultas_propiedad (
     id text PRIMARY KEY,

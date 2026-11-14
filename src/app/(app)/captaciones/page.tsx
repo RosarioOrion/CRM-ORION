@@ -68,6 +68,7 @@ export default async function CaptacionesPage({
       origen: captaciones.origen,
       origenDetalle: captaciones.origenDetalle,
       notas: captaciones.notas,
+      link: captaciones.link,
       estado: captaciones.estado,
       convertidaEnPropiedadId: captaciones.convertidaEnPropiedadId,
       contactoId: contactos.id,
@@ -93,18 +94,15 @@ export default async function CaptacionesPage({
       </div>
 
       <div className="mb-4">
-        <VerificarCaptacion />
+        <VerificarCaptacion key={nuevo ?? ""} />
       </div>
 
-      <div className="mb-6">
-        <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">…o desde uno de tus contactos:</p>
-        <NuevaCaptacionForm
-          key={`${desde ?? "nueva"}-${nuevo ?? ""}`}
-          contactos={misContactos}
-          inicial={inicial}
-          abiertoInicial={nuevo === "1"}
-        />
-      </div>
+      {/* Desde una visita de captación de la Agenda: el formulario de antes, precargado. */}
+      {inicial && (
+        <div className="mb-6">
+          <NuevaCaptacionForm key={desde} contactos={misContactos} inicial={inicial} />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {ESTADOS_CAPTACION.map((estado) => {
@@ -155,6 +153,17 @@ export default async function CaptacionesPage({
                       >
                         👤 {f.contactoNombre}
                       </Link>
+
+                      {f.link && (
+                        <a
+                          href={f.link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-1 block truncate text-xs text-orion-navy underline dark:text-orion-gold"
+                        >
+                          🔗 Ver publicación
+                        </a>
+                      )}
 
                       {(f.zona || f.direccion) && (
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">

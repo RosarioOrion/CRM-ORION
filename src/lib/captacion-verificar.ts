@@ -7,6 +7,12 @@
 // misma (para que no se pisen dos agentes); cargando la dirección se
 // destraba si de verdad es otra.
 
+import { TIPOS_PROPIEDAD } from "@/lib/propiedades";
+import { BARRIOS_CONOCIDOS } from "@/lib/revisar-propiedad";
+
+/** Tipo de una captación cargada sin tipo (se compara como cualquiera). */
+export const TIPO_A_DEFINIR = "A definir";
+
 export type PropiedadComparable = {
   tipo: string;
   zona: string | null;
@@ -41,7 +47,10 @@ function partesDireccion(d: string | null): { calle: string; numero: string | nu
 export type Comparacion = "MISMA" | "POSIBLE" | "DISTINTA";
 
 export function compararPropiedades(a: PropiedadComparable, b: PropiedadComparable): Comparacion {
-  if (normalizar(a.tipo) !== normalizar(b.tipo)) return "DISTINTA";
+  const ta = normalizar(a.tipo);
+  const tb = normalizar(b.tipo);
+  const sinTipo = normalizar(TIPO_A_DEFINIR);
+  if (ta !== tb && ta !== sinTipo && tb !== sinTipo) return "DISTINTA";
   const za = normalizar(a.zona);
   const zb = normalizar(b.zona);
   if (za && zb && !za.includes(zb) && !zb.includes(za)) return "DISTINTA";
@@ -53,4 +62,35 @@ export function compararPropiedades(a: PropiedadComparable, b: PropiedadComparab
   if (!mismaCalle) return "DISTINTA";
   if (da.numero && db.numero && da.numero !== db.numero) return "DISTINTA";
   return "MISMA";
+}
+
+const SINONIMOS_TIPO: [RegExp, string][] = [
+  [/\b(apto|aptos|apartamento|apartamentos|monoambiente|duplex|penthouse)\b/, "Apartamento"],
+  [/\b(casa|casas|ph|chalet)\b/, "Casa"],
+  [/\b(local|locales)\b/, "Local"],
+  [/\b(oficina|oficinas)\b/, "Oficina"],
+  [/\b(terreno|terrenos|solar|lote)\b/, "Terreno"],
+];
+
+/**
+ * Del título de la captación ("Apto 2 dorm. en Pocitos") saca el tipo y el
+ * barrio, para poder compararla después con lo que cargue otro agente.
+ */
+export function inferirDeTitulo(titulo: string): { tipo: string; zona: string | null } {
+  const t = normalizar(titulo);
+  let tipo: string = TIPO_A_DEFINIR;
+  for (const [re, valor] of SINONIMOS_TIPO) {
+    if (re.test(t)) {
+      tipo = valor;
+      break;
+    }
+  }
+  if (tipo === TIPO_A_DEFINIR) {
+    tipo = TIPOS_PROPIEDAD.find((x) => new RegExp(`\\b${normalizar(x)}\\b`).test(t)) ?? TIPO_A_DEFINIR;
+  }
+  const zona =
+    [...BARRIOS_CONOCIDOS]
+      .sort((a, b) => b.length - a.length)
+      .find((b) => new RegExp(`(^| )${normalizar(b)}( |$)`).test(t)) ?? null;
+  return { tipo, zona };
 }

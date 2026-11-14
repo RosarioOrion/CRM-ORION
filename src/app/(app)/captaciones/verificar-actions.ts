@@ -9,7 +9,12 @@ import { normalizarTelefono } from "@/lib/duplicados";
 import { esOrigenValido, rolesDe } from "@/lib/contactos";
 import { ESTADO_LABEL } from "@/lib/propiedades";
 import { ESTADO_CAPTACION_LABEL, type EstadoCaptacion } from "@/lib/captaciones";
-import { compararPropiedades, type Comparacion, type PropiedadComparable } from "@/lib/captacion-verificar";
+import {
+  compararPropiedades,
+  inferirDeTitulo,
+  type Comparacion,
+  type PropiedadComparable,
+} from "@/lib/captacion-verificar";
 
 // "Verificar teléfono" al empezar una captación: busca el número en los
 // contactos de TODO el equipo y, si alguien lo tiene, qué propiedades está
@@ -135,35 +140,10 @@ export type ResultadoCaptacion = {
 const describir = (t: PropiedadComparable & { operacion?: string }) =>
   [t.tipo, t.zona, t.direccion].filter(Boolean).join(" · ");
 
-export async function crearCaptacionVerificada(datos: {
-  telefono: string;
-  nombre: string;
-  operacion: string;
-  tipo: string;
-  zona: string;
-  direccion: string;
-  origen: string;
-  notas: string;
-}): Promise<ResultadoCaptacion> {
-  const sesion = await obtenerSesion();
-  if (!sesion) return { error: "Sesión expirada, volvé a ingresar." };
-  const yo = sesion.userId;
+type Registros = NonNullable<Awaited<ReturnType<typeof registrosDelTelefono>>>;
 
-  const nombre = datos.nombre.trim();
-  const tipo = datos.tipo.trim();
-  const zona = datos.zona.trim();
-  const direccion = datos.direccion.trim();
-  const operacion = datos.operacion === "ALQUILER" ? "ALQUILER" : "VENTA";
-  if (nombre.length < 2) return { error: "Ingresá el nombre del propietario." };
-  if (!tipo) return { error: "Elegí el tipo de propiedad." };
-  if (!zona) return { error: "Ingresá el barrio o zona." };
-  const origen = esOrigenValido(datos.origen) ? datos.origen : "OTRO";
-
-  const r = await registrosDelTelefono(datos.telefono);
-  if (!r) return { error: "Ingresá un teléfono válido (al menos 6 números)." };
-  const nueva = { tipo, zona, direccion: direccion || null };
-
-  // ¿Alguien ya trabaja esta misma propiedad con este propietario?
+/** ¿Alguien (o el mismo agente) ya trabaja esta propiedad con este propietario? */
+function chequearPropiedad(yo: string, r: Registros, nueva: PropiedadComparable): ResultadoCaptacion | null {
   for (const reg of armarRegistros(yo, r)) {
     for (const t of reg.trabajos) {
       const comp = compararPropiedades(nueva, t);
@@ -176,41 +156,122 @@ export async function crearCaptacionVerificada(datos: {
       }
     }
   }
+  return null;
+}
+
+/** Paso "número libre → Agregar contacto": lo guarda como contacto del agente. */
+export async function agregarContactoCaptacion(
+  nombre: string,
+  telefono: string
+): Promise<{ error?: string; ok?: boolean }> {
+  const sesion = await obtenerSesion();
+  if (!sesion) return { error: "Sesión expirada, volvé a ingresar." };
+  nombre = nombre.trim();
+  if (nombre.length < 2) return { error: "Ingresá el nombre del propietario." };
+  const r = await registrosDelTelefono(telefono);
+  if (!r) return { error: "Ingresá un teléfono válido (al menos 6 números)." };
+  const ajeno = r.contactos.find((c) => c.agenteId !== sesion.userId);
+  if (ajeno) return { error: `Este número ya lo tiene ${ajeno.agente}. Volvé a verificarlo.` };
+  if (!r.contactos.some((c) => c.agenteId === sesion.userId)) {
+    await db.insert(contactos).values({
+      nombre,
+      telefono: telefono.trim(),
+      categoria: "PROPIETARIO_VENTA",
+      roles: ["PROPIETARIO_VENTA"],
+      agenteId: sesion.userId,
+    });
+    revalidatePath("/contactos");
+  }
+  return { ok: true };
+}
+
+/** Paso "número ocupado": con los datos básicos, ¿es la misma propiedad o es otra? */
+export async function compararPropiedadNueva(
+  telefono: string,
+  datos: { tipo: string; zona: string; direccion: string }
+): Promise<ResultadoCaptacion> {
+  const sesion = await obtenerSesion();
+  if (!sesion) return { error: "Sesión expirada, volvé a ingresar." };
+  if (!datos.tipo.trim()) return { error: "Elegí el tipo de propiedad." };
+  if (!datos.zona.trim()) return { error: "Ingresá el barrio o zona." };
+  const r = await registrosDelTelefono(telefono);
+  if (!r) return { error: "Ingresá un teléfono válido (al menos 6 números)." };
+  const choque = chequearPropiedad(sesion.userId, r, {
+    tipo: datos.tipo.trim(),
+    zona: datos.zona.trim(),
+    direccion: datos.direccion.trim() || null,
+  });
+  return choque ?? { ok: true };
+}
+
+/**
+ * Último paso: la captación (título, link, venta/alquiler, notas). Vuelve a
+ * verificar en el servidor y queda en "Llamando" (captando): toca la
+ * llamada en frío o el mensaje. Si no se cargaron tipo y barrio (número
+ * libre), se sacan del título para poder comparar más adelante.
+ */
+export async function crearCaptacionVerificada(datos: {
+  telefono: string;
+  nombre: string;
+  titulo: string;
+  link: string;
+  operacion: string;
+  notas: string;
+  tipo?: string;
+  zona?: string;
+  direccion?: string;
+}): Promise<ResultadoCaptacion> {
+  const sesion = await obtenerSesion();
+  if (!sesion) return { error: "Sesión expirada, volvé a ingresar." };
+  const yo = sesion.userId;
+
+  const nombre = datos.nombre.trim();
+  const titulo = datos.titulo.trim();
+  const link = datos.link.trim();
+  const operacion = datos.operacion === "ALQUILER" ? "ALQUILER" : "VENTA";
+  if (nombre.length < 2) return { error: "Ingresá el nombre del propietario." };
+  if (titulo.length < 3) return { error: "Ingresá un título (ej. Apto 2 dorm. en Pocitos)." };
+  if (link && !/^https?:\/\//i.test(link)) return { error: "El link tiene que empezar con http:// o https://" };
+
+  const deducido = inferirDeTitulo(titulo);
+  const tipo = datos.tipo?.trim() || deducido.tipo;
+  const zona = datos.zona?.trim() || deducido.zona;
+  const direccion = datos.direccion?.trim() || null;
+
+  const r = await registrosDelTelefono(datos.telefono);
+  if (!r) return { error: "Ingresá un teléfono válido (al menos 6 números)." };
+  const choque = chequearPropiedad(yo, r, { tipo, zona, direccion });
+  if (choque) return choque;
 
   // Contacto: el propio si ya existe; si no, uno nuevo a nombre del agente.
   const propio = r.contactos.find((c) => c.agenteId === yo);
   const categoria = operacion === "ALQUILER" ? "PROPIETARIO_ALQUILER" : "PROPIETARIO_VENTA";
   let contactoId: string;
+  let origen = "OTRO";
   if (propio) {
     contactoId = propio.id;
     const [c] = await db.select().from(contactos).where(eq(contactos.id, propio.id));
+    origen = c.origen;
     const roles = rolesDe({ categoria: c.categoria, roles: [...(c.roles ?? []), categoria] });
     await db.update(contactos).set({ roles, categoria: roles[0], archivado: false }).where(eq(contactos.id, propio.id));
   } else {
     const [c] = await db
       .insert(contactos)
-      .values({
-        nombre,
-        telefono: datos.telefono.trim(),
-        categoria,
-        roles: [categoria],
-        origen,
-        agenteId: yo,
-      })
+      .values({ nombre, telefono: datos.telefono.trim(), categoria, roles: [categoria], agenteId: yo })
       .returning({ id: contactos.id });
     contactoId = c.id;
   }
 
-  // Queda en "Llamando" (captando): toca la llamada en frío o el mensaje.
   await db.insert(captaciones).values({
-    titulo: `${tipo} en ${zona}${direccion ? ` — ${direccion}` : ""}`,
+    titulo,
     contactoId,
     agenteId: yo,
     operacion,
     tipo,
     zona,
-    direccion: direccion || null,
-    origen,
+    direccion,
+    link: link || null,
+    origen: esOrigenValido(origen) ? origen : "OTRO",
     notas: datos.notas.trim() || null,
     estado: "LLAMANDO",
   });
