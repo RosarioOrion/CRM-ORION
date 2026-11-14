@@ -10,15 +10,16 @@ import type { SessionPayload } from "@/lib/auth";
 //                  gestiona usuarios (aprobar, roles, equipos, eliminar) y
 //                  configura el CRM (Ajustes, mensajes, Novedades, Kaizen,
 //                  Capacitación, herramientas de Admin).
-//   Administrador  ve los datos de todos los usuarios; de su equipo ve la
-//                  actividad, las propiedades y los contactos (sin teléfono
-//                  ni email).
+//   Administrador  ve los datos de su equipo, su actividad, sus propiedades
+//                  y sus contactos (sin teléfono ni email).
 //   Líder          ve los datos de su equipo, su actividad, sus propiedades
 //                  y sus contactos (sin teléfono ni email).
 //   Agente         lo suyo para operar; de los demás solo las propiedades
 //                  (sin datos del dueño), desde el buscador de Propiedades.
 // El equipo de alguien son las personas que tiene a cargo, directa o
-// indirectamente (usuarios.teamLeaderId = su responsable directo).
+// indirectamente (usuarios.teamLeaderId = su responsable directo). Nadie ve
+// a quienes están por encima ni a otros equipos: cada uno se ve a sí mismo
+// y a los de abajo.
 
 export type Rol = SessionPayload["rol"];
 
@@ -94,11 +95,10 @@ export const equipoVisible = cache(async (userId: string, rol: Rol): Promise<Usu
   return [...yo, ...aCargoDe(userId, lista)];
 });
 
-/** Usuarios cuyos DATOS (nombre, email, rol, equipo) puede ver: CEO y Administrador todos; Líder su equipo. */
-export const usuariosVisibles = cache(async (userId: string, rol: Rol): Promise<UsuarioEquipo[]> => {
-  if (rol === "CEO" || rol === "ADMINISTRADOR") return todosLosUsuarios();
-  return equipoVisible(userId, rol);
-});
+/** Usuarios cuyos DATOS (nombre, email, rol, equipo) puede ver: él y los de abajo (la CEO, todos). */
+export const usuariosVisibles = cache(async (userId: string, rol: Rol): Promise<UsuarioEquipo[]> =>
+  equipoVisible(userId, rol)
+);
 
 /** ¿Puede ver lo de `agenteId` (actividad, propiedades con dueño, contactos)? */
 export async function puedeVerAgente(sesion: SessionPayload, agenteId: string): Promise<boolean> {
