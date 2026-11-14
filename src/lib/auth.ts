@@ -14,6 +14,11 @@ export type SessionPayload = {
   userId: string;
   nombre: string;
   rol: "AGENTE" | "TEAM_LEADER" | "ADMINISTRADOR" | "CEO";
+  /**
+   * "Entrar como": la CEO está usando Orion con el usuario `userId`. Acá
+   * queda el id de la CEO para poder volver a su usuario.
+   */
+  suplantadoPor?: string;
 };
 
 // recordar = true: la sesión dura 30 días en ese dispositivo.
@@ -55,6 +60,15 @@ export const obtenerSesion = cache(async (): Promise<SessionPayload | null> => {
     .from(usuarios)
     .where(eq(usuarios.id, payload.userId));
   if (!u || !u.activo || !u.aprobado) return null;
+  if (payload.suplantadoPor) {
+    // Solo vale mientras quien entró siga siendo la CEO.
+    const [ceo] = await db
+      .select({ rol: usuarios.rol, activo: usuarios.activo })
+      .from(usuarios)
+      .where(eq(usuarios.id, payload.suplantadoPor));
+    if (!ceo || ceo.rol !== "CEO" || !ceo.activo) return null;
+    return { userId: payload.userId, nombre: u.nombre, rol: u.rol, suplantadoPor: payload.suplantadoPor };
+  }
   return { userId: payload.userId, nombre: u.nombre, rol: u.rol };
 });
 
