@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { db } from "@/db";
-import { propiedades, usuarios } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { propiedades } from "@/db/schema";
+import { obtenerSesion } from "@/lib/auth";
+import { equipoVisible, esSupervisor } from "@/lib/permisos";
 import { and, eq, getTableColumns } from "drizzle-orm";
 import { MINIMO_PROPIEDADES_ACTIVAS } from "@/lib/pipeline";
 import { armarTarjetasPipeline } from "@/lib/pipeline-datos";
@@ -14,15 +15,14 @@ export default async function PipelinePage({
   searchParams: Promise<{ agente?: string }>;
 }) {
   const sesion = await obtenerSesion();
-  const admin = esAdmin(sesion!.rol);
+  // CEO, Administrador y Líder pueden ver el Pipeline de su equipo.
+  const admin = esSupervisor(sesion!.rol);
   const params = await searchParams;
 
   const agentes = admin
-    ? await db
-        .select({ id: usuarios.id, nombre: usuarios.nombre, rol: usuarios.rol })
-        .from(usuarios)
-        .where(eq(usuarios.activo, true))
-        .orderBy(usuarios.nombre)
+    ? (await equipoVisible(sesion!.userId, sesion!.rol))
+        .filter((u) => u.activo)
+        .map((u) => ({ id: u.id, nombre: u.nombre, rol: u.rol }))
     : [];
 
   const agenteObjetivoId =

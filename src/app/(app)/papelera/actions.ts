@@ -4,7 +4,8 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { papelera } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { esCEO } from "@/lib/permisos";
 import { asegurarTablaPapelera, restaurarDePapelera } from "@/lib/papelera";
 
 export async function restaurar(
@@ -20,7 +21,7 @@ export async function restaurar(
     .where(eq(papelera.id, id));
   if (!item) return { ok: false, error: "Ya no está en la papelera." };
   // Cada uno restaura lo suyo; Team Leader / Administrador, lo de cualquiera.
-  if (item.agenteId !== sesion.userId && !esAdmin(sesion.rol)) {
+  if (item.agenteId !== sesion.userId && !esCEO(sesion.rol)) {
     return { ok: false, error: "Solo el agente a cargo puede restaurarlo." };
   }
 

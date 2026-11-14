@@ -8,7 +8,8 @@ import {
   usuarios,
   consultasPropiedad,
 } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { esCEO, puedeVerAgente, usuariosVisibles, veDatosDeContacto } from "@/lib/permisos";
 import { eq, desc, sql } from "drizzle-orm";
 import { limpiarTitulo, ESTADO_LABEL, ESTADO_COLOR } from "@/lib/propiedades";
 import { armarTarjetasPipeline } from "@/lib/pipeline-datos";
@@ -82,14 +83,18 @@ export default async function PropiedadDetallePage({
   if (!propiedad) notFound();
 
   // Todos pueden ver cualquier propiedad, pero solo el agente a cargo la
-  // edita. En las ajenas se oculta el contacto del dueño y se muestra el
-  // agente a cargo para coordinar con él.
+  // edita. En las ajenas: el dueño lo ve el jefe de ese agente (CEO,
+  // Administrador o Líder de su equipo), con teléfono y email solo la CEO;
+  // los datos del agente a cargo, quien puede ver los datos de ese usuario.
   const esPropia = propiedad.agenteId === sesion.userId;
+  const veDueno = esPropia || (await puedeVerAgente(sesion, propiedad.agenteId));
+  const veDatosDueno = veDatosDeContacto(sesion, propiedad.agenteId);
+  const veDatosAgente = (await usuariosVisibles(sesion.userId, sesion.rol)).some((u) => u.id === propiedad.agenteId);
   const encuestas = esPropia ? await encuestasDePropiedad(propiedad.id) : [];
   const respuestasEncuestas = encuestas.flatMap((e) => (e.respuestas ? [e.respuestas] : []));
 
   const [dueno, agenteACargo, portales] = await Promise.all([
-    esPropia
+    veDueno
       ? db.select().from(contactos).where(eq(contactos.id, propiedad.duenoId)).then((r) => r[0])
       : Promise.resolve(undefined),
     db
@@ -412,7 +417,7 @@ export default async function PropiedadDetallePage({
                   />
                 </div>
               )}
-              {esPropia && dueno && (
+              {veDueno && dueno && (
                 <div className={tarjeta}>
                   <p className={subtitulo}>Dueño</p>
                   <Link
@@ -421,7 +426,10 @@ export default async function PropiedadDetallePage({
                   >
                     {dueno.nombre}
                   </Link>
-                  {dueno.telefono && (
+                  {!veDatosDueno && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">📵 Teléfono y email ocultos</p>
+                  )}
+                  {veDatosDueno && dueno.telefono && (
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-gray-600 dark:text-gray-300">📞 {dueno.telefono}</p>
                       <BotonWhatsApp
@@ -432,20 +440,20 @@ export default async function PropiedadDetallePage({
                       />
                     </div>
                   )}
-                  {dueno.email && <p className="text-sm text-gray-600 dark:text-gray-300">✉️ {dueno.email}</p>}
+                  {veDatosDueno && dueno.email && <p className="text-sm text-gray-600 dark:text-gray-300">✉️ {dueno.email}</p>}
                 </div>
               )}
               {!esPropia && agenteACargo && (
                 <div className={tarjeta}>
                   <p className={subtitulo}>Agente a cargo</p>
                   <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{agenteACargo.nombre}</p>
-                  {agenteACargo.telefono && (
+                  {veDatosAgente && agenteACargo.telefono && (
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-gray-600 dark:text-gray-300">📞 {agenteACargo.telefono}</p>
                       <BotonWhatsApp telefono={agenteACargo.telefono} nombre={agenteACargo.nombre} />
                     </div>
                   )}
-                  {agenteACargo.email && (
+                  {veDatosAgente && agenteACargo.email && (
                     <p className="text-sm text-gray-600 dark:text-gray-300">✉️ {agenteACargo.email}</p>
                   )}
                 </div>
@@ -516,7 +524,7 @@ export default async function PropiedadDetallePage({
                 nota: c.nota,
                 fecha: fechaConsulta(c.creadoEn),
                 agente: c.agente ?? "",
-                puedeBorrar: c.agenteId === sesion.userId || esAdmin(sesion.rol),
+                puedeBorrar: c.agenteId === sesion.userId || esCEO(sesion.rol),
               }))}
             />
           </div>

@@ -1,4 +1,5 @@
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { esCEO } from "@/lib/permisos";
 import { VARIABLES_AYUDA } from "@/lib/plantillas-whatsapp";
 import { listarPlantillas } from "./actions";
 import { ListaMensajes } from "./lista-mensajes";
@@ -6,7 +7,7 @@ import { ListaMensajes } from "./lista-mensajes";
 export default async function MensajesPage() {
   const sesion = await obtenerSesion();
   if (!sesion) return null;
-  const admin = esAdmin(sesion.rol);
+  const admin = esCEO(sesion.rol);
   const plantillas = await listarPlantillas();
 
   return (

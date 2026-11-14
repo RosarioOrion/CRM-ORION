@@ -1,6 +1,10 @@
 import "server-only";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { cache } from "react";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { usuarios } from "@/db/schema";
 
 const COOKIE_NAME = "orion_session";
 const secretKey = process.env.AUTH_SECRET || "dev-secret-change-me";
@@ -9,7 +13,7 @@ const key = new TextEncoder().encode(secretKey);
 export type SessionPayload = {
   userId: string;
   nombre: string;
-  rol: "AGENTE" | "TEAM_LEADER" | "ADMINISTRADOR";
+  rol: "AGENTE" | "TEAM_LEADER" | "ADMINISTRADOR" | "CEO";
 };
 
 // recordar = true: la sesión dura 30 días en ese dispositivo.
@@ -31,28 +35,33 @@ export async function crearSesion(payload: SessionPayload, recordar = true) {
   });
 }
 
-export async function obtenerSesion(): Promise<SessionPayload | null> {
+/**
+ * Usuario logueado. El rol y el nombre se leen de la base en cada pedido (no
+ * del token), así un cambio de rol o una baja se aplican al momento sin
+ * volver a entrar; un usuario desactivado queda afuera.
+ */
+export const obtenerSesion = cache(async (): Promise<SessionPayload | null> => {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
+  let payload: SessionPayload;
   try {
-    const { payload } = await jwtVerify(token, key);
-    return payload as unknown as SessionPayload;
+    payload = (await jwtVerify(token, key)).payload as unknown as SessionPayload;
   } catch {
     return null;
   }
-}
+  const [u] = await db
+    .select({ nombre: usuarios.nombre, rol: usuarios.rol, activo: usuarios.activo, aprobado: usuarios.aprobado })
+    .from(usuarios)
+    .where(eq(usuarios.id, payload.userId));
+  if (!u || !u.activo || !u.aprobado) return null;
+  return { userId: payload.userId, nombre: u.nombre, rol: u.rol };
+});
 
 export async function cerrarSesion() {
   const cookieStore = await cookies();
   cookieStore.delete(COOKIE_NAME);
 }
 
-// Team Leader y Administrador tienen el mismo nivel de acceso "jefe":
-// crear/aprobar usuarios, ver la actividad del equipo y usar las
-// herramientas internas (como /admin/migrar).
-export function esAdmin(rol: SessionPayload["rol"] | undefined | null) {
-  return rol === "TEAM_LEADER" || rol === "ADMINISTRADOR";
-}
 
 export { COOKIE_NAME };

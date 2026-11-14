@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { obtenerSesion, cerrarSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion, cerrarSesion } from "@/lib/auth";
+import { esCEO, esSupervisor, ROL_LABEL } from "@/lib/permisos";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { MenuLateral } from "@/components/menu-lateral";
 import { AccionesRapidas } from "@/components/acciones-rapidas";
@@ -26,10 +27,12 @@ const NAV = [
   { href: "/papelera", label: "Papelera", icon: "🗑️" },
 ];
 
+// Productividad y Usuarios: CEO, Administrador y Líder (cada uno ve lo
+// que le corresponde). Ajustes: solo la CEO.
 const NAV_ADMIN = [
-  { href: "/productividad", label: "Productividad", icon: "📈" },
-  { href: "/admin/usuarios", label: "Usuarios", icon: "🛡️" },
-  { href: "/ajustes", label: "Ajustes", icon: "⚙️" },
+  { href: "/productividad", label: "Productividad", icon: "📈", soloCEO: false },
+  { href: "/admin/usuarios", label: "Usuarios", icon: "🛡️", soloCEO: false },
+  { href: "/ajustes", label: "Ajustes", icon: "⚙️", soloCEO: true },
 ];
 
 export default async function AppLayout({
@@ -61,8 +64,8 @@ export default async function AppLayout({
               <span>{item.label}</span>
             </Link>
           ))}
-          {esAdmin(sesion.rol) &&
-            NAV_ADMIN.map((item) => (
+          {esSupervisor(sesion.rol) &&
+            NAV_ADMIN.filter((item) => !item.soloCEO || esCEO(sesion.rol)).map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -82,7 +85,7 @@ export default async function AppLayout({
         <div className="border-t border-white/10 px-4 py-4">
           <Link href="/perfil" className="block rounded-lg -mx-1 px-1 py-0.5 transition hover:bg-white/10">
             <p className="text-sm font-medium">{sesion.nombre}</p>
-            <p className="text-xs text-white/50">{rolLegible(sesion.rol)}</p>
+            <p className="text-xs text-white/50">{ROL_LABEL[sesion.rol]}</p>
           </Link>
           <form action={cerrarYRedirigir}>
             <button
@@ -107,11 +110,6 @@ export default async function AppLayout({
   );
 }
 
-function rolLegible(rol: string) {
-  if (rol === "TEAM_LEADER") return "Team Leader";
-  if (rol === "ADMINISTRADOR") return "Administrador";
-  return "Agente";
-}
 
 async function cerrarYRedirigir() {
   "use server";

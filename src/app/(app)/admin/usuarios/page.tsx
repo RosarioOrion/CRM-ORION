@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { usuarios, propiedades, captaciones, visitas, comisiones } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { esCEO, esSupervisor, usuariosVisibles } from "@/lib/permisos";
 import { obtenerNivelesComision } from "@/lib/comisiones";
 import { eq, and, count, isNull, sql } from "drizzle-orm";
 import { Pendientes } from "./pendientes";
@@ -10,9 +11,12 @@ import { NuevoUsuarioForm } from "./nuevo-usuario-form";
 
 export default async function UsuariosPage() {
   const sesion = await obtenerSesion();
-  if (!sesion || !esAdmin(sesion.rol)) {
+  if (!sesion || !esSupervisor(sesion.rol)) {
     redirect("/dashboard");
   }
+  // La CEO gestiona; el Administrador ve a todos y el Líder a su equipo, sin cambiar nada.
+  const ceo = esCEO(sesion.rol);
+  const visibles = new Set((await usuariosVisibles(sesion.userId, sesion.rol)).map((u) => u.id));
 
   const [
     pendientes,
@@ -44,6 +48,7 @@ export default async function UsuariosPage() {
           rol: usuarios.rol,
           activo: usuarios.activo,
           nivelComision: usuarios.nivelComision,
+          teamLeaderId: usuarios.teamLeaderId,
         })
         .from(usuarios)
         .where(eq(usuarios.aprobado, true))
@@ -80,7 +85,7 @@ export default async function UsuariosPage() {
     facturacionPorAgente.map((f) => [f.beneficiarioId, Number(f.total)])
   );
 
-  const agentes = activos.map((a) => ({
+  const agentes = activos.filter((a) => visibles.has(a.id)).map((a) => ({
     ...a,
     propiedadesActivas: mapaPropiedades.get(a.id) ?? 0,
     captaciones: mapaCaptaciones.get(a.id) ?? 0,
@@ -94,19 +99,25 @@ export default async function UsuariosPage() {
         Usuarios
       </h1>
       <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-        Aprobá las solicitudes de nuevos agentes, dales de alta a mano y mirá
-        de un vistazo qué tiene cada uno en marcha.
+        {ceo
+          ? "Aprobá las solicitudes de nuevos agentes, dales de alta, armá los equipos (Responsable) y mirá qué tiene cada uno en marcha."
+          : sesion.rol === "ADMINISTRADOR"
+          ? "Los usuarios de Orion y qué tiene cada uno en marcha. Los cambios los hace la CEO."
+          : "Tu equipo y qué tiene cada uno en marcha. Los cambios los hace la CEO."}
       </p>
 
-      <div className="mb-10">
-        <h2 className="mb-3 text-lg font-semibold text-orion-navy dark:text-white">
-          Solicitudes pendientes de aprobación ({pendientes.length})
-        </h2>
-        <Pendientes pendientesIniciales={pendientes} />
-      </div>
-
-      <NuevoUsuarioForm />
-      <TablaAgentes agentes={agentes} usuarioActualId={sesion.userId} niveles={niveles} />
+      {ceo && (
+        <>
+          <div className="mb-10">
+            <h2 className="mb-3 text-lg font-semibold text-orion-navy dark:text-white">
+              Solicitudes pendientes de aprobación ({pendientes.length})
+            </h2>
+            <Pendientes pendientesIniciales={pendientes} />
+          </div>
+          <NuevoUsuarioForm />
+        </>
+      )}
+      <TablaAgentes agentes={agentes} usuarioActualId={sesion.userId} niveles={niveles} puedeGestionar={ceo} />
     </div>
   );
 }

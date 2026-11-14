@@ -1,14 +1,18 @@
 import { db } from "@/db";
 import { reservasAlquiler, usuarios } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
-import { eq, desc } from "drizzle-orm";
+import { obtenerSesion } from "@/lib/auth";
+import { equipoVisible, esCEO, esSupervisor } from "@/lib/permisos";
+import { eq, desc, inArray } from "drizzle-orm";
 import { NuevaReservaAlquilerForm } from "./nueva-reserva-alquiler-form";
 import { TablaReservasAlquiler } from "./tabla-reservas-alquiler";
 
 export default async function ReservasAlquilerPage() {
   const sesion = await obtenerSesion();
   if (!sesion) return null;
-  const admin = esAdmin(sesion.rol);
+  // CEO: todas; Administrador y Líder: las de su equipo; agente: las suyas.
+  // Editar las de otro: solo la CEO.
+  const admin = esSupervisor(sesion.rol);
+  const visibles = (await equipoVisible(sesion.userId, sesion.rol)).map((u) => u.id);
 
   const filas = await db
     .select({
@@ -25,12 +29,12 @@ export default async function ReservasAlquilerPage() {
     })
     .from(reservasAlquiler)
     .innerJoin(usuarios, eq(reservasAlquiler.agenteId, usuarios.id))
-    .where(admin ? undefined : eq(reservasAlquiler.agenteId, sesion.userId))
+    .where(esCEO(sesion.rol) ? undefined : inArray(reservasAlquiler.agenteId, visibles))
     .orderBy(desc(reservasAlquiler.creadoEn));
 
   const reservas = filas.map((r) => ({
     ...r,
-    puedeEditar: admin || r.agenteId === sesion.userId,
+    puedeEditar: esCEO(sesion.rol) || r.agenteId === sesion.userId,
   }));
 
   return (

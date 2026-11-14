@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { esCEO } from "@/lib/permisos";
 import { obtenerConfiguracion } from "./actions";
 import { EditarConfiguracionForm } from "./editar-configuracion-form";
 import { NivelesComision } from "./niveles-comision";
@@ -8,7 +9,7 @@ import { obtenerNivelesComision } from "@/lib/comisiones";
 export default async function AjustesPage() {
   const sesion = await obtenerSesion();
   if (!sesion) notFound();
-  if (!esAdmin(sesion.rol)) redirect("/perfil");
+  if (!esCEO(sesion.rol)) redirect("/perfil");
 
   const [config, niveles] = await Promise.all([
     obtenerConfiguracion(),

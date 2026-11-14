@@ -5,6 +5,13 @@ import { db } from "@/db";
 // servidor (antes de atender a nadie), para no depender del botón
 // "Migración". Cada sentencia es segura de repetir.
 const SENTENCIAS = [
+  // Rol CEO (la fundadora). Se le asigna al usuario más antiguo con rol de
+  // jefe, una sola vez: si ya hay un CEO no se toca.
+  sql`ALTER TYPE rol ADD VALUE IF NOT EXISTS 'CEO'`,
+  sql`UPDATE usuarios SET rol = 'CEO'
+      WHERE id = (SELECT id FROM usuarios WHERE rol IN ('ADMINISTRADOR', 'TEAM_LEADER') AND activo
+                  ORDER BY creado_en LIMIT 1)
+        AND NOT EXISTS (SELECT 1 FROM usuarios WHERE rol = 'CEO')`,
   sql`ALTER TABLE contactos ADD COLUMN IF NOT EXISTS roles jsonb NOT NULL DEFAULT '[]'`,
   sql`ALTER TABLE contactos ADD COLUMN IF NOT EXISTS frio_desde timestamp`,
   sql`CREATE TABLE IF NOT EXISTS seguimientos (

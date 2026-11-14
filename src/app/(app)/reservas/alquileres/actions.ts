@@ -5,7 +5,8 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { reservasAlquiler, usuarios, comisiones } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { esCEO } from "@/lib/permisos";
 import { ESTADOS_RESERVA_ALQUILER, type EstadoReservaAlquiler } from "@/lib/reservas";
 import { calcularReparto, obtenerNivelesComision, resolverNivel } from "@/lib/comisiones";
 
@@ -113,7 +114,7 @@ export async function cambiarEstadoReservaAlquiler(
     .where(eq(reservasAlquiler.id, reservaId));
   if (!reserva) return;
 
-  const admin = esAdmin(sesion.rol);
+  const admin = esCEO(sesion.rol);
   if (reserva.agenteId !== sesion.userId && !admin) return;
 
   // "La firma del alquiler la marca Dirección" — igual que en Lumen OS,

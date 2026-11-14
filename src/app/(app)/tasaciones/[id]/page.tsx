@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { tasaciones, usuarios } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { puedeVerAgente } from "@/lib/permisos";
 import { eq } from "drizzle-orm";
 import { OPCIONES_ESTADO, OPCIONES_UBICACION, calcularTasacion } from "@/lib/tasaciones";
 import { EliminarTasacionBoton } from "../eliminar-tasacion-boton";
@@ -51,7 +52,7 @@ export default async function TasacionDetallePage({
     .where(eq(tasaciones.id, id));
 
   if (!tasacion) notFound();
-  if (tasacion.agenteId !== sesion.userId && !esAdmin(sesion.rol)) notFound();
+  if (!(await puedeVerAgente(sesion, tasacion.agenteId))) notFound();
 
   const resultado = calcularTasacion(
     tasacion.comparables,

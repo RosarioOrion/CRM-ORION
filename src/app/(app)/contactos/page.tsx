@@ -2,6 +2,8 @@ import Link from "next/link";
 import { db } from "@/db";
 import { contactos, seguimientos } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
+import { equipoVisible, esSupervisor, veDatosDeContacto } from "@/lib/permisos";
+import { SelectorAgente } from "../agenda/selector-agente";
 import { eq, desc, and, or, ilike, inArray, sql } from "drizzle-orm";
 import { NuevoContactoForm } from "./nuevo-contacto-form";
 import {
@@ -23,7 +25,7 @@ const TABS: { key: string; label: string }[] = [
 export default async function ContactosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; tab?: string; nuevo?: string }>;
+  searchParams: Promise<{ q?: string; tab?: string; nuevo?: string; agente?: string }>;
 }) {
   const params = await searchParams;
   const q = params.q?.trim() ?? "";
@@ -32,7 +34,16 @@ export default async function ContactosPage({
 
   const sesion = await obtenerSesion();
 
-  const condiciones = [eq(contactos.agenteId, sesion!.userId)];
+  // CEO, Administrador y Líder pueden ver los contactos de alguien de su
+  // equipo (solo lectura). Teléfono y email solo los ve la CEO.
+  const equipo = esSupervisor(sesion!.rol)
+    ? (await equipoVisible(sesion!.userId, sesion!.rol)).filter((u) => u.id !== sesion!.userId && u.activo)
+    : [];
+  const agenteVista = params.agente && equipo.some((u) => u.id === params.agente) ? params.agente : sesion!.userId;
+  const viendoOtro = agenteVista !== sesion!.userId;
+  const verDatos = veDatosDeContacto(sesion!, agenteVista);
+
+  const condiciones = [eq(contactos.agenteId, agenteVista)];
   if (tabActivo === "activos") {
     condiciones.push(eq(contactos.archivado, false));
   } else {
@@ -52,11 +63,13 @@ export default async function ContactosPage({
   }
   if (q) {
     condiciones.push(
-      or(
-        ilike(contactos.nombre, `%${q}%`),
-        ilike(contactos.telefono, `%${q}%`),
-        ilike(contactos.email, `%${q}%`)
-      )!
+      verDatos
+        ? or(
+            ilike(contactos.nombre, `%${q}%`),
+            ilike(contactos.telefono, `%${q}%`),
+            ilike(contactos.email, `%${q}%`)
+          )!
+        : ilike(contactos.nombre, `%${q}%`)
     );
   }
 
@@ -79,7 +92,7 @@ export default async function ContactosPage({
         proximaFecha: seguimientos.proximaFecha,
       })
       .from(seguimientos)
-      .where(eq(seguimientos.agenteId, sesion!.userId));
+      .where(eq(seguimientos.agenteId, agenteVista));
     for (const sg of segs) {
       if (!porContacto.has(sg.contactoId)) porContacto.set(sg.contactoId, []);
       porContacto.get(sg.contactoId)!.push(sg);
@@ -108,6 +121,7 @@ export default async function ContactosPage({
     const sp = new URLSearchParams();
     sp.set("tab", tab);
     if (q) sp.set("q", q);
+    if (viendoOtro) sp.set("agente", agenteVista);
     return `/contactos?${sp.toString()}`;
   }
 
@@ -125,11 +139,12 @@ export default async function ContactosPage({
 
         <form action="/contactos" method="GET" className="flex items-center gap-2">
           <input type="hidden" name="tab" value={tabActivo} />
+          {viendoOtro && <input type="hidden" name="agente" value={agenteVista} />}
           <input
             type="search"
             name="q"
             defaultValue={q}
-            placeholder="Buscar por nombre, teléfono o email..."
+            placeholder={verDatos ? "Buscar por nombre, teléfono o email..." : "Buscar por nombre..."}
             className="w-72 rounded-lg border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-orion-navy dark:border-gray-700 dark:bg-gray-800 dark:text-white"
           />
           <button
@@ -141,9 +156,28 @@ export default async function ContactosPage({
         </form>
       </div>
 
-      <div className="mb-6">
-        <NuevoContactoForm key={params.nuevo ?? ""} abiertoInicial={params.nuevo === "1"} />
-      </div>
+      {equipo.length > 0 && (
+        <div className="mb-4">
+          <SelectorAgente
+            valor={viendoOtro ? agenteVista : "yo"}
+            agentes={equipo.map((u) => ({ id: u.id, nombre: u.nombre }))}
+            etiqueta="Ver contactos de:"
+            propio="Mis contactos"
+            conTodos={false}
+          />
+          {viendoOtro && !verDatos && (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Solo lectura. El teléfono y el email de los contactos de otros agentes no se muestran.
+            </p>
+          )}
+        </div>
+      )}
+
+      {!viendoOtro && (
+        <div className="mb-6">
+          <NuevoContactoForm key={params.nuevo ?? ""} abiertoInicial={params.nuevo === "1"} />
+        </div>
+      )}
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {TABS.map((t) => (
@@ -213,9 +247,9 @@ export default async function ContactosPage({
                   ) : null;
                 })()}
                 <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">
-                  {c.telefono || "Sin teléfono"}
+                  {verDatos ? c.telefono || "Sin teléfono" : "📵 Teléfono oculto"}
                 </p>
-                {c.email && (
+                {verDatos && c.email && (
                   <p className="truncate text-xs text-gray-500 dark:text-gray-400">
                     {c.email}
                   </p>

@@ -4,13 +4,14 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { documentosCapacitacion } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { esCEO } from "@/lib/permisos";
 import { esTipoMaterial } from "@/lib/capacitacion";
 import { asegurarColumnaTipo } from "./datos";
 
 async function requerirAdmin() {
   const sesion = await obtenerSesion();
-  if (!sesion || !esAdmin(sesion.rol)) {
+  if (!sesion || !esCEO(sesion.rol)) {
     throw new Error("No autorizado.");
   }
   return sesion;

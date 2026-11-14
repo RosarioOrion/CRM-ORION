@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import {
-  usuarios,
   contactos,
   propiedades,
   visitas,
@@ -9,7 +8,8 @@ import {
   reservasAlquiler,
   comisiones,
 } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { equipoVisible, esSupervisor, ROL_LABEL } from "@/lib/permisos";
 import { eq, and, or, gte, inArray, count } from "drizzle-orm";
 import {
   PERIODOS_PRODUCTIVIDAD,
@@ -25,7 +25,7 @@ export default async function ProductividadPage({
   searchParams: Promise<{ periodo?: string }>;
 }) {
   const sesion = await obtenerSesion();
-  if (!sesion || !esAdmin(sesion.rol)) {
+  if (!sesion || !esSupervisor(sesion.rol)) {
     redirect("/dashboard");
   }
 
@@ -38,11 +38,10 @@ export default async function ProductividadPage({
 
   const inicio = inicioPeriodo(periodo);
 
-  const agentes = await db
-    .select({ id: usuarios.id, nombre: usuarios.nombre, rol: usuarios.rol })
-    .from(usuarios)
-    .where(eq(usuarios.activo, true))
-    .orderBy(usuarios.nombre);
+  // CEO: todo el equipo; Administrador y Líder: las personas a su cargo.
+  const agentes = (await equipoVisible(sesion.userId, sesion.rol))
+    .filter((u) => u.activo)
+    .map((u) => ({ id: u.id, nombre: u.nombre, rol: u.rol }));
 
   const [
     contactosNuevos,
@@ -135,12 +134,6 @@ export default async function ProductividadPage({
     }),
     { contactos: 0, publicaciones: 0, visitas: 0, reservasFirmadas: 0, pipeline: 0, comisionUsd: 0 }
   );
-
-  const ROL_LABEL: Record<string, string> = {
-    AGENTE: "Agente",
-    TEAM_LEADER: "Team Leader",
-    ADMINISTRADOR: "Administrador",
-  };
 
   return (
     <div>

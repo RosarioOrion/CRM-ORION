@@ -4,7 +4,8 @@ import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { propiedades } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { esCEO } from "@/lib/permisos";
 import { esGuardable, ubicarPropiedad, type Precision } from "@/lib/geocodificar";
 
 // Propiedades disponibles que quedaron sin ubicación en el mapa: se buscan
@@ -25,7 +26,7 @@ export type ResultadoUbicacion = { id: string; codigo: string; precision: Precis
 
 async function requerirAdmin() {
   const sesion = await obtenerSesion();
-  if (!sesion || !esAdmin(sesion.rol)) throw new Error("No autorizado.");
+  if (!sesion || !esCEO(sesion.rol)) throw new Error("No autorizado.");
 }
 
 export async function listarSinUbicacion(): Promise<PropiedadSinUbicacion[]> {

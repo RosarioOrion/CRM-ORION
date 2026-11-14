@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { db } from "@/db";
 import { tasaciones, usuarios } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
-import { eq, desc } from "drizzle-orm";
+import { obtenerSesion } from "@/lib/auth";
+import { equipoVisible, esSupervisor } from "@/lib/permisos";
+import { eq, desc, inArray } from "drizzle-orm";
 
 export default async function TasacionesPage() {
   const sesion = await obtenerSesion();
   if (!sesion) return null;
-  const admin = esAdmin(sesion.rol);
+  // CEO: todas; Administrador y Líder: las de su equipo; agente: las suyas.
+  const admin = esSupervisor(sesion.rol);
+  const visibles = (await equipoVisible(sesion.userId, sesion.rol)).map((u) => u.id);
 
   const columnas = {
     id: tasaciones.id,
@@ -21,18 +24,12 @@ export default async function TasacionesPage() {
     agenteNombre: usuarios.nombre,
   };
 
-  const filas = admin
-    ? await db
-        .select(columnas)
-        .from(tasaciones)
-        .innerJoin(usuarios, eq(tasaciones.agenteId, usuarios.id))
-        .orderBy(desc(tasaciones.creadoEn))
-    : await db
-        .select(columnas)
-        .from(tasaciones)
-        .innerJoin(usuarios, eq(tasaciones.agenteId, usuarios.id))
-        .where(eq(tasaciones.agenteId, sesion.userId))
-        .orderBy(desc(tasaciones.creadoEn));
+  const filas = await db
+    .select(columnas)
+    .from(tasaciones)
+    .innerJoin(usuarios, eq(tasaciones.agenteId, usuarios.id))
+    .where(inArray(tasaciones.agenteId, visibles))
+    .orderBy(desc(tasaciones.creadoEn));
 
   return (
     <div>

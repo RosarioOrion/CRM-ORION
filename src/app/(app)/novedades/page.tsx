@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { novedades, usuarios } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { esCEO } from "@/lib/permisos";
 import { eq, desc } from "drizzle-orm";
 import { NuevaNovedadForm } from "./nueva-novedad-form";
 import { EliminarNovedadBoton } from "./eliminar-novedad-boton";
@@ -8,7 +9,7 @@ import { EliminarNovedadBoton } from "./eliminar-novedad-boton";
 export default async function NovedadesPage() {
   const sesion = await obtenerSesion();
   if (!sesion) return null;
-  const admin = esAdmin(sesion.rol);
+  const admin = esCEO(sesion.rol);
 
   const filas = await db
     .select({

@@ -13,7 +13,10 @@ import { relations } from "drizzle-orm";
 import { createId } from "@paralleldrive/cuid2";
 import type { RespuestasEncuesta } from "../lib/encuestas";
 
-export const rolEnum = pgEnum("rol", ["AGENTE", "TEAM_LEADER", "ADMINISTRADOR"]);
+// Roles, de menor a mayor acceso: Agente, Líder (TEAM_LEADER), Administrador
+// y CEO (la fundadora: acceso total, única que configura el CRM y gestiona
+// usuarios). Ver src/lib/permisos.ts.
+export const rolEnum = pgEnum("rol", ["AGENTE", "TEAM_LEADER", "ADMINISTRADOR", "CEO"]);
 export const estadoPropiedadEnum = pgEnum("estado_propiedad", [
       "ACTIVA",
       "RESERVADA",
@@ -36,6 +39,9 @@ export const usuarios = pgTable("usuarios", {
       passwordHash: text("password_hash").notNull(),
       telefono: text("telefono"),
       rol: rolEnum("rol").notNull().default("AGENTE"),
+      // Responsable directo (su Líder, o el Administrador de un Líder). Arma
+      // los equipos: cada uno ve a las personas que tiene a cargo. También
+      // recibe el override de comisión (src/lib/comisiones.ts).
       teamLeaderId: text("team_leader_id"),
       // Presentación / bio profesional que el agente carga al registrarse
       // (para su perfil dentro de Orion).

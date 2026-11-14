@@ -62,7 +62,7 @@ export function NuevoUsuarioForm() {
             className="rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
           >
             <option value="AGENTE">Agente</option>
-            <option value="TEAM_LEADER">Team Leader</option>
+            <option value="TEAM_LEADER">Líder</option>
             <option value="ADMINISTRADOR">Administrador</option>
           </select>
           <textarea

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { usuarios } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { ROL_LABEL } from "@/lib/permisos";
 import { obtenerSesion } from "@/lib/auth";
 import { CambiarPasswordForm } from "./cambiar-password-form";
 import { CambiarEmailForm } from "./cambiar-email-form";
@@ -10,11 +11,6 @@ import { ActivarRecordatorios } from "@/components/activar-recordatorios";
 import { ConectarGoogleCalendar } from "@/components/conectar-google-calendar";
 import { urlCalendario } from "@/lib/ics";
 
-const ROL_LABEL: Record<"AGENTE" | "TEAM_LEADER" | "ADMINISTRADOR", string> = {
-  AGENTE: "Agente",
-  TEAM_LEADER: "Team Leader",
-  ADMINISTRADOR: "Administrador",
-};
 
 export default async function PerfilPage() {
   const sesion = await obtenerSesion();

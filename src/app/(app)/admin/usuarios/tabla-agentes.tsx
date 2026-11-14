@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { cambiarRolUsuario, cambiarEstadoUsuario, cambiarNivelComisionUsuario } from "./actions";
+import {
+  cambiarRolUsuario,
+  cambiarEstadoUsuario,
+  cambiarNivelComisionUsuario,
+  cambiarResponsable,
+  eliminarUsuario,
+} from "./actions";
 
 // Nota: no importamos src/lib/comisiones.ts acá porque ese archivo toca la
 // base (drizzle/postgres) a nivel de módulo, y esto es un componente
@@ -28,8 +34,9 @@ type Agente = {
   nombre: string;
   email: string;
   telefono: string | null;
-  rol: "AGENTE" | "TEAM_LEADER" | "ADMINISTRADOR";
+  rol: "AGENTE" | "TEAM_LEADER" | "ADMINISTRADOR" | "CEO";
   activo: boolean;
+  teamLeaderId: string | null;
   nivelComision: string;
   propiedadesActivas: number;
   captaciones: number;
@@ -39,22 +46,37 @@ type Agente = {
 
 const ROL_LABEL: Record<Agente["rol"], string> = {
   AGENTE: "Agente",
-  TEAM_LEADER: "Team Leader",
+  TEAM_LEADER: "Líder",
   ADMINISTRADOR: "Administrador",
+  CEO: "CEO",
+};
+
+// Quién puede ser responsable (tener gente a cargo) según el rol.
+const PUEDE_SER_RESPONSABLE: Record<Agente["rol"], Agente["rol"][]> = {
+  AGENTE: ["TEAM_LEADER", "ADMINISTRADOR", "CEO"],
+  TEAM_LEADER: ["ADMINISTRADOR", "CEO"],
+  ADMINISTRADOR: ["CEO"],
+  CEO: [],
 };
 
 function formatoUsd(n: number) {
   return `USD ${Math.round(n).toLocaleString("es-UY")}`;
 }
 
+/**
+ * Usuarios y sus equipos. La CEO gestiona todo (rol, responsable, estado,
+ * nivel, eliminar); Administrador y Líder lo ven en solo lectura.
+ */
 export function TablaAgentes({
   agentes,
   usuarioActualId,
   niveles,
+  puedeGestionar,
 }: {
   agentes: Agente[];
   usuarioActualId: string;
   niveles: NivelConfig[];
+  puedeGestionar: boolean;
 }) {
   const [, startTransition] = useTransition();
   const [roles, setRoles] = useState<Record<string, Agente["rol"]>>(
@@ -63,6 +85,12 @@ export function TablaAgentes({
   const [estados, setEstados] = useState<Record<string, boolean>>(
     Object.fromEntries(agentes.map((a) => [a.id, a.activo]))
   );
+  const [responsables, setResponsables] = useState<Record<string, string>>(
+    Object.fromEntries(agentes.map((a) => [a.id, a.teamLeaderId ?? ""]))
+  );
+  const [eliminados, setEliminados] = useState<Set<string>>(new Set());
+  const [error, setError] = useState<string | null>(null);
+  const nombre = new Map(agentes.map((a) => [a.id, a.nombre]));
   const [nivelesPorAgente, setNivelesPorAgente] = useState<Record<string, string>>(
     Object.fromEntries(agentes.map((a) => [a.id, a.nivelComision]))
   );
@@ -81,6 +109,24 @@ export function TablaAgentes({
     });
   }
 
+  function handleResponsable(id: string, responsableId: string) {
+    setResponsables((r) => ({ ...r, [id]: responsableId }));
+    startTransition(async () => {
+      const r = await cambiarResponsable(id, responsableId || null);
+      if (r?.error) setError(r.error);
+    });
+  }
+
+  function handleEliminar(a: Agente) {
+    if (!window.confirm(`¿Eliminar a ${a.nombre}? No se puede deshacer.`)) return;
+    setError(null);
+    startTransition(async () => {
+      const r = await eliminarUsuario(a.id);
+      if (r.error) setError(r.error);
+      else setEliminados((s) => new Set(s).add(a.id));
+    });
+  }
+
   function handleNivelChange(id: string, nivel: string) {
     setNivelesPorAgente((n) => ({ ...n, [id]: nivel }));
     startTransition(() => {
@@ -88,23 +134,28 @@ export function TablaAgentes({
     });
   }
 
+  const sel = "rounded border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800";
   return (
+    <div>
+    {error && <p className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
     <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700">
       <table className="w-full text-left text-sm">
         <thead className="border-b border-gray-200 text-xs uppercase tracking-wide text-gray-400 dark:border-gray-700">
           <tr>
             <th className="px-4 py-3 font-semibold">Agente</th>
             <th className="px-4 py-3 font-semibold">Rol</th>
+            <th className="px-4 py-3 font-semibold">Responsable</th>
             <th className="px-4 py-3 font-semibold">Estado</th>
             <th className="px-4 py-3 font-semibold">Nivel comisión</th>
             <th className="px-4 py-3 font-semibold text-right">Facturación acumulada</th>
             <th className="px-4 py-3 font-semibold text-right">Propiedades activas</th>
             <th className="px-4 py-3 font-semibold text-right">Captaciones</th>
             <th className="px-4 py-3 font-semibold text-right">Visitas programadas</th>
+            {puedeGestionar && <th className="px-4 py-3" />}
           </tr>
         </thead>
         <tbody>
-          {agentes.map((a) => {
+          {agentes.filter((a) => !eliminados.has(a.id)).map((a) => {
             const sugerido = nivelSugerido(a.facturacionAcumulada, niveles);
             const nivelActual = nivelesPorAgente[a.id];
             // El escalafón es para agentes en progresión. Un Team Leader o
@@ -116,55 +167,74 @@ export function TablaAgentes({
             return (
               <tr key={a.id} className="border-b border-gray-100 last:border-0 dark:border-gray-700">
                 <td className="px-4 py-3">
-                  <Link
-                    href={`/admin/usuarios/${a.id}`}
-                    className="font-semibold text-orion-navy hover:underline dark:text-white"
-                  >
-                    {a.nombre}
-                  </Link>
+                  {puedeGestionar ? (
+                    <Link
+                      href={`/admin/usuarios/${a.id}`}
+                      className="font-semibold text-orion-navy hover:underline dark:text-white"
+                    >
+                      {a.nombre}
+                    </Link>
+                  ) : (
+                    <span className="font-semibold text-orion-navy dark:text-white">{a.nombre}</span>
+                  )}
                   <p className="text-xs text-gray-400">
                     {a.email}
                     {a.telefono ? ` · ${a.telefono}` : ""}
                   </p>
                 </td>
                 <td className="px-4 py-3">
-                  {a.id === usuarioActualId && roles[a.id] === "ADMINISTRADOR" ? (
-                    <span className="text-gray-500">{ROL_LABEL[roles[a.id]]}</span>
-                  ) : a.id === usuarioActualId ? (
-                    // Tu propio rol: solo se puede subir, no bajar.
-                    <select
-                      value={roles[a.id]}
-                      onChange={(e) => {
-                        const rol = e.target.value as Agente["rol"];
-                        if (
-                          rol !== roles[a.id] &&
-                          window.confirm(`¿Cambiar tu rol a ${ROL_LABEL[rol]}? Después no lo vas a poder bajar vos mismo.`)
-                        ) {
-                          handleRolChange(a.id, rol);
-                        }
-                      }}
-                      className="rounded border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
-                    >
-                      {roles[a.id] === "AGENTE" && <option value="AGENTE">Agente</option>}
-                      <option value="TEAM_LEADER">Team Leader</option>
-                      <option value="ADMINISTRADOR">Administrador</option>
-                    </select>
+                  {!puedeGestionar || roles[a.id] === "CEO" ? (
+                    <span className="text-gray-600 dark:text-gray-300">{ROL_LABEL[roles[a.id]]}</span>
                   ) : (
                     <select
                       value={roles[a.id]}
                       onChange={(e) => handleRolChange(a.id, e.target.value as Agente["rol"])}
-                      className="rounded border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
+                      className={sel}
                     >
                       <option value="AGENTE">Agente</option>
-                      <option value="TEAM_LEADER">Team Leader</option>
+                      <option value="TEAM_LEADER">Líder</option>
                       <option value="ADMINISTRADOR">Administrador</option>
                     </select>
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  {a.id === usuarioActualId ? (
-                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700 dark:bg-green-900/40 dark:text-green-400">
-                      Activo
+                  {!puedeGestionar || roles[a.id] === "CEO" ? (
+                    <span className="text-gray-600 dark:text-gray-300">
+                      {responsables[a.id] ? nombre.get(responsables[a.id]) ?? "—" : "—"}
+                    </span>
+                  ) : (
+                    <select
+                      value={responsables[a.id]}
+                      onChange={(e) => handleResponsable(a.id, e.target.value)}
+                      className={sel}
+                      aria-label={`Responsable de ${a.nombre}`}
+                    >
+                      <option value="">Sin asignar</option>
+                      {agentes
+                        .filter(
+                          (r) =>
+                            r.id !== a.id &&
+                            !eliminados.has(r.id) &&
+                            PUEDE_SER_RESPONSABLE[roles[a.id]].includes(roles[r.id])
+                        )
+                        .map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.nombre} ({ROL_LABEL[roles[r.id]]})
+                          </option>
+                        ))}
+                    </select>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  {a.id === usuarioActualId || !puedeGestionar ? (
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                        estados[a.id]
+                          ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400"
+                          : "bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                      }`}
+                    >
+                      {estados[a.id] ? "Activo" : "Inactivo"}
                     </span>
                   ) : (
                     <button
@@ -184,7 +254,8 @@ export function TablaAgentes({
                   <select
                     value={nivelActual}
                     onChange={(e) => handleNivelChange(a.id, e.target.value)}
-                    className="rounded border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
+                    disabled={!puedeGestionar}
+                    className={`${sel} disabled:opacity-70`}
                   >
                     {niveles.map((n) => (
                       <option key={n.clave} value={n.clave}>
@@ -192,7 +263,7 @@ export function TablaAgentes({
                       </option>
                     ))}
                   </select>
-                  {sugerirCambio && (
+                  {puedeGestionar && sugerirCambio && (
                     <p className="mt-1 text-[11px] text-orion-gold">
                       💡 Le correspondería {sugerido!.nombre}
                     </p>
@@ -210,11 +281,25 @@ export function TablaAgentes({
                 <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">
                   {a.visitasProgramadas}
                 </td>
+                {puedeGestionar && (
+                  <td className="px-4 py-3 text-right">
+                    {a.id !== usuarioActualId && roles[a.id] !== "CEO" && (
+                      <button
+                        type="button"
+                        onClick={() => handleEliminar(a)}
+                        className="text-xs text-gray-400 hover:text-red-600"
+                      >
+                        Eliminar
+                      </button>
+                    )}
+                  </td>
+                )}
               </tr>
             );
           })}
         </tbody>
       </table>
+    </div>
     </div>
   );
 }

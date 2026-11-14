@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { obtenerSesion } from "@/lib/auth";
+import { esCEO } from "@/lib/permisos";
 import { listarTitulosConCorchetes } from "./actions";
 import { EjecutarMigracionBoton } from "./ejecutar-boton";
 import { DiagnosticoFotos } from "./diagnostico-fotos";
@@ -7,7 +8,7 @@ import { UbicarPropiedades } from "./ubicar-propiedades";
 
 export default async function MigrarPage() {
   const sesion = await obtenerSesion();
-  if (!sesion || !esAdmin(sesion.rol)) {
+  if (!sesion || !esCEO(sesion.rol)) {
     redirect("/dashboard");
   }
 

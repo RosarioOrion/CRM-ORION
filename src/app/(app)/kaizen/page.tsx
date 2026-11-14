@@ -1,6 +1,7 @@
 import { db } from "@/db";
-import { kaizenTareas, kaizenCompletados, usuarios } from "@/db/schema";
-import { obtenerSesion, esAdmin } from "@/lib/auth";
+import { kaizenTareas, kaizenCompletados } from "@/db/schema";
+import { obtenerSesion } from "@/lib/auth";
+import { equipoVisible, esCEO, esSupervisor } from "@/lib/permisos";
 import { eq, and } from "drizzle-orm";
 import { lunesDeSemana } from "@/lib/kaizen";
 import { KaizenChecklist } from "./kaizen-checklist";
@@ -11,7 +12,10 @@ export default async function KaizenPage() {
   if (!sesion) return null;
 
   const semana = lunesDeSemana(new Date());
-  const admin = esAdmin(sesion.rol);
+  // Avance del equipo: CEO, Administrador y Líder (cada uno su equipo).
+  // Editar las tareas: solo la CEO.
+  const admin = esCEO(sesion.rol);
+  const verEquipo = esSupervisor(sesion.rol);
 
   const tareas = await db
     .select({
@@ -35,12 +39,8 @@ export default async function KaizenPage() {
     );
 
   let equipo: { nombre: string; completadas: number; total: number }[] = [];
-  if (admin) {
-    const agentes = await db
-      .select({ id: usuarios.id, nombre: usuarios.nombre })
-      .from(usuarios)
-      .where(eq(usuarios.activo, true))
-      .orderBy(usuarios.nombre);
+  if (verEquipo) {
+    const agentes = (await equipoVisible(sesion.userId, sesion.rol)).filter((u) => u.activo);
     const completadosSemana = await db
       .select({ agenteId: kaizenCompletados.agenteId, tareaId: kaizenCompletados.tareaId })
       .from(kaizenCompletados)
@@ -63,7 +63,7 @@ export default async function KaizenPage() {
 
       <KaizenChecklist tareas={tareas} completadasIds={misCompletados.map((c) => c.tareaId)} />
 
-      {admin && (
+      {verEquipo && (
         <div className="mt-10">
           <h2 className="mb-3 text-lg font-semibold text-orion-navy dark:text-white">
             Avance del equipo esta semana
@@ -92,9 +92,11 @@ export default async function KaizenPage() {
             </table>
           </div>
 
-          <div className="mt-8">
-            <KaizenAdmin tareas={tareas} />
-          </div>
+          {admin && (
+            <div className="mt-8">
+              <KaizenAdmin tareas={tareas} />
+            </div>
+          )}
         </div>
       )}
     </div>
