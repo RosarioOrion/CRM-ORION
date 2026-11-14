@@ -10,6 +10,8 @@ type Comision = {
   monto: number;
   pagada: boolean;
   beneficiarioNombre: string;
+  /** Línea de gastos de la empresa (sin beneficiario). */
+  esGasto: boolean;
   propiedadNombre: string;
   tipoOperacion: "VENTA" | "ALQUILER";
   creadoEn: string;
@@ -69,7 +71,11 @@ export function TablaComisiones({ comisiones, esAdmin }: { comisiones: Comision[
                   USD {c.monto.toLocaleString("es-UY")}
                 </td>
                 <td className="px-4 py-3">
-                  {esAdmin ? (
+                  {c.esGasto ? (
+                    <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
+                      Fondo de gastos
+                    </span>
+                  ) : esAdmin ? (
                     <button
                       type="button"
                       onClick={() => toggle(c.id, !pagada)}

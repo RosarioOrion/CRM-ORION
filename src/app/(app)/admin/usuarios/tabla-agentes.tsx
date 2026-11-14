@@ -158,12 +158,6 @@ export function TablaAgentes({
           {agentes.filter((a) => !eliminados.has(a.id)).map((a) => {
             const sugerido = nivelSugerido(a.facturacionAcumulada, niveles);
             const nivelActual = nivelesPorAgente[a.id];
-            // El escalafón es para agentes en progresión. Un Team Leader o
-            // Administrador puede estar fijo en Ejecutivo por su rol, sin
-            // importar su propia facturación — no tiene sentido sugerirle
-            // "bajar" de nivel.
-            const sugerirCambio =
-              a.rol === "AGENTE" && sugerido && sugerido.clave !== nivelActual;
             return (
               <tr key={a.id} className="border-b border-gray-100 last:border-0 dark:border-gray-700">
                 <td className="px-4 py-3">
@@ -251,6 +245,13 @@ export function TablaAgentes({
                   )}
                 </td>
                 <td className="px-4 py-3">
+                  {roles[a.id] === "AGENTE" ? (
+                    // Agentes: el nivel es automático según lo facturado.
+                    <span className="text-xs text-gray-700 dark:text-gray-200">
+                      {sugerido ? `${sugerido.nombre} (${sugerido.porcentaje}%)` : "—"}
+                      <span className="block text-[10px] text-gray-400">automático</span>
+                    </span>
+                  ) : (
                   <select
                     value={nivelActual}
                     onChange={(e) => handleNivelChange(a.id, e.target.value)}
@@ -263,10 +264,6 @@ export function TablaAgentes({
                       </option>
                     ))}
                   </select>
-                  {puedeGestionar && sugerirCambio && (
-                    <p className="mt-1 text-[11px] text-orion-gold">
-                      💡 Le correspondería {sugerido!.nombre}
-                    </p>
                   )}
                 </td>
                 <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">

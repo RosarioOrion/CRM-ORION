@@ -51,6 +51,27 @@ const SENTENCIAS = [
     creado_en timestamp NOT NULL DEFAULT now()
   )`,
   sql`CREATE INDEX IF NOT EXISTS consultas_propiedad_idx ON consultas_propiedad (propiedad_id, creado_en)`,
+  // Comisiones: la línea de gastos de la empresa no tiene beneficiario.
+  sql`ALTER TABLE comisiones ALTER COLUMN beneficiario_id DROP NOT NULL`,
+  // Escala de agentes definida por Rosario: Agente 40% desde 0, Asesor 45%
+  // desde USD 10.000, Ejecutivo 50% desde USD 20.000. Se aplica una sola vez
+  // (después se edita en Ajustes); "Agente Junior" pasa a ser "Agente".
+  sql`ALTER TABLE usuarios ALTER COLUMN nivel_comision SET DEFAULT 'AGENTE'`,
+  sql`CREATE TABLE IF NOT EXISTS datos_cargados (clave text PRIMARY KEY, creado_en timestamp NOT NULL DEFAULT now())`,
+  sql`DO $$ BEGIN
+    IF to_regclass('public.niveles_comision') IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM datos_cargados WHERE clave = 'escala-comisiones-agentes') THEN
+      DELETE FROM niveles_comision WHERE clave = 'AGENTE_JUNIOR';
+      INSERT INTO niveles_comision (id, clave, nombre, facturacion_minima, porcentaje) VALUES
+        (md5(random()::text), 'AGENTE', 'Agente', 0, 40),
+        (md5(random()::text), 'ASESOR', 'Asesor', 10000, 45),
+        (md5(random()::text), 'EJECUTIVO', 'Ejecutivo', 20000, 50)
+      ON CONFLICT (clave) DO UPDATE
+        SET nombre = EXCLUDED.nombre, facturacion_minima = EXCLUDED.facturacion_minima, porcentaje = EXCLUDED.porcentaje;
+      UPDATE usuarios SET nivel_comision = 'AGENTE' WHERE nivel_comision = 'AGENTE_JUNIOR';
+      INSERT INTO datos_cargados (clave) VALUES ('escala-comisiones-agentes');
+    END IF;
+  END $$`,
   // Objetivo mensual de comisiones de cada agente (Inicio).
   sql`CREATE TABLE IF NOT EXISTS objetivos_mensuales (
     id text PRIMARY KEY,

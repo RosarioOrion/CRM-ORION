@@ -4,7 +4,7 @@ import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { reservasVenta, usuarios, comisiones } from "@/db/schema";
+import { reservasVenta } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { esCEO } from "@/lib/permisos";
 import {
@@ -12,7 +12,7 @@ import {
   ESTADOS_VENTA_QUE_GENERAN_COMISION,
   type EstadoReservaVenta,
 } from "@/lib/reservas";
-import { calcularReparto, obtenerNivelesComision, resolverNivel } from "@/lib/comisiones";
+import { generarComisionesOperacion } from "@/lib/comisiones";
 
 const ReservaVentaSchema = z.object({
   nombrePropiedad: z.string().min(2, "Ingresá el nombre o dirección de la propiedad"),
@@ -142,50 +142,19 @@ export async function cambiarEstadoReservaVenta(
     ESTADOS_VENTA_QUE_GENERAN_COMISION.includes(nuevoEstado) && !reserva.comisionesGeneradas;
 
   if (generaComision) {
-    const [agente] = await db
-      .select({
-        id: usuarios.id,
-        nivelComision: usuarios.nivelComision,
-        teamLeaderId: usuarios.teamLeaderId,
-      })
-      .from(usuarios)
-      .where(eq(usuarios.id, reserva.agenteId));
+    const comVendedor =
+      reserva.comisionVendedor ?? Math.round((reserva.precioCierre * reserva.porcentajePorParte) / 100);
+    const comComprador =
+      reserva.comisionComprador ?? Math.round((reserva.precioCierre * reserva.porcentajePorParte) / 100);
+    const total = comVendedor + comComprador;
+    const generadas = await generarComisionesOperacion({
+      tipo: "VENTA",
+      reservaVentaId: reserva.id,
+      agenteId: reserva.agenteId,
+      comisionTotal: total,
+    });
 
-    if (agente) {
-      const comVendedor =
-        reserva.comisionVendedor ??
-        Math.round((reserva.precioCierre * reserva.porcentajePorParte) / 100);
-      const comComprador =
-        reserva.comisionComprador ??
-        Math.round((reserva.precioCierre * reserva.porcentajePorParte) / 100);
-      const total = comVendedor + comComprador;
-
-      const niveles = await obtenerNivelesComision();
-      const nivel = resolverNivel(agente.nivelComision, niveles);
-
-      const lineas = nivel
-        ? calcularReparto({
-            comisionTotal: total,
-            agenteId: agente.id,
-            pctAgente: nivel.porcentaje,
-            nivelLabel: nivel.nombre,
-            teamLeaderId: agente.teamLeaderId,
-          })
-        : [];
-
-      if (lineas.length > 0) {
-        await db.insert(comisiones).values(
-          lineas.map((l) => ({
-            tipoOperacion: "VENTA" as const,
-            reservaVentaId: reserva.id,
-            beneficiarioId: l.beneficiarioId,
-            concepto: l.concepto,
-            porcentaje: l.porcentaje,
-            monto: l.monto,
-          }))
-        );
-      }
-
+    if (generadas) {
       await db
         .update(reservasVenta)
         .set({ comisionesGeneradas: true })
