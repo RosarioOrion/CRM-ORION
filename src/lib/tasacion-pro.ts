@@ -12,7 +12,8 @@
 //   2. Superficie ponderada: cubierto 100%, semicubierto (galería, balcón
 //      techado) 50%, descubierto (terraza, patio) 30% y, en casas, el
 //      terreno libre al 10% (zona urbana) o 15% (balnearia / suburbana).
-//   3. Ajustes automáticos: tamaño (las más grandes bajan su valor unitario,
+//   3. Ajustes automáticos: iluminación y ventilación (±4% por punto),
+//      tamaño (las más grandes bajan su valor unitario,
 //      tope ±10%), garajes (±5% c/u), piscina (±5%), esquina (±8%) y, en
 //      campos, índice CONEAT.
 //   4. Resultado: valor probable de cierre, rango, precio sugerido de
@@ -62,17 +63,27 @@ export const CAMPOS: Record<
     piscina?: boolean;
     esquina?: boolean;
     coneat?: boolean;
+    /** Puntaje 1-4 de iluminación y ventilación. */
+    luz?: boolean;
     estado: string; // etiqueta del puntaje 1-4 de "estado"
     ubicacion: string;
   }
 > = {
-  APARTAMENTO: { unidad: "m²", medida: "m² propios (cubiertos)", semi: true, desc: true, garajes: true, estado: "Estado / construcción", ubicacion: "Ubicación" },
-  CASA: { unidad: "m²", medida: "m² edificados", semi: true, terreno: true, garajes: true, piscina: true, estado: "Estado / construcción", ubicacion: "Ubicación" },
+  APARTAMENTO: { unidad: "m²", medida: "m² propios (cubiertos)", semi: true, desc: true, garajes: true, luz: true, estado: "Estado / construcción", ubicacion: "Ubicación" },
+  CASA: { unidad: "m²", medida: "m² edificados", semi: true, terreno: true, garajes: true, piscina: true, luz: true, estado: "Estado / construcción", ubicacion: "Ubicación" },
   TERRENO: { unidad: "m²", medida: "m² de terreno", esquina: true, estado: "Servicios y aptitud", ubicacion: "Ubicación" },
   CHACRA: { unidad: "ha", medida: "Hectáreas", estado: "Vivienda y mejoras", ubicacion: "Ubicación y acceso" },
   CAMPO: { unidad: "ha", medida: "Hectáreas", coneat: true, estado: "Mejoras (alambrados, aguadas…)", ubicacion: "Ubicación y acceso" },
-  COMERCIAL: { unidad: "m²", medida: "m² cubiertos", desc: true, garajes: true, esquina: true, estado: "Estado / construcción", ubicacion: "Ubicación" },
+  COMERCIAL: { unidad: "m²", medida: "m² cubiertos", desc: true, garajes: true, esquina: true, luz: true, estado: "Estado / construcción", ubicacion: "Ubicación" },
 };
+
+/** Iluminación y ventilación (1 interno/oscuro … 4 muy luminoso, ventanas abundantes). */
+export const OPCIONES_LUZ = [
+  { valor: 1, label: "1 – Interno / oscuro" },
+  { valor: 2, label: "2 – Poca luz" },
+  { valor: 3, label: "3 – Buena luz" },
+  { valor: 4, label: "4 – Muy luminoso" },
+];
 
 export const COEF_SEMI = 0.5;
 export const COEF_DESC = 0.3;
@@ -88,6 +99,7 @@ export const FACTOR_POR_PUNTO = 0.05;
 export const FACTOR_GARAJE = 0.05;
 export const FACTOR_PISCINA = 0.05;
 export const FACTOR_ESQUINA = 0.08;
+export const FACTOR_LUZ = 0.04;
 export const EXPONENTE_TAMANO = 0.15;
 export const TOPE_TAMANO = 0.1;
 export const ELASTICIDAD_CONEAT = 0.6;
@@ -104,6 +116,8 @@ export type Medidas = {
   piscina?: boolean;
   esquina?: boolean;
   coneat?: number;
+  /** Iluminación y ventilación 1-4 (vacío en el comparable = no se ajusta). */
+  luz?: number;
 };
 
 export type ComparablePro = Medidas & {
@@ -179,6 +193,8 @@ export function ajustesComparable(cat: Categoria, s: SujetoPro, c: ComparablePro
   }
   if (k.piscina && !!s.piscina !== !!c.piscina) out.push({ nombre: "Piscina", factor: s.piscina ? 1 + FACTOR_PISCINA : 1 - FACTOR_PISCINA });
   if (k.esquina && !!s.esquina !== !!c.esquina) out.push({ nombre: "Esquina", factor: s.esquina ? 1 + FACTOR_ESQUINA : 1 - FACTOR_ESQUINA });
+  if (k.luz && s.luz && c.luz && s.luz !== c.luz)
+    out.push({ nombre: "Luz y ventilación", factor: 1 + FACTOR_LUZ * (s.luz - c.luz) });
   if (k.coneat && s.coneat && c.coneat) {
     const f = Math.pow(s.coneat / c.coneat, ELASTICIDAD_CONEAT);
     if (Math.abs(f - 1) >= 0.005) out.push({ nombre: "Índice CONEAT", factor: f });
@@ -265,6 +281,17 @@ export const CONFIABILIDAD_LABEL: Record<Confiabilidad, { texto: string; clase: 
 };
 
 /** Datos extra que se guardan con la tasación (columna "detalle"). */
+/** Datos de la ficha para el informe (no entran en el cálculo). */
+export type FichaTasacion = {
+  propietario?: string;
+  telefono?: string;
+  padron?: string;
+  dormitorios?: number;
+  banos?: number;
+  antiguedad?: number;
+  descripcion?: string;
+};
+
 export type DetalleTasacion = {
   categoria: Categoria;
   zonaTipo: ZonaTipo;

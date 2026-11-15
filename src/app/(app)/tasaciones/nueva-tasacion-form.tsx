@@ -17,7 +17,9 @@ import {
   TIPOS_TASACION,
   ZONA_TIPO_LABEL,
   type Categoria,
+  OPCIONES_LUZ,
   type ComparablePro,
+  type FichaTasacion,
   type ZonaTipo,
 } from "@/lib/tasacion-pro";
 import { BARRIOS_CONOCIDOS } from "@/lib/revisar-propiedad";
@@ -64,6 +66,8 @@ export type TasacionExistente = {
   piscina?: boolean;
   esquina?: boolean;
   coneat?: number;
+  luz?: number;
+  ficha?: FichaTasacion | null;
   estado: number;
   ubicacion: number;
   comparables: ComparablePro[];
@@ -147,6 +151,7 @@ export function NuevaTasacionForm({
   const [esquina, setEsquina] = useState(!!e?.esquina);
   const [coneat, setConeat] = useState<number | undefined>(e?.coneat);
   const [estado, setEstado] = useState(e?.estado ?? 3);
+  const [luz, setLuz] = useState(e?.luz ?? 3);
   const [ubicacion, setUbicacion] = useState(e?.ubicacion ?? 3);
   const [notas, setNotas] = useState(e?.notas ?? "");
   const [ajusteManual, setAjusteManual] = useState(e?.ajusteManual != null ? String(e.ajusteManual) : "");
@@ -183,10 +188,11 @@ export function NuevaTasacionForm({
       m2Terreno,
       garajes,
       piscina: piscina || undefined,
+      luz: k?.luz ? luz : undefined,
       esquina: esquina || undefined,
       coneat,
     }),
-    [m2, estado, ubicacion, m2Semi, m2Desc, m2Terreno, garajes, piscina, esquina, coneat]
+    [m2, estado, ubicacion, m2Semi, m2Desc, m2Terreno, garajes, piscina, esquina, coneat, luz, k?.luz]
   );
 
   const completos = comparables.filter(comparableCompleto);
@@ -257,6 +263,7 @@ export function NuevaTasacionForm({
       <input type="hidden" name="zonaTipo" value={zonaTipo} />
       <input type="hidden" name="estado" value={estado} />
       <input type="hidden" name="ubicacion" value={ubicacion} />
+      {k?.luz && <input type="hidden" name="luz" value={luz} />}
       {inicial && <input type="hidden" name="captacionId" value={inicial.captacionId} />}
       {e && <input type="hidden" name="tasacionId" value={e.id} />}
       {usarRenta && <input type="hidden" name="rentaJson" value={JSON.stringify({ ...renta, tasa: tasaUsada })} />}
@@ -390,7 +397,7 @@ export function NuevaTasacionForm({
               </div>
             )}
 
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className={`mt-4 grid grid-cols-1 gap-3 ${k.luz ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
               <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
                 {k.estado} (1 a 4)
                 <select value={estado} onChange={(e) => setEstado(Number(e.target.value))} className={input}>
@@ -411,6 +418,18 @@ export function NuevaTasacionForm({
                   ))}
                 </select>
               </label>
+              {k.luz && (
+                <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+                  Iluminación y ventilación (1 a 4)
+                  <select value={luz} onChange={(ev) => setLuz(Number(ev.target.value))} className={input}>
+                    {OPCIONES_LUZ.map((o) => (
+                      <option key={o.valor} value={o.valor}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
             </div>
 
             {supSujeto > 0 && unidad === "m²" && (k.semi || k.desc || k.terreno) && (
@@ -419,6 +438,28 @@ export function NuevaTasacionForm({
                 {k.terreno && m2Terreno ? " (incluye el terreno libre)" : ""}
               </p>
             )}
+
+            {/* Ficha para el informe: no entra en el cálculo */}
+            <details open={!!e?.ficha} className="mt-4 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+              <summary className="cursor-pointer text-sm font-semibold text-orion-navy dark:text-white">
+                📋 Datos para el informe (propietario, padrón, descripción…)
+              </summary>
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <input name="propietario" defaultValue={e?.ficha?.propietario ?? ""} placeholder="Nombre del propietario" className={input} />
+                <input name="telefonoPropietario" defaultValue={e?.ficha?.telefono ?? ""} placeholder="Teléfono del propietario" className={input} />
+                <input name="padron" defaultValue={e?.ficha?.padron ?? ""} placeholder="Padrón" className={input} />
+                <input name="dormitorios" type="number" min="0" defaultValue={e?.ficha?.dormitorios ?? ""} placeholder="Dormitorios" className={input} />
+                <input name="banos" type="number" min="0" defaultValue={e?.ficha?.banos ?? ""} placeholder="Baños" className={input} />
+                <input name="antiguedad" type="number" min="0" defaultValue={e?.ficha?.antiguedad ?? ""} placeholder="Antigüedad (años)" className={input} />
+                <textarea
+                  name="descripcion"
+                  defaultValue={e?.ficha?.descripcion ?? ""}
+                  rows={4}
+                  placeholder="Descripción de la propiedad: distribución, terminaciones, orientación, vista, reformas, servicios…"
+                  className={`${input} sm:col-span-3`}
+                />
+              </div>
+            </details>
           </div>
 
           {/* 3. Comparables */}
@@ -594,6 +635,21 @@ export function NuevaTasacionForm({
                           </option>
                         ))}
                       </select>
+                      {k.luz && (
+                        <select
+                          value={c.luz ?? ""}
+                          onChange={(ev) => cambiarComparable(i, { luz: ev.target.value ? Number(ev.target.value) : undefined })}
+                          title="Iluminación y ventilación (vacío = no se ajusta)"
+                          className={inputChico}
+                        >
+                          <option value="">Luz: ?</option>
+                          {OPCIONES_LUZ.map((o) => (
+                            <option key={o.valor} value={o.valor}>
+                              Luz {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                       {k.esquina && (
                         <label className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-200">
                           <input type="checkbox" checked={!!c.esquina} onChange={(e) => cambiarComparable(i, { esquina: e.target.checked || undefined })} />

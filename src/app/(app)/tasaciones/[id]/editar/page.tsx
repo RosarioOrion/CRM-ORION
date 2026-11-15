@@ -37,6 +37,8 @@ export default async function EditarTasacionPage({ params }: { params: Promise<{
     piscina: !!suj.piscina,
     esquina: !!suj.esquina,
     coneat: n(suj.coneat),
+    luz: n(suj.luz),
+    ficha: t.detalle?.ficha ?? null,
     estado: t.estado,
     ubicacion: t.ubicacion,
     comparables: t.comparables as ComparablePro[],

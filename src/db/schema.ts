@@ -801,6 +801,7 @@ export const tasaciones = pgTable("tasaciones", {
           ubicacion: number;
           // Tasación profesional (src/lib/tasacion-pro.ts): según el tipo.
           esTasacion?: boolean;
+          luz?: number;
           m2Semi?: number;
           m2Desc?: number;
           m2Terreno?: number;
@@ -821,6 +822,16 @@ export const tasaciones = pgTable("tasaciones", {
         zonaTipo: string;
         departamento: string | null;
         sujeto: Record<string, number | boolean | undefined>;
+        /** Ficha para el informe: propietario, padrón, dormitorios… */
+        ficha?: {
+          propietario?: string;
+          telefono?: string;
+          padron?: string;
+          dormitorios?: number;
+          banos?: number;
+          antiguedad?: number;
+          descripcion?: string;
+        } | null;
         /** Valor por capitalización de renta (src/lib/rentabilidad.ts). */
         renta?: {
           moneda: "USD" | "UYU";

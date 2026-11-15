@@ -12,7 +12,9 @@ import {
   CONFIABILIDAD_LABEL,
   formatoSuperficie,
   ZONA_TIPO_LABEL,
+  OPCIONES_LUZ,
   type Categoria,
+  type FichaTasacion,
   type ZonaTipo,
 } from "@/lib/tasacion-pro";
 import {
@@ -111,6 +113,7 @@ export default async function TasacionDetallePage({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <BotonInforme id={tasacion.id} />
           {puedeEditar && <BotonEditar id={tasacion.id} />}
           <EliminarTasacionBoton tasacionId={tasacion.id} />
         </div>
@@ -243,6 +246,7 @@ type TasacionFila = {
     departamento: string | null;
     sujeto: Record<string, number | boolean | undefined>;
     renta?: RentaGuardada | null;
+    ficha?: FichaTasacion | null;
   };
 };
 
@@ -253,6 +257,17 @@ function BotonEditar({ id }: { id: string }) {
       className="rounded-lg border border-orion-navy px-3 py-1.5 text-sm font-semibold text-orion-navy hover:bg-orion-navy/5 dark:border-orion-gold dark:text-orion-gold"
     >
       ✏️ Editar
+    </Link>
+  );
+}
+
+function BotonInforme({ id }: { id: string }) {
+  return (
+    <Link
+      href={`/informe-tasacion/${id}`}
+      className="rounded-lg bg-orion-gold px-3 py-1.5 text-sm font-semibold text-orion-navy hover:brightness-95"
+    >
+      📄 Informe
     </Link>
   );
 }
@@ -272,7 +287,9 @@ function DetallePro({ t, cat, puedeEditar }: { t: TasacionFila; cat: Categoria; 
     piscina: suj.piscina as boolean | undefined,
     esquina: suj.esquina as boolean | undefined,
     coneat: suj.coneat as number | undefined,
+    luz: suj.luz as number | undefined,
   };
+  const ficha = t.detalle.ficha ?? null;
   const r = calcularTasacionPro(cat, sujeto, t.comparables, zona);
   const u = r.unidad;
   const conf = CONFIABILIDAD_LABEL[r.confiabilidad];
@@ -310,6 +327,7 @@ function DetallePro({ t, cat, puedeEditar }: { t: TasacionFila; cat: Categoria; 
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <BotonInforme id={t.id} />
           {puedeEditar && <BotonEditar id={t.id} />}
           <EliminarTasacionBoton tasacionId={t.id} />
         </div>
@@ -404,6 +422,12 @@ function DetallePro({ t, cat, puedeEditar }: { t: TasacionFila; cat: Categoria; 
           {k.coneat && dato("Índice CONEAT", sujeto.coneat)}
           {dato(k.estado, labelEstado(t.estado))}
           {dato(k.ubicacion, labelUbicacion(t.ubicacion))}
+          {k.luz && dato("Iluminación y ventilación", OPCIONES_LUZ.find((o) => o.valor === sujeto.luz)?.label)}
+          {dato("Propietario", [ficha?.propietario, ficha?.telefono].filter(Boolean).join(" · "))}
+          {dato("Padrón", ficha?.padron)}
+          {dato("Dormitorios", ficha?.dormitorios)}
+          {dato("Baños", ficha?.banos)}
+          {dato("Antigüedad", ficha?.antiguedad ? `${ficha.antiguedad} años` : null)}
           {k.terreno && dato("Zona", ZONA_TIPO_LABEL[zona])}
           {t.link && (
             <p className="col-span-2">
@@ -413,6 +437,7 @@ function DetallePro({ t, cat, puedeEditar }: { t: TasacionFila; cat: Categoria; 
             </p>
           )}
         </div>
+        {ficha?.descripcion && <p className="mt-3 whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-200">{ficha.descripcion}</p>}
         {t.notas && <p className="mt-3 whitespace-pre-wrap text-sm text-gray-600 dark:text-gray-300">{t.notas}</p>}
       </div>
 
