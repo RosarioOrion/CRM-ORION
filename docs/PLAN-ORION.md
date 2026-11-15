@@ -157,13 +157,21 @@ cuando cambie algo.
 ### Mis finanzas y Money Day (`src/lib/finanzas.ts`, `/finanzas`)
 
 - **ULTRA PRIVADO** (decisión de Rosario): cada usuario ve solo lo suyo. No lo ve la CEO ni se ve con "Entrar como" (muestra "Mis finanzas es privado"). **No se registra en Actividad.**
-- **Movimientos:** ingresos y gastos en $U o USD, con categorías agrupadas en Ingresos, Trabajo, Personales y Reservas (impuestos, fondo para meses flojos, ahorro).
+- **Alineado con el Manual Orion, Bloque 3 (capítulos 15 a 19, escritos por Rosario).** Decisión de Rosario: cada agente lee el manual y **decide su propio reparto**. Orion es solo la **planilla para registrar y presupuestar**: no impone porcentajes ni tiene calculadora de reparto.
+- Los agentes de Orion Propiedades cobran su comisión **neta, sin IVA**. El capítulo 16 está escrito para un agente que factura; se le sugirió a Rosario un recuadro aclaratorio.
+- **Movimientos:** ingresos y gastos en $U o USD, con las **5 categorías del capítulo 17**:
+  1. Fijos personales;
+  2. Variables personales;
+  3. Negocio;
+  4. Impuestos y aportes;
+  5. Ahorro e inversión: **colchón** (capítulo 18), **fondo de emergencia** (capítulo 19) y ahorro.
+- Las claves de las categorías viejas se mantienen.
 - Las **comisiones cobradas** en Orion entran solas como ingreso en USD (`comision_id`, una sola vez). Si se borran, quedan ocultas y no vuelven.
 - **Cotización del dólar por mes** (`finanzas_meses.cotizacion`): todo se ve en pesos.
 - **Presupuesto** por categoría e ingreso esperado por mes.
 - **Money Day: el ÚLTIMO DÍA de cada mes** (día fijo, decisión de Rosario). Pasos:
   1. balance contra el presupuesto;
-  2. consejos (ahorro, impuestos, categorías pasadas, meses que cubre el fondo);
+  2. consejos descriptivos que remiten a los capítulos, sin metas propias;
   3. plan del mes siguiente.
 
   Al guardar, cierra el mes.
@@ -171,7 +179,7 @@ cuando cambie algo.
   - el último día muestra "💵 Hoy es tu Money Day";
   - los primeros 7 días, si el mes anterior quedó sin cerrar, avisa que está pendiente;
   - nunca muestra montos.
-- La guía rápida para ingresos variables (pagate primero, fondo de 3 a 6 meses, 50/30/20 adaptada) está en la misma pantalla.
+- La guía de la pantalla resume y remite a los capítulos 15 a 19 (están en Capacitación).
 
 ## Pendientes
 

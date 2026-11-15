@@ -2,34 +2,44 @@
 // Todo en pesos: lo cargado en dólares se pasa con la cotización del mes.
 
 export type TipoMovimiento = "INGRESO" | "GASTO";
-export type Grupo = "INGRESO" | "TRABAJO" | "PERSONAL" | "RESERVA";
+// Las 5 categorías del Manual Orion (Capítulo 17) + ingresos.
+export type Grupo = "INGRESO" | "FIJOS" | "VARIABLES" | "NEGOCIO" | "IMPUESTOS" | "AHORRO";
 export type Moneda = "UYU" | "USD";
 
+/** Grupos de egresos, en el orden del manual. */
+export const GRUPOS_EGRESO: Grupo[] = ["FIJOS", "VARIABLES", "NEGOCIO", "IMPUESTOS", "AHORRO"];
+
+// Las claves de categoría no cambian (los movimientos guardados siguen valiendo).
 export const CATEGORIAS: { clave: string; label: string; grupo: Grupo; icono: string }[] = [
   { clave: "COMISION", label: "Comisiones", grupo: "INGRESO", icono: "🤝" },
   { clave: "OTRO_INGRESO", label: "Otros ingresos", grupo: "INGRESO", icono: "➕" },
-  { clave: "PUBLICIDAD", label: "Publicidad y portales", grupo: "TRABAJO", icono: "📣" },
-  { clave: "TRANSPORTE", label: "Transporte y combustible", grupo: "TRABAJO", icono: "🚗" },
-  { clave: "TELEFONO", label: "Celular e internet", grupo: "TRABAJO", icono: "📱" },
-  { clave: "CAPACITACION", label: "Capacitación", grupo: "TRABAJO", icono: "📚" },
-  { clave: "OTROS_TRABAJO", label: "Otros del trabajo", grupo: "TRABAJO", icono: "💼" },
-  { clave: "VIVIENDA", label: "Vivienda (alquiler o cuota, UTE, OSE)", grupo: "PERSONAL", icono: "🏠" },
-  { clave: "SUPERMERCADO", label: "Comida y supermercado", grupo: "PERSONAL", icono: "🛒" },
-  { clave: "SALUD", label: "Salud", grupo: "PERSONAL", icono: "🩺" },
-  { clave: "FAMILIA", label: "Familia y educación", grupo: "PERSONAL", icono: "👨‍👩‍👧" },
-  { clave: "OCIO", label: "Salidas y ocio", grupo: "PERSONAL", icono: "🎉" },
-  { clave: "DEUDAS", label: "Tarjetas y deudas", grupo: "PERSONAL", icono: "💳" },
-  { clave: "OTROS_PERSONALES", label: "Otros personales", grupo: "PERSONAL", icono: "🧾" },
-  { clave: "IMPUESTOS", label: "Impuestos y aportes (BPS, IRPF…)", grupo: "RESERVA", icono: "🏛️" },
-  { clave: "FONDO", label: "Fondo para meses flojos", grupo: "RESERVA", icono: "🛟" },
-  { clave: "AHORRO", label: "Ahorro e inversión", grupo: "RESERVA", icono: "🐷" },
+  { clave: "VIVIENDA", label: "Vivienda (alquiler o cuota, gastos comunes)", grupo: "FIJOS", icono: "🏠" },
+  { clave: "SERVICIOS", label: "Servicios (UTE, OSE, internet)", grupo: "FIJOS", icono: "💡" },
+  { clave: "SALUD", label: "Mutualista y seguros", grupo: "FIJOS", icono: "🩺" },
+  { clave: "DEUDAS", label: "Cuotas, tarjetas y préstamos", grupo: "FIJOS", icono: "💳" },
+  { clave: "SUPERMERCADO", label: "Supermercado", grupo: "VARIABLES", icono: "🛒" },
+  { clave: "TRANSPORTE_PERSONAL", label: "Transporte personal", grupo: "VARIABLES", icono: "🚌" },
+  { clave: "OCIO", label: "Salidas y gustos", grupo: "VARIABLES", icono: "🎉" },
+  { clave: "FAMILIA", label: "Ropa, regalos y familia", grupo: "VARIABLES", icono: "🎁" },
+  { clave: "OTROS_PERSONALES", label: "Otros (y gastos hormiga)", grupo: "VARIABLES", icono: "🧾" },
+  { clave: "TELEFONO", label: "Celular y datos", grupo: "NEGOCIO", icono: "📱" },
+  { clave: "TRANSPORTE", label: "Combustible y traslados", grupo: "NEGOCIO", icono: "🚗" },
+  { clave: "PUBLICIDAD", label: "Publicidad y portales", grupo: "NEGOCIO", icono: "📣" },
+  { clave: "OTROS_TRABAJO", label: "Herramientas", grupo: "NEGOCIO", icono: "🧰" },
+  { clave: "CAPACITACION", label: "Formación", grupo: "NEGOCIO", icono: "📚" },
+  { clave: "IMPUESTOS", label: "Impuestos y aportes", grupo: "IMPUESTOS", icono: "🏛️" },
+  { clave: "COLCHON", label: "Colchón (para tu sueldo fijo)", grupo: "AHORRO", icono: "🛏️" },
+  { clave: "FONDO", label: "Fondo de emergencia", grupo: "AHORRO", icono: "🛟" },
+  { clave: "AHORRO", label: "Ahorro e inversión", grupo: "AHORRO", icono: "🐷" },
 ];
 
 export const GRUPO_LABEL: Record<Grupo, string> = {
   INGRESO: "Ingresos",
-  TRABAJO: "Gastos del trabajo",
-  PERSONAL: "Gastos personales",
-  RESERVA: "Reservas (ahorro, fondo e impuestos)",
+  FIJOS: "1. Fijos personales",
+  VARIABLES: "2. Variables personales",
+  NEGOCIO: "3. Negocio",
+  IMPUESTOS: "4. Impuestos y aportes",
+  AHORRO: "5. Ahorro e inversión",
 };
 
 export const categoria = (clave: string) => CATEGORIAS.find((c) => c.clave === clave);
@@ -51,10 +61,12 @@ export function aPesos(monto: number, moneda: string, cotizacion: number | null)
 
 export type ResumenMes = {
   ingresos: number;
-  trabajo: number;
-  personal: number;
-  reservas: number;
-  /** Ingresos − gastos − reservas (lo que quedó suelto). */
+  porGrupo: Record<Grupo, number>;
+  /** Fijos + variables + negocio. */
+  gastos: number;
+  /** Impuestos + ahorro (lo que se separa). */
+  separado: number;
+  /** Ingresos − todo lo que salió o se separó. */
   saldo: number;
   porCategoria: Record<string, number>;
   /** Hay montos en dólares y no hay cotización: no se pueden sumar. */
@@ -63,11 +75,12 @@ export type ResumenMes = {
 };
 
 export function resumirMes(movs: MovimientoMin[], cotizacion: number | null): ResumenMes {
+  const porGrupo: Record<Grupo, number> = { INGRESO: 0, FIJOS: 0, VARIABLES: 0, NEGOCIO: 0, IMPUESTOS: 0, AHORRO: 0 };
   const r: ResumenMes = {
     ingresos: 0,
-    trabajo: 0,
-    personal: 0,
-    reservas: 0,
+    porGrupo,
+    gastos: 0,
+    separado: 0,
     saldo: 0,
     porCategoria: {},
     faltaCotizacion: false,
@@ -82,43 +95,46 @@ export function resumirMes(movs: MovimientoMin[], cotizacion: number | null): Re
       continue;
     }
     r.porCategoria[m.categoria] = (r.porCategoria[m.categoria] ?? 0) + p;
-    const g = categoria(m.categoria)?.grupo ?? (m.tipo === "INGRESO" ? "INGRESO" : "PERSONAL");
-    if (g === "INGRESO") r.ingresos += p;
-    else if (g === "TRABAJO") r.trabajo += p;
-    else if (g === "PERSONAL") r.personal += p;
-    else r.reservas += p;
+    const g = categoria(m.categoria)?.grupo ?? (m.tipo === "INGRESO" ? "INGRESO" : "VARIABLES");
+    porGrupo[g] += p;
   }
-  r.saldo = r.ingresos - r.trabajo - r.personal - r.reservas;
+  r.ingresos = porGrupo.INGRESO;
+  r.gastos = porGrupo.FIJOS + porGrupo.VARIABLES + porGrupo.NEGOCIO;
+  r.separado = porGrupo.IMPUESTOS + porGrupo.AHORRO;
+  r.saldo = r.ingresos - r.gastos - r.separado;
   return r;
 }
 
-/** Consejos del Money Day, en base a los números del mes (sin juzgar). */
+/**
+ * Consejos del Money Day: describen los números del mes y remiten al Manual
+ * Orion (Capítulos 15 a 19). No imponen porcentajes: cada agente decide su
+ * reparto según su situación.
+ */
 export function consejosDelMes(opts: {
   resumen: ResumenMes;
   presupuesto: Record<string, number>;
-  /** Fondo para meses flojos acumulado (en pesos). */
+  /** Fondo de emergencia acumulado (en pesos). */
   fondoAcumulado: number;
-  /** Gasto mensual promedio (trabajo + personal) de los últimos meses. */
+  /** Gasto mensual promedio (fijos + variables) de los últimos meses. */
   gastoPromedio: number;
 }): { tono: "bien" | "atencion" | "info"; texto: string }[] {
   const { resumen: r, presupuesto, fondoAcumulado, gastoPromedio } = opts;
   const out: { tono: "bien" | "atencion" | "info"; texto: string }[] = [];
-  const pesos = (n: number) => `$ ${Math.round(n).toLocaleString("es-UY")}`;
 
   if (r.ingresos > 0) {
-    const ahorro = Math.round((((r.porCategoria.AHORRO ?? 0) + (r.porCategoria.FONDO ?? 0)) / r.ingresos) * 100);
-    if (ahorro >= 20) out.push({ tono: "bien", texto: `Separaste el ${ahorro}% de lo que entró para ahorro y fondo. ¡Excelente!` });
-    else if (ahorro >= 10) out.push({ tono: "bien", texto: `Separaste el ${ahorro}% para ahorro y fondo. La meta es llegar al 20%.` });
-    else out.push({ tono: "atencion", texto: `Este mes separaste ${ahorro}% para ahorro y fondo. Probá apartar al menos el 10% apenas cobrás, antes de gastar.` });
-    if (!r.porCategoria.IMPUESTOS)
-      out.push({ tono: "atencion", texto: "No separaste nada para impuestos y aportes: conviene apartarlo al cobrar cada comisión, así no te sorprende." });
-    const trabajo = r.trabajo / r.ingresos;
-    if (trabajo > 0.25) out.push({ tono: "info", texto: `Los gastos del trabajo fueron el ${Math.round(trabajo * 100)}% de lo que cobraste. Revisá cuáles te traen clientes y cuáles no.` });
+    const ahorro = Math.round((r.porGrupo.AHORRO / r.ingresos) * 100);
+    if (ahorro > 0)
+      out.push({ tono: "bien", texto: `Separaste el ${ahorro}% de lo que entró para colchón, fondo y ahorro. Págate primero (Cap. 15).` });
+    else
+      out.push({ tono: "atencion", texto: "Este mes no registraste nada en Ahorro e inversión. El Cap. 15 propone empezar aunque sea con poco, el mismo día que cobrás." });
+    const negocio = Math.round((r.porGrupo.NEGOCIO / r.ingresos) * 100);
+    if (negocio > 0) out.push({ tono: "info", texto: `Tu negocio te costó el ${negocio}% de lo que cobraste este mes (Cap. 17: separá siempre negocio y personal).` });
   } else {
-    out.push({ tono: "info", texto: "Este mes no entraron ingresos: es justo para estos meses que sirve el fondo para meses flojos." });
+    out.push({ tono: "info", texto: "Este mes no entraron ingresos: para estos meses está el colchón (Cap. 18)." });
   }
 
-  if (r.saldo < 0) out.push({ tono: "atencion", texto: `Saliste ${pesos(-r.saldo)} más de lo que entró. Mirá en qué categoría se fue y ajustá el presupuesto del mes que viene.` });
+  if (r.saldo < 0)
+    out.push({ tono: "atencion", texto: `Salió ${pesos(-r.saldo)} más de lo que entró. ¿Qué pasó y qué ajustás? (Cap. 17)` });
 
   const pasados = Object.entries(presupuesto)
     .filter(([k, v]) => v > 0 && (r.porCategoria[k] ?? 0) > v * 1.1)
@@ -126,13 +142,13 @@ export function consejosDelMes(opts: {
     .sort((a, b) => b.extra - a.extra)
     .slice(0, 2);
   for (const p of pasados)
-    out.push({ tono: "atencion", texto: `${categoria(p.k)?.label ?? p.k}: gastaste ${Math.round(p.extra * 100)}% más de lo previsto.` });
+    out.push({ tono: "atencion", texto: `${categoria(p.k)?.label ?? p.k}: gastaste ${Math.round(p.extra * 100)}% más de lo previsto. ¿Fue excepcional o se repite?` });
 
-  if (gastoPromedio > 0) {
-    const meses = fondoAcumulado / gastoPromedio;
-    if (meses >= 3) out.push({ tono: "bien", texto: `Tu fondo para meses flojos cubre ${meses.toLocaleString("es-UY", { maximumFractionDigits: 1 })} meses de gastos. ¡Meta cumplida!` });
-    else out.push({ tono: "info", texto: `Tu fondo para meses flojos cubre ${meses.toLocaleString("es-UY", { maximumFractionDigits: 1 })} meses de gastos. La meta es 3 a 6 meses.` });
+  if (gastoPromedio > 0 && fondoAcumulado > 0) {
+    const meses = (fondoAcumulado / gastoPromedio).toLocaleString("es-UY", { maximumFractionDigits: 1 });
+    out.push({ tono: "info", texto: `Tu fondo de emergencia cubre ${meses} meses de tus gastos personales. El Cap. 19 explica cuánto conviene tener.` });
   }
+  if (!out.some((c) => c.tono === "atencion")) out.push({ tono: "bien", texto: "¡Buen mes! Reconocé tu logro antes de planear el siguiente (Cap. 17)." });
   return out;
 }
 
