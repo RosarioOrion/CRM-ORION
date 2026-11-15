@@ -87,6 +87,13 @@ cuando cambie algo.
 
   Lo urgente (menos de 12 hs para borrarse) va primero y en rojo.
 
+### Filosofía (`src/lib/filosofia.ts`)
+
+- El texto de Rosario (3 párrafos + 4 compromisos) se cargó una vez en **Ajustes → Filosofía**.
+- Se muestra como **Lección 1: Cómo trabajamos en Orion** arriba de Capacitación, leyendo lo que haya en Ajustes.
+- "Cómo lo cumplís con Orion" (compromiso → herramienta) está fijo en el código (`COMPROMISOS_EN_ORION`) y aparece si hay exactamente 4 compromisos.
+- Para el tutorial: es el **capítulo 1** del manual.
+
 ## Pendientes
 
 1. **Porcentajes finales de comisiones.** Rosario los define después de la reunión con César y Huillen.

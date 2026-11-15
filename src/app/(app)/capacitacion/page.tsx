@@ -3,6 +3,7 @@ import { obtenerSesion } from "@/lib/auth";
 import { esCEO } from "@/lib/permisos";
 import { listarMaterial } from "./datos";
 import { BuscadorDocumentos } from "./buscador-documentos";
+import { LeccionFilosofia } from "./leccion-filosofia";
 
 export default async function CapacitacionPage() {
   const sesion = await obtenerSesion();
@@ -30,6 +31,8 @@ export default async function CapacitacionPage() {
           </Link>
         )}
       </div>
+
+      <LeccionFilosofia esCeo={admin} />
 
       <BuscadorDocumentos documentos={material} />
     </div>

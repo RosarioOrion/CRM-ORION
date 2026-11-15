@@ -178,10 +178,14 @@ export function EditarConfiguracionForm({
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
           Filosofía de la inmobiliaria
         </p>
+        <p className="-mt-2 mb-2 text-xs text-gray-500 dark:text-gray-400">
+          Se muestra como Lección 1 en Capacitación. Separá los párrafos con una línea en blanco y numerá los
+          compromisos así: “1. Título. Explicación”.
+        </p>
         <textarea
           name="filosofia"
           defaultValue={filosofia ?? ""}
-          rows={4}
+          rows={14}
           placeholder="Misión, valores, forma de trabajar del equipo..."
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy dark:border-gray-600 dark:bg-gray-800"
         />
