@@ -63,6 +63,23 @@ cuando cambie algo.
 - La CEO ve a todos y Líder/Admin solo a su equipo. Los agentes no tienen acceso.
 - **Si se agrega una acción nueva importante, registrarla también.**
 
+### Circuito de captación (`src/lib/captacion-flujo.ts`, `/captaciones`)
+
+- **Llamando (48 hs):** el agente llama (📞) o escribe por WhatsApp (💬), con los mensajes "Captación…" que la CEO edita en Mensajes WhatsApp.
+- **No respondió** → 1er seguimiento (48 hs) → 2do seguimiento (48 hs) → se borra.
+- **Respondió:**
+  - "por ahora no" → **S8** (semanal × 8);
+  - quiere probar solo, dio exclusividad a otra empresa o no aceptó la tasación → **S12** (mensual × 12);
+  - nos autorizó → si es alquiler, **Para publicar**; si es venta, **Tasando**.
+- **S8 / S12:** cada seguimiento hay que hacerlo (llamar o escribir) y marcarlo, con **48 hs de margen**.
+  - Al terminar S8 se puede pasar a S12; si no, se borra.
+  - Al terminar S12 se borra.
+- **Tasando:** la tasación se hace desde la tarjeta y queda vinculada. Se marca si se **entregó al propietario** o fue de **uso interno**. Después: autorizó → Para publicar; no aceptó → S12.
+- **Lo vencido va a la Papelera** (30 días, recuperable). El contacto también, si se creó para esa captación y no tiene nada más; así el número queda libre.
+  - Revisión automática cada 15 min, y también al abrir Captaciones.
+  - Si hubo llamada o WhatsApp pero no se marcó el resultado, pasa solo al siguiente seguimiento.
+- Las captaciones que ya existían arrancaron con 7 días de margen.
+
 ## Pendientes
 
 1. **Porcentajes finales de comisiones.** Rosario los define después de la reunión con César y Huillen.

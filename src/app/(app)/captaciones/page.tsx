@@ -4,13 +4,19 @@ import { captaciones, contactos, actividades } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { eq, desc, and } from "drizzle-orm";
 import {
-  ESTADOS_CAPTACION,
-  ESTADO_CAPTACION_LABEL,
-  ESTADO_CAPTACION_ICONO,
-} from "@/lib/captaciones";
-import { ORIGEN_LABEL, type OrigenContacto } from "@/lib/contactos";
+  calcularPlazo,
+  COLUMNAS,
+  ETAPA_LABEL,
+  esEtapa,
+  faltaTexto,
+  horasRestantes,
+  TITULO_CAPTACION,
+  type Etapa,
+} from "@/lib/captacion-flujo";
+import { vencerCaptaciones } from "@/lib/captacion-borrar";
+import { datosParaWhatsApp } from "../mensajes/actions";
 import { NuevaCaptacionForm, type CaptacionInicial } from "./nueva-captacion-form";
-import { AccionesCaptacion } from "./acciones-captacion";
+import { FlujoCaptacion } from "./flujo-captacion";
 import { VerificarCaptacion } from "./verificar-captacion";
 
 export default async function CaptacionesPage({
@@ -51,6 +57,9 @@ export default async function CaptacionesPage({
     }
   }
 
+  // Lo vencido se borra antes de mostrar (además del chequeo cada 15 min).
+  await vencerCaptaciones().catch(() => {});
+
   const misContactos = await db
     .select({ id: contactos.id, nombre: contactos.nombre })
     .from(contactos)
@@ -70,14 +79,30 @@ export default async function CaptacionesPage({
       notas: captaciones.notas,
       link: captaciones.link,
       estado: captaciones.estado,
+      etapa: captaciones.etapa,
+      etapaDesde: captaciones.etapaDesde,
+      intentoEn: captaciones.intentoEn,
+      seguimientosHechos: captaciones.seguimientosHechos,
+      ultimoSeguimiento: captaciones.ultimoSeguimiento,
+      tasacionId: captaciones.tasacionId,
+      historial: captaciones.historial,
       convertidaEnPropiedadId: captaciones.convertidaEnPropiedadId,
       contactoId: contactos.id,
       contactoNombre: contactos.nombre,
+      telefono: contactos.telefono,
     })
     .from(captaciones)
     .innerJoin(contactos, eq(captaciones.contactoId, contactos.id))
     .where(eq(captaciones.agenteId, sesion!.userId))
     .orderBy(desc(captaciones.creadoEn));
+
+  const wa = await datosParaWhatsApp();
+  const plantillas = wa.plantillas.filter((p) => TITULO_CAPTACION.test(p.titulo));
+  const tarjetas = filas.map((f) => ({
+    ...f,
+    etapa: (esEtapa(f.etapa) ? f.etapa : "LLAMANDO") as Etapa,
+    plazo: calcularPlazo(f),
+  }));
 
   return (
     <div>
@@ -104,93 +129,131 @@ export default async function CaptacionesPage({
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {ESTADOS_CAPTACION.map((estado) => {
-          const items = filas.filter((f) => f.estado === estado);
+      <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+        ⏳ Cada captación tiene plazo: 48 hs para llamar o escribir (y para cada seguimiento). En S8 / S12 hay que hacer
+        cada seguimiento a tiempo. Lo que vence se borra y queda 30 días en la Papelera.
+      </p>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {COLUMNAS.map((col) => {
+          const items = tarjetas.filter((f) => col.etapas.includes(f.etapa));
           return (
-            <div key={estado} className="flex flex-col gap-3">
+            <div key={col.clave} className="flex flex-col gap-3">
               <div className="flex items-center gap-2 rounded-lg bg-orion-navy px-3 py-2 text-sm font-semibold text-white dark:bg-orion-navy-light">
-                <span>{ESTADO_CAPTACION_ICONO[estado]}</span>
-                <span>{ESTADO_CAPTACION_LABEL[estado]}</span>
-                <span className="ml-auto rounded-full bg-white/20 px-2 py-0.5 text-xs">
-                  {items.length}
-                </span>
+                <span>{col.icono}</span>
+                <span>{col.label}</span>
+                <span className="ml-auto rounded-full bg-white/20 px-2 py-0.5 text-xs">{items.length}</span>
               </div>
 
               <div className="flex flex-col gap-3">
                 {items.length === 0 ? (
                   <p className="rounded-xl border border-dashed border-gray-200 bg-white p-4 text-center text-xs text-gray-400 dark:bg-gray-800 dark:border-gray-700">
-                    Sin captaciones acá todavía.
+                    Sin captaciones acá.
                   </p>
                 ) : (
-                  items.map((f) => (
-                    <div
-                      key={f.id}
-                      className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:bg-gray-800 dark:border-gray-700"
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                            f.operacion === "VENTA"
-                              ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
-                              : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                          }`}
-                        >
-                          {f.operacion === "VENTA" ? "Venta" : "Alquiler"}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          {f.tipo}
-                        </span>
-                      </div>
-
-                      <p className="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100">
-                        {f.titulo}
-                      </p>
-
-                      <Link
-                        href={`/contactos/${f.contactoId}`}
-                        className="mt-0.5 block text-xs font-medium text-orion-navy hover:underline dark:text-orion-gold"
+                  items.map((f) => {
+                    const urgente = f.plazo.vence ? horasRestantes(f.plazo.vence) < 12 : false;
+                    return (
+                      <div
+                        key={f.id}
+                        className={`rounded-xl border bg-white p-4 shadow-sm dark:bg-gray-800 ${
+                          urgente ? "border-red-300 dark:border-red-800" : "border-gray-200 dark:border-gray-700"
+                        }`}
                       >
-                        👤 {f.contactoNombre}
-                      </Link>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                              f.operacion === "VENTA"
+                                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                                : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                            }`}
+                          >
+                            {f.operacion === "VENTA" ? "Venta" : "Alquiler"}
+                          </span>
+                          <span className="rounded bg-orion-navy/10 px-1.5 py-0.5 text-[10px] font-semibold text-orion-navy dark:bg-white/10 dark:text-gray-200">
+                            {ETAPA_LABEL[f.etapa]}
+                          </span>
+                          <span className="text-xs text-gray-400">{f.tipo}</span>
+                        </div>
 
-                      {f.link && (
-                        <a
-                          href={f.link}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-1 block truncate text-xs text-orion-navy underline dark:text-orion-gold"
+                        <p className="mt-1 text-sm font-semibold text-gray-800 dark:text-gray-100">{f.titulo}</p>
+
+                        <Link
+                          href={`/contactos/${f.contactoId}`}
+                          className="mt-0.5 block text-xs font-medium text-orion-navy hover:underline dark:text-orion-gold"
                         >
-                          🔗 Ver publicación
-                        </a>
-                      )}
+                          👤 {f.contactoNombre}
+                          {f.telefono ? ` · ${f.telefono}` : ""}
+                        </Link>
 
-                      {(f.zona || f.direccion) && (
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                          {[f.zona, f.direccion].filter(Boolean).join(" — ")}
-                        </p>
-                      )}
+                        {f.link && (
+                          <a
+                            href={f.link}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-1 block truncate text-xs text-orion-navy underline dark:text-orion-gold"
+                          >
+                            🔗 Ver publicación
+                          </a>
+                        )}
 
-                      <p className="mt-1 text-[11px] text-gray-400">
-                        Origen: {ORIGEN_LABEL[f.origen as OrigenContacto] ?? f.origen}
-                        {f.origenDetalle ? ` (${f.origenDetalle})` : ""}
-                      </p>
+                        {(f.zona || f.direccion) && (
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            {[f.zona, f.direccion].filter(Boolean).join(" — ")}
+                          </p>
+                        )}
 
-                      {f.notas && (
-                        <p className="mt-1 text-xs italic text-gray-400">
-                          {f.notas}
-                        </p>
-                      )}
+                        {f.plazo.vence && (
+                          <p
+                            className={`mt-2 text-xs font-semibold ${
+                              urgente ? "text-red-600 dark:text-red-400" : "text-amber-700 dark:text-amber-400"
+                            }`}
+                          >
+                            ⏳ {f.plazo.proximo ? `Próximo seguimiento ${faltaTexto(f.plazo.proximo)} · ` : ""}
+                            se borra {faltaTexto(f.plazo.vence)} si no se marca
+                          </p>
+                        )}
 
-                      <div className="mt-3 flex justify-end">
-                        <AccionesCaptacion
-                          captacionId={f.id}
-                          estado={f.estado}
-                          yaConvertida={!!f.convertidaEnPropiedadId}
-                        />
+                        {f.historial.length > 0 && (
+                          <ul className="mt-2 space-y-0.5 border-l-2 border-gray-100 pl-2 text-[11px] text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                            {f.historial.slice(-3).map((h, i) => (
+                              <li key={i}>
+                                {new Date(h.fecha).toLocaleDateString("es-UY", {
+                                  timeZone: "America/Montevideo",
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                })}{" "}
+                                · {h.texto}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+
+                        {f.notas && <p className="mt-1 text-xs italic text-gray-400">{f.notas}</p>}
+
+                        <div className="mt-3">
+                          <FlujoCaptacion
+                            d={{
+                              id: f.id,
+                              etapa: f.etapa,
+                              operacion: f.operacion,
+                              titulo: f.titulo,
+                              contactoNombre: f.contactoNombre,
+                              telefono: f.telefono,
+                              contactado: f.plazo.contactado,
+                              cicloTerminado: f.plazo.cicloTerminado,
+                              hechos: f.seguimientosHechos,
+                              tasacionId: f.tasacionId,
+                              convertida: !!f.convertidaEnPropiedadId,
+                            }}
+                            plantillas={plantillas}
+                            agente={wa.agente}
+                            inmobiliaria={wa.inmobiliaria}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>

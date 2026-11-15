@@ -35,7 +35,8 @@ export async function restaurar(
     mensaje: r.salteadas
       ? `Restaurado. ${r.salteadas} dato(s) vinculados no se pudieron recuperar porque lo que los acompañaba ya no existe.`
       : "Restaurado con todo lo suyo.",
-    href: item.tipo === "CONTACTO" ? `/contactos/${id}` : `/propiedades/${id}`,
+    href:
+      item.tipo === "CONTACTO" ? `/contactos/${id}` : item.tipo === "CAPTACION" ? "/captaciones" : `/propiedades/${id}`,
   };
 }
 

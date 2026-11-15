@@ -398,6 +398,18 @@ export const captaciones = pgTable("captaciones", {
       convertidaEnPropiedadId: text("convertida_en_propiedad_id").references(
         () => propiedades.id
       ),
+      // Circuito de captación (ver src/lib/captacion-flujo.ts): etapa fina,
+      // desde cuándo corre, último intento (llamada / WhatsApp), seguimientos
+      // S8/S12 hechos, tasación vinculada e historial de pasos.
+      etapa: text("etapa").notNull().default("LLAMANDO"),
+      etapaDesde: timestamp("etapa_desde").notNull().defaultNow(),
+      intentoEn: timestamp("intento_en"),
+      intentoCanal: text("intento_canal"),
+      seguimientosHechos: integer("seguimientos_hechos").notNull().default(0),
+      ultimoSeguimiento: timestamp("ultimo_seguimiento"),
+      tasacionId: text("tasacion_id"),
+      tasacionUso: text("tasacion_uso"),
+      historial: jsonb("historial").$type<{ fecha: string; texto: string }[]>().notNull().default([]),
       creadoEn: timestamp("creado_en").notNull().defaultNow(),
 });
 

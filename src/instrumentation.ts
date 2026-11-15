@@ -15,5 +15,10 @@ export async function register() {
     const vaciar = () => vaciarVencidos().catch(() => {});
     setTimeout(vaciar, 60_000);
     setInterval(vaciar, 6 * 3600_000);
+    // Captaciones: plazos de 48 hs, S8 y S12 (lo vencido va a la Papelera).
+    const { vencerCaptaciones } = await import("./lib/captacion-borrar");
+    const vencer = () => vencerCaptaciones().catch((e) => console.error("[captaciones]", e));
+    setTimeout(vencer, 90_000);
+    setInterval(vencer, 15 * 60_000);
   }
 }

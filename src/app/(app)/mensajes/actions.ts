@@ -7,7 +7,7 @@ import { configuracionEmpresa, plantillasWhatsapp, usuarios } from "@/db/schema"
 import { obtenerSesion } from "@/lib/auth";
 import { esCEO } from "@/lib/permisos";
 import { NOMBRE_SITIO } from "@/lib/sitio";
-import { PLANTILLAS_INICIALES, VERSIONES_SEGUIMIENTO_SEMANAL, type Plantilla } from "@/lib/plantillas-whatsapp";
+import { PLANTILLAS_INICIALES, VERSIONES_CAPTACION, VERSIONES_SEGUIMIENTO_SEMANAL, type Plantilla } from "@/lib/plantillas-whatsapp";
 
 // La tabla se creó después: si todavía no existe (no se corrió Admin →
 // Migrar), se crea acá con los mensajes iniciales. Solo la primera vez: si
@@ -56,6 +56,18 @@ function asegurarTabla(): Promise<void> {
         await tx
           .insert(plantillasWhatsapp)
           .values(VERSIONES_SEGUIMIENTO_SEMANAL.map((p, i) => ({ ...p, orden: maximo + 1 + i })));
+      }
+      const captacion = await tx.execute(sql`
+        INSERT INTO datos_cargados (clave) VALUES ('captacion-versiones')
+        ON CONFLICT DO NOTHING RETURNING clave
+      `);
+      if (existia && captacion.length > 0) {
+        const [{ maximo }] = await tx
+          .select({ maximo: sql<number>`coalesce(max(${plantillasWhatsapp.orden}), -1)`.mapWith(Number) })
+          .from(plantillasWhatsapp);
+        await tx
+          .insert(plantillasWhatsapp)
+          .values(VERSIONES_CAPTACION.map((p, i) => ({ ...p, orden: maximo + 1 + i })));
       }
     })
     .catch((e) => {

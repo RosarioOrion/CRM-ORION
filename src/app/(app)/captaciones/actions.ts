@@ -8,6 +8,7 @@ import { captaciones, contactos, propiedades } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { ESTADOS_CAPTACION, type EstadoCaptacion } from "@/lib/captaciones";
 import { registrar } from "@/lib/registro-actividad";
+import { borrarCaptacion } from "@/lib/captacion-borrar";
 import { ESTADO_CAPTACION_LABEL } from "@/lib/captaciones";
 
 const CaptacionSchema = z.object({
@@ -118,7 +119,7 @@ export async function cambiarEstadoCaptacion(
 
   await db
     .update(captaciones)
-    .set({ estado })
+    .set({ estado, etapa: estado, etapaDesde: new Date() })
     .where(eq(captaciones.id, captacionId));
 
   await registrar("Cambió el estado de una captación", { entidad: "captacion", id: captacionId, detalle: ESTADO_CAPTACION_LABEL[estado] ?? estado });
@@ -128,8 +129,8 @@ export async function cambiarEstadoCaptacion(
 export async function eliminarCaptacion(captacionId: string) {
   await requerirCaptacionDelAgente(captacionId);
 
-  await registrar("Eliminó una captación", { entidad: "captacion", id: captacionId });
-  await db.delete(captaciones).where(eq(captaciones.id, captacionId));
+  const sesion = await obtenerSesion();
+  await borrarCaptacion(captacionId, sesion!.userId, "Eliminó una captación (Papelera)");
 
   revalidatePath("/captaciones");
 }
@@ -175,7 +176,7 @@ export async function convertirEnPropiedad(captacionId: string) {
 
   await db
     .update(captaciones)
-    .set({ estado: "PARA_PUBLICAR", convertidaEnPropiedadId: nuevaPropiedad.id })
+    .set({ estado: "PARA_PUBLICAR", etapa: "PARA_PUBLICAR", convertidaEnPropiedadId: nuevaPropiedad.id })
     .where(eq(captaciones.id, captacionId));
 
   await registrar("Pasó una captación a propiedad", { entidad: "propiedad", id: nuevaPropiedad.id });
