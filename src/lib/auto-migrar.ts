@@ -118,6 +118,34 @@ const SENTENCIAS = [
   END $$`,
   // Tasación profesional: categoría, zona y medidas extra.
   sql`ALTER TABLE tasaciones ADD COLUMN IF NOT EXISTS detalle jsonb`,
+  // Mis finanzas (privado de cada usuario) y su cierre mensual (Money Day).
+  sql`CREATE TABLE IF NOT EXISTS finanzas_movimientos (
+    id text PRIMARY KEY,
+    usuario_id text NOT NULL,
+    fecha timestamp NOT NULL,
+    tipo text NOT NULL,
+    categoria text NOT NULL,
+    monto double precision NOT NULL,
+    moneda text NOT NULL DEFAULT 'UYU',
+    nota text,
+    comision_id text,
+    oculto boolean NOT NULL DEFAULT false,
+    creado_en timestamp NOT NULL DEFAULT now()
+  )`,
+  sql`CREATE INDEX IF NOT EXISTS finanzas_movimientos_usuario_idx ON finanzas_movimientos (usuario_id, fecha)`,
+  sql`CREATE UNIQUE INDEX IF NOT EXISTS finanzas_movimientos_comision_idx ON finanzas_movimientos (usuario_id, comision_id) WHERE comision_id IS NOT NULL`,
+  sql`CREATE TABLE IF NOT EXISTS finanzas_meses (
+    id text PRIMARY KEY,
+    usuario_id text NOT NULL,
+    mes text NOT NULL,
+    cotizacion double precision,
+    presupuesto jsonb NOT NULL DEFAULT '{}'::jsonb,
+    ingreso_esperado double precision,
+    notas text,
+    cerrado_en timestamp,
+    creado_en timestamp NOT NULL DEFAULT now(),
+    CONSTRAINT finanzas_meses_usuario_mes UNIQUE (usuario_id, mes)
+  )`,
   // Filosofía de Orion (Rosario): se carga una sola vez en Ajustes → Filosofía.
   sql.raw(`DO $f$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM datos_cargados WHERE clave = 'filosofia-orion') THEN
