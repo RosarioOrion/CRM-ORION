@@ -57,6 +57,8 @@ export type FotoPropiedad = {
   consultas?: Filas;
 };
 
+export type FotoCaptacion = { captacion: Record<string, unknown> };
+
 // La tabla se crea sola la primera vez (no hace falta tocar "Migración").
 let tablaLista: Promise<unknown> | null = null;
 export function asegurarTablaPapelera() {
@@ -156,6 +158,29 @@ export async function guardarPropiedadEnPapelera(tx: Tx, propiedadId: string, el
   }).onConflictDoUpdate({ target: papelera.id, set: { datos: foto, eliminadoEn: new Date() } });
 }
 
+/** Captación sola (cuando su contacto sigue existiendo). */
+export async function guardarCaptacionEnPapelera(tx: Tx, captacionId: string, eliminadoPor: string) {
+  const [captacion] = await tx.select().from(captaciones).where(eq(captaciones.id, captacionId));
+  if (!captacion) return;
+  const foto: FotoCaptacion = { captacion };
+  await tx.insert(papelera).values({
+    id: captacionId,
+    tipo: "CAPTACION",
+    titulo: captacion.titulo,
+    agenteId: captacion.agenteId,
+    eliminadoPor,
+    datos: foto,
+  }).onConflictDoUpdate({ target: papelera.id, set: { datos: foto, eliminadoEn: new Date() } });
+}
+
+/** Una captación restaurada vuelve a correr sus plazos desde ahora. */
+async function reiniciarPlazos(tx: Tx, cond: SQL) {
+  await tx
+    .update(captaciones)
+    .set({ etapaDesde: new Date(), intentoEn: null, ultimoSeguimiento: null })
+    .where(cond);
+}
+
 // --- Restaurar -------------------------------------------------------------
 
 /** Las fechas vuelven del JSON como texto: se convierten de nuevo a Date. */
@@ -213,6 +238,15 @@ export async function restaurarDePapelera(
             .update(actividades)
             .set({ contactoId: id })
             .where(inArray(actividades.id, f.actividadesIds));
+        await reiniciarPlazos(tx, eq(captaciones.contactoId, id));
+      } else if (item.tipo === "CAPTACION") {
+        const f = item.datos as FotoCaptacion;
+        const contactoId = f.captacion.contactoId as string;
+        const [c] = await tx.select({ id: contactos.id }).from(contactos).where(eq(contactos.id, contactoId));
+        if (!c) throw new Error("El propietario de esta captación ya no existe: restauralo primero.");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await tx.insert(captaciones).values(revivir(captaciones, f.captacion) as any);
+        await reiniciarPlazos(tx, eq(captaciones.id, id));
       } else {
         const f = item.datos as FotoPropiedad;
         const codigo = f.propiedad.codigo as string;

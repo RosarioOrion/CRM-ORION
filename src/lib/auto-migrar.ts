@@ -95,6 +95,25 @@ const SENTENCIAS = [
   )`,
   sql`CREATE INDEX IF NOT EXISTS registro_actividad_usuario_idx ON registro_actividad (usuario_id, creado_en)`,
   sql`CREATE INDEX IF NOT EXISTS registro_actividad_fecha_idx ON registro_actividad (creado_en)`,
+  // Circuito de captación: etapas con plazos (48 hs, S8, S12) y tasación.
+  sql`ALTER TABLE captaciones ADD COLUMN IF NOT EXISTS etapa text NOT NULL DEFAULT 'LLAMANDO'`,
+  sql`ALTER TABLE captaciones ADD COLUMN IF NOT EXISTS etapa_desde timestamp NOT NULL DEFAULT now()`,
+  sql`ALTER TABLE captaciones ADD COLUMN IF NOT EXISTS intento_en timestamp`,
+  sql`ALTER TABLE captaciones ADD COLUMN IF NOT EXISTS intento_canal text`,
+  sql`ALTER TABLE captaciones ADD COLUMN IF NOT EXISTS seguimientos_hechos integer NOT NULL DEFAULT 0`,
+  sql`ALTER TABLE captaciones ADD COLUMN IF NOT EXISTS ultimo_seguimiento timestamp`,
+  sql`ALTER TABLE captaciones ADD COLUMN IF NOT EXISTS tasacion_id text`,
+  sql`ALTER TABLE captaciones ADD COLUMN IF NOT EXISTS tasacion_uso text`,
+  sql`ALTER TABLE captaciones ADD COLUMN IF NOT EXISTS historial jsonb NOT NULL DEFAULT '[]'::jsonb`,
+  // Las captaciones que ya existían conservan su columna y, las que están
+  // en Llamando, arrancan con 7 días de margen (no 48 hs) desde la actualización.
+  sql`DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM datos_cargados WHERE clave = 'captacion-etapas') THEN
+      UPDATE captaciones SET etapa = estado::text,
+        etapa_desde = CASE WHEN estado::text = 'LLAMANDO' THEN now() + interval '5 days' ELSE now() END;
+      INSERT INTO datos_cargados (clave) VALUES ('captacion-etapas');
+    END IF;
+  END $$`,
 ];
 
 export async function autoMigrar() {

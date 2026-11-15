@@ -15,6 +15,7 @@ import {
   type ComparableSugerido,
 } from "@/lib/tasaciones";
 import { registrar } from "@/lib/registro-actividad";
+import { vincularTasacion } from "../captaciones/flujo-actions";
 
 export type TasacionState = { error?: string; ok?: number };
 
@@ -95,6 +96,12 @@ export async function crearTasacion(
 
   await registrar("Hizo una tasación", { entidad: "tasacion", id: fila.id });
   revalidatePath("/tasaciones");
+  // Tasación hecha desde una captación en "Tasando": queda vinculada y vuelve a Captaciones.
+  const captacionId = String(formData.get("captacionId") || "");
+  if (captacionId) {
+    await vincularTasacion(captacionId, fila.id);
+    redirect("/captaciones");
+  }
   redirect(`/tasaciones/${fila.id}`);
 }
 

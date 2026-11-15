@@ -27,13 +27,21 @@ function formatoUsd(n: number) {
   return `USD ${Math.round(n).toLocaleString("es-UY")}`;
 }
 
-export function NuevaTasacionForm() {
+export type TasacionInicial = {
+  captacionId: string;
+  tipo: string;
+  direccion: string | null;
+  zona: string | null;
+  link: string | null;
+};
+
+export function NuevaTasacionForm({ inicial }: { inicial?: TasacionInicial } = {}) {
   const [state, formAction, pending] = useActionState(crearTasacion, initialState);
 
-  const [tipo, setTipo] = useState("");
-  const [direccion, setDireccion] = useState("");
-  const [zona, setZona] = useState("");
-  const [link, setLink] = useState("");
+  const [tipo, setTipo] = useState(inicial?.tipo && inicial.tipo !== "A definir" ? inicial.tipo : "");
+  const [direccion, setDireccion] = useState(inicial?.direccion ?? "");
+  const [zona, setZona] = useState(inicial?.zona ?? "");
+  const [link, setLink] = useState(inicial?.link ?? "");
   const [m2, setM2] = useState("");
   const [estado, setEstado] = useState(3);
   const [ubicacion, setUbicacion] = useState(3);
@@ -107,6 +115,7 @@ export function NuevaTasacionForm() {
   return (
     <form action={formAction} className="flex flex-col gap-6">
       <input type="hidden" name="comparablesJson" value={JSON.stringify(comparablesCompletos)} />
+      {inicial && <input type="hidden" name="captacionId" value={inicial.captacionId} />}
 
       <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
         <p className="mb-3 text-sm font-semibold text-orion-navy dark:text-white">

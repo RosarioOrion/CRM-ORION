@@ -65,7 +65,7 @@ export default async function PapeleraPage() {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                      {it.tipo === "CONTACTO" ? "👤 Contacto" : "🏢 Propiedad"}
+                      {it.tipo === "CONTACTO" ? "👤 Contacto" : it.tipo === "CAPTACION" ? "🚀 Captación" : "🏢 Propiedad"}
                     </span>
                     {it.agenteId !== yo && (
                       <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300">

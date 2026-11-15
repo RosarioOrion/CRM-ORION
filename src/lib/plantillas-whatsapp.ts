@@ -66,6 +66,31 @@ export const VERSIONES_SEGUIMIENTO_SEMANAL: Omit<Plantilla, "id">[] = [
   },
 ];
 
+/**
+ * Mensajes de captación: todos los que se llaman "Captación…" aparecen en
+ * el botón WhatsApp de cada captación (los edita la CEO en /mensajes).
+ */
+export const VERSIONES_CAPTACION: Omit<Plantilla, "id">[] = [
+  {
+    emoji: "🏡",
+    titulo: "Captación 2",
+    texto:
+      "Hola {nombre}, ¿cómo estás? Soy {agente}, de {inmobiliaria}. Vi tu publicación y te quería consultar si la propiedad sigue disponible. Tenemos clientes buscando en esa zona y me gustaría ayudarte a venderla o alquilarla más rápido. ¿Te parece si lo charlamos?",
+  },
+  {
+    emoji: "🏡",
+    titulo: "Captación 3",
+    texto:
+      "¡Buen día, {nombre}! Mi nombre es {agente}, trabajo en {inmobiliaria}. ¿La propiedad que publicaste continúa disponible? Si querés, te puedo hacer una tasación sin costo para que sepas a qué valor se está moviendo el mercado en tu zona. ¡Quedo a disposición!",
+  },
+  {
+    emoji: "🔁",
+    titulo: "Captación seguimiento",
+    texto:
+      "Hola {nombre}, ¿cómo estás? Soy {agente}, de {inmobiliaria}. Te escribo para saber cómo seguís con la propiedad y si pensaste algo más sobre lo que hablamos. Cuando quieras, coordinamos para avanzar. ¡Saludos!",
+  },
+];
+
 /** Mensajes con los que arranca Orion; después se editan desde /mensajes. */
 export const PLANTILLAS_INICIALES: Omit<Plantilla, "id">[] = [
   {
@@ -74,6 +99,7 @@ export const PLANTILLAS_INICIALES: Omit<Plantilla, "id">[] = [
     texto:
       "Hola {nombre}, ¿cómo está? Mi nombre es {agente}, soy asesora inmobiliaria.\nMe contacto porque vi que tiene una propiedad publicada y quería consultarle si continúa disponible.\nEstoy incorporando propiedades en esa zona para comercialización y, si todavía está disponible, me gustaría contar con su autorización para ofrecerla y acercarle potenciales interesados.\nSi le interesa, podemos conversar por acá y me cuenta un poco más sobre la propiedad y las condiciones de comercialización. Desde ya, gracias por su tiempo.",
   },
+  ...VERSIONES_CAPTACION,
   {
     emoji: "📅",
     titulo: "Seguimiento semanal",
