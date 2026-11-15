@@ -55,7 +55,8 @@ function Seccion({
 
 /** Inicio: qué hacer primero hoy. */
 export function PlanDelDia({ plan }: { plan: Plan }) {
-  const total = plan.avisos.length + plan.seguimientos.length + plan.hoy.length + plan.quietas.length;
+  const total =
+    plan.avisos.length + plan.captaciones.length + plan.seguimientos.length + plan.hoy.length + plan.quietas.length;
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
@@ -66,6 +67,7 @@ export function PlanDelDia({ plan }: { plan: Plan }) {
       </div>
       <div className="flex flex-col gap-5">
         <Seccion titulo="⛔ No respondieron al aviso final" items={plan.avisos} verTodos="/contactos?tab=seguimiento" />
+        <Seccion titulo="🚀 Captaciones" items={plan.captaciones} verTodos="/captaciones" />
         <SeguimientosPlan items={plan.seguimientos} verTodos="/contactos?tab=seguimiento" />
         <div>
           <Seccion titulo="📅 Hoy en la agenda" items={plan.hoy} verTodos="/agenda" vacio="Nada agendado para hoy." />

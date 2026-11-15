@@ -10,6 +10,7 @@ import { borrarCaptacion } from "@/lib/captacion-borrar";
 import {
   calcularPlazo,
   CICLOS,
+  DIAS_EXTRA_TASANDO,
   ETAPA_LABEL,
   ETAPAS_CONTACTO,
   estadoDeEtapa,
@@ -174,8 +175,36 @@ export async function resultadoTasacion(
   return listo();
 }
 
+/** Tasando: pedir 3 días más (una sola vez). */
+export async function pedirMasTiempoTasacion(id: string): Promise<Resultado> {
+  const r = await miCaptacion(id);
+  if ("error" in r) return r;
+  const { c } = r;
+  if (c.etapa !== "TASANDO") return { error: "No está en Tasando." };
+  if (c.plazoExtendido) return { error: "Ya se pidieron los días extra." };
+  await db
+    .update(captaciones)
+    .set({ plazoExtendido: true, historial: paso(c, `⏱ Pidió ${DIAS_EXTRA_TASANDO} días más para la tasación`) })
+    .where(eq(captaciones.id, id));
+  await registrar("Captación: pidió más tiempo para tasar", { entidad: "captacion", id });
+  return listo();
+}
+
+/** Tasando: vincular una tasación que ya estaba hecha en Tasaciones. */
+export async function vincularTasacionExistente(captacionId: string, tasacionId: string): Promise<Resultado> {
+  const r = await miCaptacion(captacionId);
+  if ("error" in r) return r;
+  if (r.c.etapa !== "TASANDO") return { error: "No está en Tasando." };
+  await vincular(captacionId, tasacionId, "📐 Vinculó una tasación ya hecha");
+  return listo();
+}
+
 /** Desde "Nueva tasación": deja la tasación vinculada a la captación. */
 export async function vincularTasacion(captacionId: string, tasacionId: string) {
+  await vincular(captacionId, tasacionId, "📐 Tasación hecha");
+}
+
+async function vincular(captacionId: string, tasacionId: string, texto: string) {
   const r = await miCaptacion(captacionId);
   if ("error" in r) return;
   const [t] = await db
@@ -185,7 +214,7 @@ export async function vincularTasacion(captacionId: string, tasacionId: string) 
   if (!t) return;
   await db
     .update(captaciones)
-    .set({ tasacionId, historial: paso(r.c, "📐 Tasación hecha") })
+    .set({ tasacionId, historial: paso(r.c, texto) })
     .where(eq(captaciones.id, captacionId));
   revalidatePath("/captaciones");
 }

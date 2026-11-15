@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/db";
-import { captaciones, contactos, actividades } from "@/db/schema";
+import { captaciones, contactos, actividades, tasaciones } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { eq, desc, and } from "drizzle-orm";
 import {
@@ -18,6 +18,9 @@ import { datosParaWhatsApp } from "../mensajes/actions";
 import { NuevaCaptacionForm, type CaptacionInicial } from "./nueva-captacion-form";
 import { FlujoCaptacion } from "./flujo-captacion";
 import { VerificarCaptacion } from "./verificar-captacion";
+
+const tarjetasEnTasando = (filas: { etapa: string; tasacionId: string | null }[]) =>
+  filas.some((f) => f.etapa === "TASANDO" && !f.tasacionId);
 
 export default async function CaptacionesPage({
   searchParams,
@@ -85,6 +88,7 @@ export default async function CaptacionesPage({
       seguimientosHechos: captaciones.seguimientosHechos,
       ultimoSeguimiento: captaciones.ultimoSeguimiento,
       tasacionId: captaciones.tasacionId,
+      plazoExtendido: captaciones.plazoExtendido,
       historial: captaciones.historial,
       convertidaEnPropiedadId: captaciones.convertidaEnPropiedadId,
       contactoId: contactos.id,
@@ -97,6 +101,27 @@ export default async function CaptacionesPage({
     .orderBy(desc(captaciones.creadoEn));
 
   const wa = await datosParaWhatsApp();
+  // Tasaciones propias que se pueden vincular a una captación en Tasando.
+  const tasacionesElegibles = tarjetasEnTasando(filas)
+    ? (
+        await db
+          .select({
+            id: tasaciones.id,
+            tipo: tasaciones.tipo,
+            direccion: tasaciones.direccion,
+            zona: tasaciones.zona,
+            valor: tasaciones.valorEstimado,
+            creadoEn: tasaciones.creadoEn,
+          })
+          .from(tasaciones)
+          .where(eq(tasaciones.agenteId, sesion!.userId))
+          .orderBy(desc(tasaciones.creadoEn))
+          .limit(50)
+      ).map((t) => ({
+        id: t.id,
+        texto: `${[t.tipo, t.direccion ?? t.zona].filter(Boolean).join(" · ")} · USD ${t.valor.toLocaleString("es-UY")} (${t.creadoEn.toLocaleDateString("es-UY")})`,
+      }))
+    : [];
   const plantillas = wa.plantillas.filter((p) => TITULO_CAPTACION.test(p.titulo));
   const tarjetas = filas.map((f) => ({
     ...f,
@@ -156,7 +181,8 @@ export default async function CaptacionesPage({
                     return (
                       <div
                         key={f.id}
-                        className={`rounded-xl border bg-white p-4 shadow-sm dark:bg-gray-800 ${
+                        id={`cap-${f.id}`}
+                        className={`scroll-mt-24 rounded-xl border bg-white p-4 shadow-sm dark:bg-gray-800 ${
                           urgente ? "border-red-300 dark:border-red-800" : "border-gray-200 dark:border-gray-700"
                         }`}
                       >
@@ -244,11 +270,13 @@ export default async function CaptacionesPage({
                               cicloTerminado: f.plazo.cicloTerminado,
                               hechos: f.seguimientosHechos,
                               tasacionId: f.tasacionId,
+                              plazoExtendido: f.plazoExtendido,
                               convertida: !!f.convertidaEnPropiedadId,
                             }}
                             plantillas={plantillas}
                             agente={wa.agente}
                             inmobiliaria={wa.inmobiliaria}
+                            tasaciones={tasacionesElegibles}
                           />
                         </div>
                       </div>

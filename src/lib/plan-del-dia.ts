@@ -2,6 +2,7 @@ import { and, eq, gte, inArray, lt, ne, or } from "drizzle-orm";
 import { db } from "@/db";
 import {
   actividades,
+  captaciones,
   contactos,
   pipelineAcciones,
   propiedades,
@@ -13,6 +14,15 @@ import { limpiarTitulo } from "@/lib/propiedades";
 import { estadoSeguimiento, numeroWhatsApp, SIN_RESPUESTA_TOPE, type SeguimientoMin } from "@/lib/seguimientos";
 import { mensajeSeguimientoSemanal, versionesSeguimientoSemanal } from "@/lib/seguimiento-lunes";
 import { datosParaWhatsApp, listarPlantillas } from "@/app/(app)/mensajes/actions";
+import {
+  calcularPlazo,
+  CICLOS,
+  ETAPA_LABEL,
+  ETAPAS_CONTACTO,
+  faltaTexto,
+  horasRestantes,
+  type Etapa,
+} from "@/lib/captacion-flujo";
 
 // Inicio "Plan del día": qué hacer primero, en este orden (decidido en el
 // Mapa único de Orion):
@@ -53,6 +63,8 @@ export type PlanDelDia = {
   hoy: ItemPlan[];
   agendaVencida: number;
   quietas: ItemPlan[];
+  /** Captaciones con algo para hacer hoy (contactar, seguimiento S8/S12, tasación). */
+  captaciones: ItemPlan[];
 };
 
 const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -259,6 +271,7 @@ export async function cargarPlanDelDia(yo: string): Promise<PlanDelDia> {
 
   return {
     avisos,
+    captaciones: await captacionesDelDia(yo, finHoy),
     seguimientos: segsHoy.sort((a, b) => a.orden - b.orden),
     hoy: hoy.sort((a, b) => a.orden - b.orden),
     agendaVencida,
@@ -340,4 +353,67 @@ async function completarAcciones(
       })),
     };
   }
+}
+
+/**
+ * Captaciones que piden algo hoy: primer contacto y sus seguimientos (48 hs),
+ * S8/S12 cuando llega la fecha del seguimiento, el fin de un S8 y lo que está
+ * en Tasando. Las más urgentes (menos de 12 hs para borrarse) primero.
+ */
+async function captacionesDelDia(yo: string, finHoy: Date): Promise<ItemPlan[]> {
+  let filas;
+  try {
+    filas = await db
+      .select({
+        id: captaciones.id,
+        titulo: captaciones.titulo,
+        etapa: captaciones.etapa,
+        etapaDesde: captaciones.etapaDesde,
+        intentoEn: captaciones.intentoEn,
+        seguimientosHechos: captaciones.seguimientosHechos,
+        ultimoSeguimiento: captaciones.ultimoSeguimiento,
+        plazoExtendido: captaciones.plazoExtendido,
+        tasacionId: captaciones.tasacionId,
+        convertida: captaciones.convertidaEnPropiedadId,
+        contacto: contactos.nombre,
+      })
+      .from(captaciones)
+      .innerJoin(contactos, eq(captaciones.contactoId, contactos.id))
+      .where(eq(captaciones.agenteId, yo));
+  } catch {
+    return []; // columnas nuevas todavía no migradas
+  }
+  const ahora = new Date();
+  const items: (ItemPlan & { horas: number })[] = [];
+  for (const c of filas) {
+    if (c.convertida) continue;
+    const etapa = c.etapa as Etapa;
+    const plazo = calcularPlazo(c);
+    if (!plazo.vence) continue;
+    const horas = horasRestantes(plazo.vence, ahora);
+    const borra = `se borra ${faltaTexto(plazo.vence, ahora)}`;
+    let detalle: string | null = null;
+    if (ETAPAS_CONTACTO.includes(etapa)) {
+      detalle = plazo.contactado
+        ? `${ETAPA_LABEL[etapa]}: marcá qué pasó · ${borra}`
+        : `${ETAPA_LABEL[etapa]}: llamalo o escribile · ${borra}`;
+    } else if (etapa === "S8" || etapa === "S12") {
+      if (plazo.cicloTerminado) detalle = `Terminó el S8: pasalo a S12 · ${borra}`;
+      else if (plazo.proximo && plazo.proximo < finHoy)
+        detalle = `${ETAPA_LABEL[etapa]}: toca el seguimiento ${c.seguimientosHechos + 1} de ${CICLOS[etapa].total} · ${borra}`;
+    } else if (etapa === "TASANDO") {
+      detalle = `${c.tasacionId ? "Entregá la tasación y marcá si autorizó" : "Hacé la tasación"} · ${borra}`;
+    }
+    if (!detalle) continue;
+    items.push({
+      id: `cap-${c.id}`,
+      titulo: `🚀 ${c.titulo} · ${c.contacto}`,
+      detalle,
+      href: `/captaciones#cap-${c.id}`,
+      urgente: horas < 12,
+      horas,
+    });
+  }
+  items.sort((a, b) => a.horas - b.horas);
+  return items.map((it) => ({ id: it.id, titulo: it.titulo, detalle: it.detalle, href: it.href, urgente: it.urgente }));
 }

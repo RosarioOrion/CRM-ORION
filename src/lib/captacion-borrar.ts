@@ -74,7 +74,7 @@ export async function vencerCaptaciones() {
     .where(
       and(
         isNull(captaciones.convertidaEnPropiedadId),
-        inArray(captaciones.etapa, ["LLAMANDO", "SEGUIMIENTO_1", "SEGUIMIENTO_2", "S8", "S12"])
+        inArray(captaciones.etapa, ["LLAMANDO", "SEGUIMIENTO_1", "SEGUIMIENTO_2", "S8", "S12", "TASANDO"])
       )
     );
 
