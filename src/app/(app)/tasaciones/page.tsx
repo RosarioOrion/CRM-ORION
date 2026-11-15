@@ -77,12 +77,20 @@ export default async function TasacionesPage({
             comparables en “Sugerir comparables”.
           </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+        <Link
+          href="/tasaciones/rentabilidad"
+          className="rounded-lg border border-orion-navy px-4 py-2 text-sm font-semibold text-orion-navy transition hover:bg-orion-navy/5 dark:border-orion-gold dark:text-orion-gold"
+        >
+          📈 Rentabilidad
+        </Link>
         <Link
           href="/tasaciones/nueva"
           className="rounded-lg bg-orion-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-orion-navy-light"
         >
           + Nueva tasación
         </Link>
+        </div>
       </div>
 
       <form action="/tasaciones" method="GET" className="mb-4 flex flex-wrap items-center gap-2">

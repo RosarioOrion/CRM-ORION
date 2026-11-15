@@ -42,6 +42,7 @@ export default async function EditarTasacionPage({ params }: { params: Promise<{
     comparables: t.comparables as ComparablePro[],
     ajusteManual: t.ajusteManual,
     notas: t.notas ?? "",
+    renta: t.detalle?.renta ?? null,
   };
 
   return (
