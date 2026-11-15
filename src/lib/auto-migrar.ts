@@ -116,6 +116,8 @@ const SENTENCIAS = [
       INSERT INTO datos_cargados (clave) VALUES ('captacion-etapas');
     END IF;
   END $$`,
+  // Tasación profesional: categoría, zona y medidas extra.
+  sql`ALTER TABLE tasaciones ADD COLUMN IF NOT EXISTS detalle jsonb`,
   // Filosofía de Orion (Rosario): se carga una sola vez en Ajustes → Filosofía.
   sql.raw(`DO $f$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM datos_cargados WHERE clave = 'filosofia-orion') THEN

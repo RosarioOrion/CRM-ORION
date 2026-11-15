@@ -94,13 +94,53 @@ cuando cambie algo.
 - "Cómo lo cumplís con Orion" (compromiso → herramienta) está fijo en el código (`COMPROMISOS_EN_ORION`) y aparece si hay exactamente 4 compromisos.
 - Para el tutorial: es el **capítulo 1** del manual.
 
+### Tasación profesional (`src/lib/tasacion-pro.ts`)
+
+- **Base:** el método de puntajes de Rosario (Imperium): dinámicos −10%, ±5% por punto de estado y de ubicación (1 a 4).
+- **Tipos y unidad de medida:**
+  - Apartamento, Oficina, Casa, Dúplex/PH, Local, Galpón → m² ponderados;
+  - Terreno → m² de terreno;
+  - Chacra, Campo → hectáreas.
+- **Superficie ponderada:**
+
+  | Superficie | Cuenta al |
+  |---|---|
+  | Cubierta | 100 % |
+  | Semicubierta | 50 % |
+  | Descubierta | 30 % |
+  | Terreno libre en casas, zona urbana | 10 % |
+  | Terreno libre en casas, zona balnearia o suburbana (por defecto en Canelones, Maldonado y Rocha) | 15 % |
+
+- **Ajustes automáticos:**
+
+  | Ajuste | Valor |
+  |---|---|
+  | Tamaño | exponente 0,15, tope ±10 % |
+  | Garaje | ±5 % por garaje, solo si se cargó en el comparable |
+  | Piscina | ±5 % |
+  | Esquina | ±8 % |
+  | CONEAT | (sujeto ÷ comparable) ^ 0,6 |
+
+- **Resultado:**
+  - valor probable de cierre;
+  - rango (± la dispersión de la muestra, entre 5 % y 20 %);
+  - precio sugerido de publicación (cierre ÷ 0,9);
+  - confiabilidad:
+    - Alta: dispersión ≤ 12 % y al menos 1 cierre;
+    - Media: dispersión ≤ 20 %;
+    - Baja: el resto.
+  - se marcan los comparables que se alejan más de 25 % de la mediana.
+- Las tasaciones viejas (sin `detalle`) se siguen mostrando con el método anterior.
+- **Pendiente, fase 2:** informe en PDF para el propietario (logo, comparables, rango, 4 compromisos).
+
 ## Pendientes
 
 1. **Porcentajes finales de comisiones.** Rosario los define después de la reunión con César y Huillen.
    - Problema a resolver: con un agente en 45 % o 50 %, el reparto provisorio suma **105 % / 110 %**.
    - Hay que acordar de dónde sale la diferencia.
    - Se cambia en las constantes de `src/lib/comisiones.ts`.
-2. **Tutorial del CRM** (ver abajo). Se hace cuando Rosario diga que la primera etapa de Orion está cerrada.
+2. **Tasación, fase 2:** informe en PDF para el propietario.
+3. **Tutorial del CRM** (ver abajo). Se hace cuando Rosario diga que la primera etapa de Orion está cerrada.
 
 ## Plan del tutorial (acordado con Rosario)
 

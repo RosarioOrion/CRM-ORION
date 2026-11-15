@@ -49,6 +49,9 @@ export type Comparable = {
 };
 
 export type ComparableSugerido = Comparable & {
+  m2Terreno?: number;
+  garajes?: number;
+  piscina?: boolean;
   codigo: string;
   titulo: string;
   zona: string;
