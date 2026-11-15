@@ -2,30 +2,38 @@
 
 import { useActionState, useMemo, useState, useTransition } from "react";
 import { crearTasacion, sugerirComparables, type TasacionState } from "./actions";
+import { busquedasEnPortales, type ComparableSugerido } from "@/lib/tasaciones";
 import {
-  busquedasEnPortales,
-  calcularTasacion,
+  calcularTasacionPro,
+  CAMPOS,
+  categoriaDe,
+  comparableCompleto,
+  CONFIABILIDAD_LABEL,
+  DEPARTAMENTOS_UY,
+  formatoSuperficie,
+  formatoUsd,
   MINIMO_COMPARABLES,
-  OPCIONES_ESTADO,
-  OPCIONES_UBICACION,
-  type Comparable,
-  type ComparableSugerido,
-} from "@/lib/tasaciones";
+  superficieComparable,
+  TIPOS_TASACION,
+  ZONA_TIPO_LABEL,
+  type Categoria,
+  type ComparablePro,
+  type ZonaTipo,
+} from "@/lib/tasacion-pro";
+import { BARRIOS_CONOCIDOS } from "@/lib/revisar-propiedad";
 
 const initialState: TasacionState = {};
 
-const COMPARABLE_VACIO: Comparable = {
-  link: "",
-  m2: 0,
-  precio: 0,
-  esCierre: false,
-  estado: 3,
-  ubicacion: 3,
-};
+const PUNTAJES = [
+  { valor: 1, label: "1 – Malo" },
+  { valor: 2, label: "2 – Regular" },
+  { valor: 3, label: "3 – Bueno" },
+  { valor: 4, label: "4 – Excelente" },
+];
 
-function formatoUsd(n: number) {
-  return `USD ${Math.round(n).toLocaleString("es-UY")}`;
-}
+const COMPARABLE_VACIO: ComparablePro = { link: "", m2: 0, precio: 0, esCierre: false, estado: 3, ubicacion: 3 };
+
+const DEPTOS_BALNEARIOS = ["Canelones", "Maldonado", "Rocha"];
 
 export type TasacionInicial = {
   captacionId: string;
@@ -35,31 +43,116 @@ export type TasacionInicial = {
   link: string | null;
 };
 
+const input =
+  "rounded border border-gray-300 px-3 py-2 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100";
+const inputChico =
+  "rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100";
+
+function tipoInicial(t?: string) {
+  if (!t) return "";
+  const exacto = TIPOS_TASACION.find((x) => x.tipo.toLowerCase() === t.toLowerCase());
+  if (exacto) return exacto.tipo;
+  const cat = categoriaDe(t);
+  return TIPOS_TASACION.find((x) => x.categoria === cat)?.tipo ?? "";
+}
+
+/** Campo numérico que guarda undefined si está vacío. */
+function Num({
+  value,
+  onChange,
+  placeholder,
+  className,
+  name,
+  step,
+}: {
+  value: number | undefined;
+  onChange: (v: number | undefined) => void;
+  placeholder: string;
+  className: string;
+  name?: string;
+  step?: string;
+}) {
+  return (
+    <input
+      name={name}
+      type="number"
+      step={step ?? "any"}
+      min="0"
+      value={value ?? ""}
+      onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
+      placeholder={placeholder}
+      className={className}
+    />
+  );
+}
+
 export function NuevaTasacionForm({ inicial }: { inicial?: TasacionInicial } = {}) {
   const [state, formAction, pending] = useActionState(crearTasacion, initialState);
 
-  const [tipo, setTipo] = useState(inicial?.tipo && inicial.tipo !== "A definir" ? inicial.tipo : "");
-  const [direccion, setDireccion] = useState(inicial?.direccion ?? "");
+  // --- Propiedad a tasar ---
+  const [tipo, setTipo] = useState(tipoInicial(inicial?.tipo));
+  const cat: Categoria | null = tipo ? categoriaDe(tipo) : null;
+  const k = cat ? CAMPOS[cat] : null;
+  const [departamento, setDepartamento] = useState("");
   const [zona, setZona] = useState(inicial?.zona ?? "");
+  const [direccion, setDireccion] = useState(inicial?.direccion ?? "");
   const [link, setLink] = useState(inicial?.link ?? "");
-  const [m2, setM2] = useState("");
+  const [zonaTipo, setZonaTipo] = useState<ZonaTipo>("URBANA");
+  const [m2, setM2] = useState<number | undefined>();
+  const [m2Semi, setM2Semi] = useState<number | undefined>();
+  const [m2Desc, setM2Desc] = useState<number | undefined>();
+  const [m2Terreno, setM2Terreno] = useState<number | undefined>();
+  const [garajes, setGarajes] = useState<number | undefined>();
+  const [piscina, setPiscina] = useState(false);
+  const [esquina, setEsquina] = useState(false);
+  const [coneat, setConeat] = useState<number | undefined>();
   const [estado, setEstado] = useState(3);
   const [ubicacion, setUbicacion] = useState(3);
   const [notas, setNotas] = useState("");
   const [ajusteManual, setAjusteManual] = useState("");
-  const [comparables, setComparables] = useState<Comparable[]>([
+
+  // --- Comparables ---
+  const [comparables, setComparables] = useState<ComparablePro[]>([
     { ...COMPARABLE_VACIO },
     { ...COMPARABLE_VACIO },
     { ...COMPARABLE_VACIO },
     { ...COMPARABLE_VACIO },
   ]);
+  const [masDatos, setMasDatos] = useState<Record<number, boolean>>({});
 
-  function actualizarComparable(i: number, campo: keyof Comparable, valor: string | number | boolean) {
-    setComparables((prev) =>
-      prev.map((c, idx) => (idx === i ? { ...c, [campo]: valor } : c))
-    );
+  function cambiarComparable(i: number, cambios: Partial<ComparablePro>) {
+    setComparables((prev) => prev.map((c, idx) => (idx === i ? { ...c, ...cambios } : c)));
   }
 
+  function elegirDepartamento(d: string) {
+    setDepartamento(d);
+    setZonaTipo(DEPTOS_BALNEARIOS.includes(d) ? "BALNEARIA" : "URBANA");
+  }
+
+  const sujeto = useMemo(
+    () => ({
+      m2: m2 ?? 0,
+      estado,
+      ubicacion,
+      m2Semi,
+      m2Desc,
+      m2Terreno,
+      garajes,
+      piscina: piscina || undefined,
+      esquina: esquina || undefined,
+      coneat,
+    }),
+    [m2, estado, ubicacion, m2Semi, m2Desc, m2Terreno, garajes, piscina, esquina, coneat]
+  );
+
+  const completos = comparables.filter(comparableCompleto);
+  const resultado = useMemo(() => {
+    if (!cat || !sujeto.m2 || completos.length === 0) return null;
+    return calcularTasacionPro(cat, sujeto, completos, zonaTipo);
+  }, [cat, sujeto, completos, zonaTipo]);
+  const supSujeto = cat && sujeto.m2 ? superficieComparable(cat, sujeto, zonaTipo) : 0;
+
+  // --- Sugerir comparables de Orion ---
   const [buscando, iniciarBusqueda] = useTransition();
   const [sugeridos, setSugeridos] = useState<ComparableSugerido[] | null>(null);
   const [errorSugeridos, setErrorSugeridos] = useState("");
@@ -67,370 +160,511 @@ export function NuevaTasacionForm({ inicial }: { inicial?: TasacionInicial } = {
   function buscarSugeridos() {
     setErrorSugeridos("");
     iniciarBusqueda(async () => {
-      const r = await sugerirComparables(tipo, zona, Number(m2));
+      const r = await sugerirComparables(tipo, zona, m2 ?? 0);
       if (r.error) {
         setErrorSugeridos(r.error);
         setSugeridos(null);
-      } else {
-        setSugeridos(r.sugeridos ?? []);
-      }
+      } else setSugeridos(r.sugeridos ?? []);
     });
   }
 
-  // Ocupa primero los comparables vacíos y después agrega al final.
   function usarSugeridos(lista: ComparableSugerido[]) {
     setComparables((prev) => {
       const nuevos = [...prev];
       for (const s of lista) {
         if (nuevos.some((c) => c.link === s.link)) continue;
-        const { link, m2, precio, esCierre, estado, ubicacion } = s;
-        const comparable = { link, m2, precio, esCierre, estado, ubicacion };
-        const vacio = nuevos.findIndex((c) => !c.link && !c.m2 && !c.precio);
-        if (vacio >= 0) nuevos[vacio] = comparable;
-        else nuevos.push(comparable);
+        const c: ComparablePro = {
+          link: s.link,
+          m2: s.m2,
+          precio: s.precio,
+          esCierre: s.esCierre,
+          estado: s.estado,
+          ubicacion: s.ubicacion,
+          m2Terreno: s.m2Terreno,
+          garajes: s.garajes,
+          piscina: s.piscina,
+        };
+        const vacio = nuevos.findIndex((x) => !x.link && !x.m2 && !x.precio);
+        if (vacio >= 0) nuevos[vacio] = c;
+        else nuevos.push(c);
       }
       return nuevos;
     });
   }
 
   const yaCargado = (s: ComparableSugerido) => comparables.some((c) => c.link === s.link);
-  const portales = busquedasEnPortales(tipo, zona, Number(m2));
-
-  function agregarComparable() {
-    setComparables((prev) => [...prev, { ...COMPARABLE_VACIO }]);
-  }
-
-  function quitarComparable(i: number) {
-    setComparables((prev) => prev.filter((_, idx) => idx !== i));
-  }
-
-  const comparablesCompletos = comparables.filter((c) => c.m2 > 0 && c.precio > 0);
-
-  const resultado = useMemo(() => {
-    const m2Num = Number(m2);
-    if (!m2Num || comparablesCompletos.length < MINIMO_COMPARABLES) return null;
-    return calcularTasacion(comparablesCompletos, estado, ubicacion, m2Num);
-  }, [comparablesCompletos, estado, ubicacion, m2]);
+  const portales = busquedasEnPortales(tipo.split(" ")[0], zona, m2 ?? 0);
+  const unidad = k?.unidad ?? "m²";
+  const faltan = MINIMO_COMPARABLES - completos.length;
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
-      <input type="hidden" name="comparablesJson" value={JSON.stringify(comparablesCompletos)} />
+      <input type="hidden" name="comparablesJson" value={JSON.stringify(completos)} />
+      <input type="hidden" name="tipo" value={tipo} />
+      <input type="hidden" name="zonaTipo" value={zonaTipo} />
+      <input type="hidden" name="estado" value={estado} />
+      <input type="hidden" name="ubicacion" value={ubicacion} />
       {inicial && <input type="hidden" name="captacionId" value={inicial.captacionId} />}
 
+      {/* 1. Tipo */}
       <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-        <p className="mb-3 text-sm font-semibold text-orion-navy dark:text-white">
-          Datos de la propiedad
-        </p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <input
-            name="tipo"
-            value={tipo}
-            onChange={(e) => setTipo(e.target.value)}
-            placeholder="Tipo (casa, apartamento…) *"
-            required
-            className="rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
-          />
-          <input
-            name="direccion"
-            value={direccion}
-            onChange={(e) => setDireccion(e.target.value)}
-            placeholder="Dirección"
-            className="rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
-          />
-          <input
-            name="zona"
-            value={zona}
-            onChange={(e) => setZona(e.target.value)}
-            placeholder="Barrio / Zona"
-            className="rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
-          />
-          <input
-            name="link"
-            value={link}
-            onChange={(e) => setLink(e.target.value)}
-            placeholder="Link de publicación (opcional)"
-            className="col-span-2 rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
-          />
-          <input
-            name="m2"
-            type="number"
-            step="0.01"
-            value={m2}
-            onChange={(e) => setM2(e.target.value)}
-            placeholder="Superficie m² *"
-            required
-            className="rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
-          />
-          <select
-            name="estado"
-            value={estado}
-            onChange={(e) => setEstado(Number(e.target.value))}
-            className="rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
-          >
-            {OPCIONES_ESTADO.map((o) => (
-              <option key={o.valor} value={o.valor}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          <select
-            name="ubicacion"
-            value={ubicacion}
-            onChange={(e) => setUbicacion(Number(e.target.value))}
-            className="rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
-          >
-            {OPCIONES_UBICACION.map((o) => (
-              <option key={o.valor} value={o.valor}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+        <p className="mb-3 text-sm font-semibold text-orion-navy dark:text-white">1. ¿Qué se tasa?</p>
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+          {TIPOS_TASACION.map((t) => (
+            <button
+              key={t.tipo}
+              type="button"
+              onClick={() => setTipo(t.tipo)}
+              className={`flex flex-col items-center gap-1 rounded-lg border px-2 py-2 text-xs font-semibold transition ${
+                tipo === t.tipo
+                  ? "border-orion-navy bg-orion-navy text-white"
+                  : "border-gray-200 text-gray-700 hover:border-orion-navy dark:border-gray-600 dark:text-gray-200"
+              }`}
+            >
+              <span className="text-lg">{t.icono}</span>
+              {t.tipo}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-        <div className="mb-3 flex items-center justify-between">
-          <p className="text-sm font-semibold text-orion-navy dark:text-white">
-            Comparables (mínimo {MINIMO_COMPARABLES})
-          </p>
-          <span className="text-xs text-gray-400">
-            {comparablesCompletos.length} completo(s) de {comparables.length} cargado(s)
-          </span>
-        </div>
-
-        <div className="mb-4 rounded-lg bg-gray-50 p-3 dark:bg-gray-900/50">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={buscarSugeridos}
-              disabled={buscando}
-              className="rounded-lg bg-orion-navy px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-            >
-              {buscando ? "Buscando…" : "🔎 Sugerir comparables de Orion"}
-            </button>
-            {portales.map((p) => (
-              <a
-                key={p.portal}
-                href={p.url}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:border-gray-600 dark:text-gray-200"
+      {k && cat && (
+        <>
+          {/* 2. Datos de la propiedad */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+            <p className="mb-3 text-sm font-semibold text-orion-navy dark:text-white">2. Datos de la propiedad</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <select
+                name="departamento"
+                value={departamento}
+                onChange={(e) => elegirDepartamento(e.target.value)}
+                className={input}
               >
-                Buscar en {p.portal} ↗
-              </a>
-            ))}
-          </div>
-          <p className="mt-2 text-[11px] text-gray-400">
-            Orion busca propiedades en venta del mismo tipo y zona, con ±25% de m². Las vendidas o reservadas
-            entran como Cierre y las activas como Dinámico. En los portales, copiá el link del aviso que elijas
-            y cargalo en un comparable.
-          </p>
-          {errorSugeridos && <p className="mt-2 text-xs text-red-600">{errorSugeridos}</p>}
-          {sugeridos && sugeridos.length === 0 && (
-            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              No hay propiedades parecidas en Orion. Probá con una zona más amplia o buscá en los portales.
-            </p>
-          )}
-          {sugeridos && sugeridos.length > 0 && (
-            <div className="mt-3 flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                  {sugeridos.length} encontrada(s)
-                </span>
-                {sugeridos.some((s) => !yaCargado(s)) && (
-                  <button
-                    type="button"
-                    onClick={() => usarSugeridos(sugeridos)}
-                    className="text-xs font-semibold text-orion-navy hover:underline dark:text-orion-gold"
-                  >
-                    Agregar todas
-                  </button>
-                )}
-              </div>
-              {sugeridos.map((s) => (
-                <div
-                  key={s.link}
-                  className="flex items-center justify-between gap-3 rounded border border-gray-200 bg-white px-3 py-2 text-xs dark:border-gray-700 dark:bg-gray-800"
-                >
-                  <div className="min-w-0">
-                    <a
-                      href={s.link}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="block truncate font-semibold text-gray-700 hover:underline dark:text-gray-200"
-                    >
-                      {s.codigo} · {s.titulo}
-                    </a>
-                    <span className="text-gray-400">
-                      {s.zona} · {s.m2} m² · {formatoUsd(s.precio)} ·{" "}
-                      {s.esCierre ? "✅ Cierre" : "📊 Dinámico"}
-                    </span>
-                  </div>
-                  {yaCargado(s) ? (
-                    <span className="shrink-0 text-gray-400">Agregada</span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => usarSugeridos([s])}
-                      className="shrink-0 rounded border border-orion-navy px-2 py-1 font-semibold text-orion-navy dark:border-orion-gold dark:text-orion-gold"
-                    >
-                      Agregar
-                    </button>
-                  )}
-                </div>
-              ))}
+                <option value="">Departamento…</option>
+                {DEPARTAMENTOS_UY.map((d) => (
+                  <option key={d}>{d}</option>
+                ))}
+              </select>
+              <input
+                name="zona"
+                list="barrios-tasacion"
+                value={zona}
+                onChange={(e) => setZona(e.target.value)}
+                placeholder="Barrio / localidad *"
+                className={input}
+              />
+              <datalist id="barrios-tasacion">
+                {BARRIOS_CONOCIDOS.map((b) => (
+                  <option key={b} value={b} />
+                ))}
+              </datalist>
+              <input
+                name="direccion"
+                value={direccion}
+                onChange={(e) => setDireccion(e.target.value)}
+                placeholder="Dirección"
+                className={input}
+              />
+              <input
+                name="link"
+                value={link}
+                onChange={(e) => setLink(e.target.value)}
+                placeholder="Link de publicación (opcional)"
+                className={`${input} sm:col-span-3`}
+              />
             </div>
-          )}
-        </div>
 
-        <div className="flex flex-col gap-3">
-          {comparables.map((c, i) => {
-            const usdM2 = resultado ? resultado.ajustados[comparablesCompletos.indexOf(c)] : undefined;
-            return (
-              <div
-                key={i}
-                className="rounded-lg border border-gray-200 p-3 dark:border-gray-700"
-              >
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-gray-400">
-                    Comparable #{i + 1}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => actualizarComparable(i, "esCierre", !c.esCierre)}
-                      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                        c.esCierre
-                          ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
-                          : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
-                      }`}
-                    >
-                      {c.esCierre ? "✅ Cierre" : "📊 Dinámico"}
-                    </button>
-                    {comparables.length > MINIMO_COMPARABLES && (
+            <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-gray-400">Medidas</p>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+                {k.medida} *
+                <Num name="m2" value={m2} onChange={setM2} placeholder={k.unidad} className={input} />
+              </label>
+              {k.terreno && (
+                <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+                  m² de terreno *
+                  <Num name="m2Terreno" value={m2Terreno} onChange={setM2Terreno} placeholder="m²" className={input} />
+                </label>
+              )}
+              {k.semi && (
+                <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+                  Semicubiertos (galería, balcón techado)
+                  <Num name="m2Semi" value={m2Semi} onChange={setM2Semi} placeholder="m² (50%)" className={input} />
+                </label>
+              )}
+              {k.desc && (
+                <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+                  Descubiertos (terraza, patio)
+                  <Num name="m2Desc" value={m2Desc} onChange={setM2Desc} placeholder="m² (30%)" className={input} />
+                </label>
+              )}
+              {k.garajes && (
+                <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+                  Garajes
+                  <Num name="garajes" value={garajes} onChange={setGarajes} placeholder="0" step="1" className={input} />
+                </label>
+              )}
+              {k.coneat && (
+                <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+                  Índice CONEAT
+                  <Num name="coneat" value={coneat} onChange={setConeat} placeholder="ej. 100" className={input} />
+                </label>
+              )}
+              {k.piscina && (
+                <label className="flex items-center gap-2 self-end pb-2 text-sm text-gray-700 dark:text-gray-200">
+                  <input type="checkbox" name="piscina" checked={piscina} onChange={(e) => setPiscina(e.target.checked)} />
+                  Piscina
+                </label>
+              )}
+              {k.esquina && (
+                <label className="flex items-center gap-2 self-end pb-2 text-sm text-gray-700 dark:text-gray-200">
+                  <input type="checkbox" name="esquina" checked={esquina} onChange={(e) => setEsquina(e.target.checked)} />
+                  Esquina
+                </label>
+              )}
+            </div>
+
+            {k.terreno && (
+              <div className="mt-3 flex flex-wrap gap-4">
+                {(Object.keys(ZONA_TIPO_LABEL) as ZonaTipo[]).map((z) => (
+                  <label key={z} className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-200">
+                    <input type="radio" checked={zonaTipo === z} onChange={() => setZonaTipo(z)} />
+                    {ZONA_TIPO_LABEL[z]}
+                  </label>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+                {k.estado} (1 a 4)
+                <select value={estado} onChange={(e) => setEstado(Number(e.target.value))} className={input}>
+                  {PUNTAJES.map((o) => (
+                    <option key={o.valor} value={o.valor}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+                {k.ubicacion} (1 a 4)
+                <select value={ubicacion} onChange={(e) => setUbicacion(Number(e.target.value))} className={input}>
+                  {PUNTAJES.map((o) => (
+                    <option key={o.valor} value={o.valor}>
+                      {o.label.replace("Malo", "Mala").replace("Bueno", "Buena")}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            {supSujeto > 0 && unidad === "m²" && (k.semi || k.desc || k.terreno) && (
+              <p className="mt-3 rounded-lg bg-orion-gold/10 px-3 py-2 text-xs text-gray-700 dark:text-gray-200">
+                Superficie ponderada para comparar: <strong>{formatoSuperficie(supSujeto, "m²")}</strong>
+                {k.terreno && m2Terreno ? " (incluye el terreno libre)" : ""}
+              </p>
+            )}
+          </div>
+
+          {/* 3. Comparables */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm font-semibold text-orion-navy dark:text-white">
+                3. Comparables (mínimo {MINIMO_COMPARABLES})
+              </p>
+              <span className="text-xs text-gray-400">
+                {completos.length} completo(s) de {comparables.length}
+              </span>
+            </div>
+
+            <div className="mb-4 rounded-lg bg-gray-50 p-3 dark:bg-gray-900/50">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={buscarSugeridos}
+                  disabled={buscando}
+                  className="rounded-lg bg-orion-navy px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                >
+                  {buscando ? "Buscando…" : "🔎 Sugerir comparables de Orion"}
+                </button>
+                {portales.map((p) => (
+                  <a
+                    key={p.portal}
+                    href={p.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:border-gray-600 dark:text-gray-200"
+                  >
+                    Buscar en {p.portal} ↗
+                  </a>
+                ))}
+              </div>
+              <p className="mt-2 text-[11px] text-gray-400">
+                Orion busca propiedades en venta del mismo tipo y barrio, con ±25% de superficie. Las vendidas o
+                reservadas entran como Cierre y las activas como Dinámico (se les descuenta 10%).
+              </p>
+              {errorSugeridos && <p className="mt-2 text-xs text-red-600">{errorSugeridos}</p>}
+              {sugeridos && sugeridos.length === 0 && (
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  No hay propiedades parecidas en Orion. Buscá en los portales y cargalas abajo.
+                </p>
+              )}
+              {sugeridos && sugeridos.length > 0 && (
+                <div className="mt-3 flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-gray-500">{sugeridos.length} encontrada(s)</span>
+                    {sugeridos.some((s) => !yaCargado(s)) && (
                       <button
                         type="button"
-                        onClick={() => quitarComparable(i)}
-                        className="text-xs text-gray-400 hover:text-red-500"
+                        onClick={() => usarSugeridos(sugeridos)}
+                        className="text-xs font-semibold text-orion-navy hover:underline dark:text-orion-gold"
                       >
-                        ✕
+                        Agregar todas
                       </button>
                     )}
                   </div>
+                  {sugeridos.map((s) => (
+                    <div
+                      key={s.link}
+                      className="flex items-center justify-between gap-3 rounded border border-gray-200 bg-white px-3 py-2 text-xs dark:border-gray-700 dark:bg-gray-800"
+                    >
+                      <div className="min-w-0">
+                        <a href={s.link} target="_blank" rel="noreferrer" className="block truncate font-semibold text-gray-700 hover:underline dark:text-gray-200">
+                          {s.codigo} · {s.titulo}
+                        </a>
+                        <span className="text-gray-400">
+                          {s.zona} · {s.m2} {unidad} · {formatoUsd(s.precio)} · {s.esCierre ? "✅ Cierre" : "📊 Dinámico"}
+                        </span>
+                      </div>
+                      {yaCargado(s) ? (
+                        <span className="shrink-0 text-gray-400">Agregada</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => usarSugeridos([s])}
+                          className="shrink-0 rounded border border-orion-navy px-2 py-1 font-semibold text-orion-navy dark:border-orion-gold dark:text-orion-gold"
+                        >
+                          Agregar
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                  <input
-                    value={c.link}
-                    onChange={(e) => actualizarComparable(i, "link", e.target.value)}
-                    placeholder="Link"
-                    className="col-span-2 rounded border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-900 sm:col-span-2"
-                  />
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={c.m2 || ""}
-                    onChange={(e) => actualizarComparable(i, "m2", Number(e.target.value))}
-                    placeholder="m²"
-                    className="rounded border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-900"
-                  />
-                  <input
-                    type="number"
-                    value={c.precio || ""}
-                    onChange={(e) => actualizarComparable(i, "precio", Number(e.target.value))}
-                    placeholder="Precio USD"
-                    className="rounded border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-900"
-                  />
-                  <select
-                    value={c.estado}
-                    onChange={(e) => actualizarComparable(i, "estado", Number(e.target.value))}
-                    className="rounded border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-900"
+              )}
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {comparables.map((c, i) => {
+                const idx = completos.indexOf(c);
+                const calc = resultado && idx >= 0 ? resultado.comparables[idx] : undefined;
+                const extraDisponible = k.semi || k.desc || (k.garajes && cat !== "APARTAMENTO") || k.piscina;
+                return (
+                  <div
+                    key={i}
+                    className={`rounded-lg border p-3 ${
+                      calc?.atipico ? "border-red-300 dark:border-red-800" : "border-gray-200 dark:border-gray-700"
+                    }`}
                   >
-                    {OPCIONES_ESTADO.map((o) => (
-                      <option key={o.valor} value={o.valor}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={c.ubicacion}
-                    onChange={(e) => actualizarComparable(i, "ubicacion", Number(e.target.value))}
-                    className="rounded border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-900"
-                  >
-                    {OPCIONES_UBICACION.map((o) => (
-                      <option key={o.valor} value={o.valor}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {usdM2 !== undefined && (
-                  <p className="mt-2 text-xs text-gray-400">
-                    USD/m² ajustado: <span className="font-semibold text-orion-navy dark:text-orion-gold">{formatoUsd(usdM2)}</span>
-                  </p>
-                )}
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-xs font-semibold text-gray-400">Comparable #{i + 1}</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => cambiarComparable(i, { esCierre: !c.esCierre })}
+                          className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                            c.esCierre
+                              ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+                              : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                          }`}
+                          title="Cierre = venta concretada · Dinámico = publicación activa"
+                        >
+                          {c.esCierre ? "✅ Cierre" : "📊 Dinámico"}
+                        </button>
+                        {comparables.length > MINIMO_COMPARABLES && (
+                          <button
+                            type="button"
+                            onClick={() => setComparables((prev) => prev.filter((_, j) => j !== i))}
+                            className="text-xs text-gray-400 hover:text-red-500"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
+                      <input
+                        value={c.link}
+                        onChange={(e) => cambiarComparable(i, { link: e.target.value })}
+                        placeholder="Link"
+                        className={`${inputChico} col-span-2`}
+                      />
+                      <Num value={c.m2 || undefined} onChange={(v) => cambiarComparable(i, { m2: v ?? 0 })} placeholder={k.unidad === "ha" ? "Hectáreas" : k.terreno ? "m² edif." : "m²"} className={inputChico} />
+                      {k.terreno && (
+                        <Num value={c.m2Terreno} onChange={(v) => cambiarComparable(i, { m2Terreno: v })} placeholder="m² terreno" className={inputChico} />
+                      )}
+                      {cat === "APARTAMENTO" && (
+                        <Num value={c.garajes} onChange={(v) => cambiarComparable(i, { garajes: v })} placeholder="Garajes" step="1" className={inputChico} />
+                      )}
+                      {k.coneat && (
+                        <Num value={c.coneat} onChange={(v) => cambiarComparable(i, { coneat: v })} placeholder="CONEAT" className={inputChico} />
+                      )}
+                      <Num value={c.precio || undefined} onChange={(v) => cambiarComparable(i, { precio: v ?? 0 })} placeholder="Precio USD" step="1" className={inputChico} />
+                      <select
+                        value={c.estado}
+                        onChange={(e) => cambiarComparable(i, { estado: Number(e.target.value) })}
+                        title={k.estado}
+                        className={inputChico}
+                      >
+                        {PUNTAJES.map((o) => (
+                          <option key={o.valor} value={o.valor}>
+                            Est. {o.label}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={c.ubicacion}
+                        onChange={(e) => cambiarComparable(i, { ubicacion: Number(e.target.value) })}
+                        title={k.ubicacion}
+                        className={inputChico}
+                      >
+                        {PUNTAJES.map((o) => (
+                          <option key={o.valor} value={o.valor}>
+                            Ubic. {o.label.replace("Malo", "Mala").replace("Bueno", "Buena")}
+                          </option>
+                        ))}
+                      </select>
+                      {k.esquina && (
+                        <label className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-200">
+                          <input type="checkbox" checked={!!c.esquina} onChange={(e) => cambiarComparable(i, { esquina: e.target.checked || undefined })} />
+                          Esquina
+                        </label>
+                      )}
+                    </div>
+
+                    {extraDisponible && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setMasDatos((m) => ({ ...m, [i]: !m[i] }))}
+                          className="mt-2 text-[11px] font-semibold text-orion-navy hover:underline dark:text-orion-gold"
+                        >
+                          {masDatos[i] ? "− menos datos" : "+ más datos (opcional)"}
+                        </button>
+                        {masDatos[i] && (
+                          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            {k.semi && (
+                              <Num value={c.m2Semi} onChange={(v) => cambiarComparable(i, { m2Semi: v })} placeholder="m² semicubiertos" className={inputChico} />
+                            )}
+                            {k.desc && (
+                              <Num value={c.m2Desc} onChange={(v) => cambiarComparable(i, { m2Desc: v })} placeholder="m² descubiertos" className={inputChico} />
+                            )}
+                            {k.garajes && cat !== "APARTAMENTO" && (
+                              <Num value={c.garajes} onChange={(v) => cambiarComparable(i, { garajes: v })} placeholder="Garajes" step="1" className={inputChico} />
+                            )}
+                            {k.piscina && (
+                              <label className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-200">
+                                <input type="checkbox" checked={!!c.piscina} onChange={(e) => cambiarComparable(i, { piscina: e.target.checked || undefined })} />
+                                Piscina
+                              </label>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {calc && (
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        {formatoSuperficie(calc.superficie, unidad)} · base {formatoUsd(calc.base)}/{unidad}
+                        {calc.ajustes.map((a) => ` · ${a.nombre} ${a.factor >= 1 ? "+" : ""}${Math.round((a.factor - 1) * 100)}%`).join("")}
+                        {" → "}
+                        <span className="font-semibold text-orion-navy dark:text-orion-gold">
+                          {formatoUsd(calc.ajustado)}/{unidad}
+                        </span>
+                        {calc.atipico && <span className="ml-1 font-semibold text-red-600">⚠ se aleja del resto</span>}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setComparables((prev) => [...prev, { ...COMPARABLE_VACIO }])}
+              className="mt-3 text-sm text-orion-navy hover:underline dark:text-orion-gold"
+            >
+              + Agregar comparable
+            </button>
+          </div>
+
+          {/* 4. Resultado */}
+          {resultado && (
+            <div className="rounded-xl border border-orion-gold bg-orion-gold/5 p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">4. Resultado (vista previa)</p>
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${CONFIABILIDAD_LABEL[resultado.confiabilidad].clase}`}>
+                  Confiabilidad {CONFIABILIDAD_LABEL[resultado.confiabilidad].texto}
+                </span>
               </div>
-            );
-          })}
-        </div>
+              <div className="grid grid-cols-1 gap-3 text-center sm:grid-cols-3">
+                <div>
+                  <p className="text-xs text-gray-500">Valor probable de cierre</p>
+                  <p className="text-xl font-bold text-orion-navy dark:text-orion-gold">{formatoUsd(resultado.valorCierre)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Rango</p>
+                  <p className="text-base font-semibold text-gray-800 dark:text-gray-100">
+                    {formatoUsd(resultado.rangoMin)} – {formatoUsd(resultado.rangoMax)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Precio sugerido de publicación</p>
+                  <p className="text-base font-semibold text-gray-800 dark:text-gray-100">{formatoUsd(resultado.valorPublicacion)}</p>
+                </div>
+              </div>
+              <p className="mt-2 text-center text-xs text-gray-500">
+                {formatoUsd(resultado.promedio)}/{unidad} × {formatoSuperficie(resultado.superficieSujeto, unidad)}
+              </p>
+              <ul className="mt-3 list-disc pl-5 text-xs text-gray-600 dark:text-gray-300">
+                {resultado.motivos.map((m) => (
+                  <li key={m}>{m}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
-        <button
-          type="button"
-          onClick={agregarComparable}
-          className="mt-3 text-sm text-orion-navy hover:underline dark:text-orion-gold"
-        >
-          + Agregar comparable
-        </button>
-      </div>
+          {/* Ajuste manual y notas */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+            <p className="mb-3 text-sm font-semibold text-orion-navy dark:text-white">Ajuste manual y notas</p>
+            <input
+              name="ajusteManual"
+              type="number"
+              value={ajusteManual}
+              onChange={(e) => setAjusteManual(e.target.value)}
+              placeholder="Valor final ajustado (opcional, si querés pisar el estimado)"
+              className={`${input} mb-3 w-full`}
+            />
+            <textarea
+              name="notas"
+              value={notas}
+              onChange={(e) => setNotas(e.target.value)}
+              rows={3}
+              placeholder="Notas y observaciones (estado general, reformas, orientación, vista…)"
+              className={`${input} w-full`}
+            />
+          </div>
 
-      {resultado && (
-        <div className="rounded-xl border border-orion-gold bg-orion-gold/5 p-4 dark:border-orion-gold">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Vista previa del cálculo
-          </p>
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            Promedio USD/m²: <span className="font-semibold">{formatoUsd(resultado.promedioUsdM2Redondeado)}</span>
-          </p>
-          <p className="text-xl font-bold text-orion-navy dark:text-orion-gold">
-            Valor estimado: {formatoUsd(resultado.valorEstimado)}
-          </p>
-        </div>
+          {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+
+          <button
+            type="submit"
+            disabled={pending || faltan > 0}
+            className="self-start rounded-lg bg-orion-navy px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {pending ? "Guardando…" : faltan > 0 ? `Necesitás ${faltan} comparable(s) más` : "Guardar tasación"}
+          </button>
+        </>
       )}
-
-      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-        <p className="mb-3 text-sm font-semibold text-orion-navy dark:text-white">
-          Ajuste manual y notas
-        </p>
-        <input
-          name="ajusteManual"
-          type="number"
-          value={ajusteManual}
-          onChange={(e) => setAjusteManual(e.target.value)}
-          placeholder="Valor final ajustado (opcional, si querés pisar el estimado)"
-          className="mb-3 w-full rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
-        />
-        <textarea
-          name="notas"
-          value={notas}
-          onChange={(e) => setNotas(e.target.value)}
-          rows={3}
-          placeholder="Notas y observaciones"
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
-        />
-      </div>
-
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-
-      <button
-        type="submit"
-        disabled={pending || comparablesCompletos.length < MINIMO_COMPARABLES}
-        className="self-start rounded-lg bg-orion-navy px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-      >
-        {pending
-          ? "Guardando…"
-          : comparablesCompletos.length < MINIMO_COMPARABLES
-          ? `Necesitás ${MINIMO_COMPARABLES - comparablesCompletos.length} comparable(s) más`
-          : "Guardar tasación"}
-      </button>
     </form>
   );
 }

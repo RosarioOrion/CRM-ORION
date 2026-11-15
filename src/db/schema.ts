@@ -799,12 +799,28 @@ export const tasaciones = pgTable("tasaciones", {
           esCierre: boolean;
           estado: number;
           ubicacion: number;
+          // Tasación profesional (src/lib/tasacion-pro.ts): según el tipo.
+          m2Semi?: number;
+          m2Desc?: number;
+          m2Terreno?: number;
+          garajes?: number;
+          piscina?: boolean;
+          esquina?: boolean;
+          coneat?: number;
         }[]
       >(),
       promedioUsdM2: doublePrecision("promedio_usd_m2").notNull(),
       valorEstimado: integer("valor_estimado").notNull(),
       ajusteManual: integer("ajuste_manual"),
       notas: text("notas"),
+      // Tasación profesional: categoría, tipo de zona, departamento y
+      // medidas extra del sujeto. Null en las tasaciones viejas.
+      detalle: jsonb("detalle").$type<{
+        categoria: string;
+        zonaTipo: string;
+        departamento: string | null;
+        sujeto: Record<string, number | boolean | undefined>;
+      }>(),
       agenteId: text("agente_id")
         .notNull()
         .references(() => usuarios.id),
