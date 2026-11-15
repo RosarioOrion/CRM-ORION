@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { comisiones, reservasAlquiler, reservasVenta, usuarios } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { esCEO } from "@/lib/permisos";
+import { registrar } from "@/lib/registro-actividad";
 
 export async function marcarComisionPagada(comisionId: string, pagada: boolean) {
   const sesion = await obtenerSesion();
@@ -16,6 +17,7 @@ export async function marcarComisionPagada(comisionId: string, pagada: boolean) 
     .set({ pagada, fechaPago: pagada ? new Date() : null })
     .where(eq(comisiones.id, comisionId));
 
+  await registrar(pagada ? "Marcó una comisión como cobrada" : "Marcó una comisión como pendiente", { entidad: "comision", id: comisionId });
   revalidatePath("/comisiones");
 }
 
@@ -54,6 +56,7 @@ export async function editarComision(comisionId: string, d: DatosComision): Prom
       monto: Math.round(d.monto),
     })
     .where(eq(comisiones.id, comisionId));
+  await registrar("Editó una comisión", { entidad: "comision", id: comisionId, detalle: d.concepto });
   revalidatePath("/comisiones");
   return {};
 }
@@ -62,6 +65,7 @@ export async function eliminarComision(comisionId: string): Promise<{ error?: st
   const sesion = await obtenerSesion();
   if (!sesion || !esCEO(sesion.rol)) return { error: "Solo la CEO puede modificar comisiones." };
   await db.delete(comisiones).where(eq(comisiones.id, comisionId));
+  await registrar("Eliminó una comisión", { entidad: "comision", id: comisionId });
   revalidatePath("/comisiones");
   return {};
 }
@@ -91,6 +95,7 @@ export async function agregarComision(operacion: string, d: DatosComision): Prom
     porcentaje: d.porcentaje,
     monto: Math.round(d.monto),
   });
+  await registrar("Agregó una comisión a mano", { entidad: "comision", detalle: d.concepto });
   revalidatePath("/comisiones");
   return {};
 }

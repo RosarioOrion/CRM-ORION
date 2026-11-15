@@ -7,6 +7,7 @@ import { consultasPropiedad, propiedades } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { esCEO } from "@/lib/permisos";
 import { CANALES_CONSULTA } from "@/lib/consultas";
+import { registrar } from "@/lib/registro-actividad";
 
 // "+ Consulta" en la ficha: cualquier agente puede anotar una consulta (la
 // pueden recibir por una propiedad de un compañero); la borra quien la
@@ -36,6 +37,7 @@ export async function agregarConsulta(
     telefono: limpio(datos.telefono),
     nota: limpio(datos.nota),
   });
+  await registrar("Anotó una consulta", { entidad: "propiedad", id: propiedadId, detalle: datos.canal });
   revalidar(propiedadId);
   return { ok: true };
 }

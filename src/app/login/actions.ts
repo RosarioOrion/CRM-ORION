@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { usuarios } from "@/db/schema";
 import { crearSesion } from "@/lib/auth";
+import { registrar } from "@/lib/registro-actividad";
 
 const LoginSchema = z.object({
   email: z.string().email("Ingresá un email válido"),
@@ -70,6 +71,7 @@ export async function iniciarSesion(
     },
     recordar
   );
+  await registrar("Ingresó a Orion", { usuarioId: usuario.id });
 
   redirect("/dashboard");
 }

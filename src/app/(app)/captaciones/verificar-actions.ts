@@ -15,6 +15,7 @@ import {
   type Comparacion,
   type PropiedadComparable,
 } from "@/lib/captacion-verificar";
+import { registrar } from "@/lib/registro-actividad";
 
 // "Verificar teléfono" al empezar una captación: busca el número en los
 // contactos de TODO el equipo y, si alguien lo tiene, qué propiedades está
@@ -276,6 +277,7 @@ export async function crearCaptacionVerificada(datos: {
     estado: "LLAMANDO",
   });
 
+  await registrar("Cargó una captación", { detalle: titulo });
   revalidatePath("/captaciones");
   revalidatePath("/contactos");
   return { ok: true };

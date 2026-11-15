@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { busquedas, contactos } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
+import { registrar } from "@/lib/registro-actividad";
 
 const BusquedaSchema = z.object({
   contactoId: z.string().min(1, "Elegí el contacto"),
@@ -86,6 +87,7 @@ export async function crearBusqueda(
     vence: parsed.data.vence ? new Date(parsed.data.vence) : null,
   });
 
+  await registrar("Cargó una búsqueda", { entidad: "contacto", id: parsed.data.contactoId });
   revalidatePath("/busquedas");
   revalidatePath("/contactos");
   return { ok: true };

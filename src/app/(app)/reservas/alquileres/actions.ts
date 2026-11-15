@@ -9,6 +9,8 @@ import { obtenerSesion } from "@/lib/auth";
 import { esCEO } from "@/lib/permisos";
 import { ESTADOS_RESERVA_ALQUILER, type EstadoReservaAlquiler } from "@/lib/reservas";
 import { generarComisionesOperacion } from "@/lib/comisiones";
+import { registrar } from "@/lib/registro-actividad";
+import { ESTADO_RESERVA_ALQUILER_LABEL } from "@/lib/reservas";
 
 const ReservaAlquilerSchema = z.object({
   nombrePropiedad: z.string().min(2, "Ingresá el nombre o dirección de la propiedad"),
@@ -95,6 +97,7 @@ export async function crearReservaAlquiler(
     agenteId: sesion.userId,
   });
 
+  await registrar("Cargó una reserva de alquiler", { detalle: d.nombrePropiedad });
   revalidatePath("/reservas/alquileres");
   revalidatePath("/reservas");
   return { ok: Date.now() };
@@ -149,6 +152,7 @@ export async function cambiarEstadoReservaAlquiler(
     }
   }
 
+  await registrar("Cambió el estado de una reserva de alquiler", { entidad: "reserva_alquiler", id: reservaId, detalle: ESTADO_RESERVA_ALQUILER_LABEL[nuevoEstado] ?? nuevoEstado });
   revalidatePath("/reservas/alquileres");
   revalidatePath("/reservas");
   revalidatePath("/comisiones");

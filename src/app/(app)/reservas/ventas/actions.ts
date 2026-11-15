@@ -13,6 +13,8 @@ import {
   type EstadoReservaVenta,
 } from "@/lib/reservas";
 import { generarComisionesOperacion } from "@/lib/comisiones";
+import { registrar } from "@/lib/registro-actividad";
+import { ESTADO_RESERVA_VENTA_LABEL } from "@/lib/reservas";
 
 const ReservaVentaSchema = z.object({
   nombrePropiedad: z.string().min(2, "Ingresá el nombre o dirección de la propiedad"),
@@ -105,6 +107,7 @@ export async function crearReservaVenta(
     agenteId: sesion.userId,
   });
 
+  await registrar("Cargó una reserva de venta", { detalle: d.nombrePropiedad });
   revalidatePath("/reservas/ventas");
   revalidatePath("/reservas");
   return { ok: Date.now() };
@@ -162,6 +165,7 @@ export async function cambiarEstadoReservaVenta(
     }
   }
 
+  await registrar("Cambió el estado de una reserva de venta", { entidad: "reserva_venta", id: reservaId, detalle: ESTADO_RESERVA_VENTA_LABEL[nuevoEstado] ?? nuevoEstado });
   revalidatePath("/reservas/ventas");
   revalidatePath("/reservas");
   revalidatePath("/comisiones");

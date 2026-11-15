@@ -94,9 +94,15 @@ export default async function PerfilUsuarioPage({
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:bg-gray-800 dark:border-gray-700">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Actividad
-        </p>
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Actividad</p>
+          <Link
+            href={`/actividad?usuario=${usuario.id}`}
+            className="text-xs font-semibold text-orion-navy hover:underline dark:text-orion-gold"
+          >
+            Ver registro de actividad →
+          </Link>
+        </div>
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
             <p className="text-2xl font-bold text-orion-navy dark:text-white">

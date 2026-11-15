@@ -7,6 +7,8 @@ import { db } from "@/db";
 import { captaciones, contactos, propiedades } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { ESTADOS_CAPTACION, type EstadoCaptacion } from "@/lib/captaciones";
+import { registrar } from "@/lib/registro-actividad";
+import { ESTADO_CAPTACION_LABEL } from "@/lib/captaciones";
 
 const CaptacionSchema = z.object({
   titulo: z.string().min(3, "Ingresá un título"),
@@ -100,6 +102,7 @@ export async function crearCaptacion(
     notas: parsed.data.notas ?? null,
   });
 
+  await registrar("Cargó una captación", { detalle: parsed.data.titulo });
   revalidatePath("/captaciones");
   return { ok: true };
 }
@@ -118,12 +121,14 @@ export async function cambiarEstadoCaptacion(
     .set({ estado })
     .where(eq(captaciones.id, captacionId));
 
+  await registrar("Cambió el estado de una captación", { entidad: "captacion", id: captacionId, detalle: ESTADO_CAPTACION_LABEL[estado] ?? estado });
   revalidatePath("/captaciones");
 }
 
 export async function eliminarCaptacion(captacionId: string) {
   await requerirCaptacionDelAgente(captacionId);
 
+  await registrar("Eliminó una captación", { entidad: "captacion", id: captacionId });
   await db.delete(captaciones).where(eq(captaciones.id, captacionId));
 
   revalidatePath("/captaciones");
@@ -173,6 +178,7 @@ export async function convertirEnPropiedad(captacionId: string) {
     .set({ estado: "PARA_PUBLICAR", convertidaEnPropiedadId: nuevaPropiedad.id })
     .where(eq(captaciones.id, captacionId));
 
+  await registrar("Pasó una captación a propiedad", { entidad: "propiedad", id: nuevaPropiedad.id });
   revalidatePath("/captaciones");
   revalidatePath("/propiedades");
 

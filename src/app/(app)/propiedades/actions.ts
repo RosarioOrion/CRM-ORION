@@ -9,6 +9,8 @@ import { reemplazarPrecio } from "@/lib/precio-texto";
 import { obtenerSesion } from "@/lib/auth";
 import { dependenciasPropiedad, borrarPropiedad } from "@/lib/eliminar";
 import { ESTADOS_PROPIEDAD } from "@/lib/propiedades";
+import { registrar } from "@/lib/registro-actividad";
+import { ESTADO_LABEL } from "@/lib/propiedades";
 
 const PropiedadSchema = z.object({
       titulo: z.string().min(3, "Ingresa un titulo"),
@@ -155,6 +157,7 @@ export async function crearPropiedad(
           agenteId: sesion.userId,
   }).returning({ id: propiedades.id });
 
+  await registrar("Cargó una propiedad", { entidad: "propiedad", id: nueva.id });
   revalidatePath("/propiedades");
       return { ok: Date.now(), id: nueva.id };
 }
@@ -211,6 +214,7 @@ export async function agregarFotos(
 
       if (actualizadas.length === 0) return { error: "Propiedad no encontrada." };
 
+      await registrar("Subió fotos", { entidad: "propiedad", id: propiedadId });
       revalidatePath(`/propiedades/${propiedadId}`);
       revalidatePath("/propiedades");
       return { ok: Date.now() };
@@ -304,6 +308,7 @@ export async function reactivarPropiedad(
       if (p?.duenoId) {
         await db.update(contactos).set({ frioDesde: null }).where(eq(contactos.id, p.duenoId));
       }
+      await registrar("Reactivó una propiedad", { entidad: "propiedad", id: propiedadId });
       revalidatePath(`/propiedades/${propiedadId}`);
       revalidatePath("/propiedades");
       revalidatePath("/pipeline");
@@ -331,6 +336,7 @@ export async function actualizarEstado(propiedadId: string, estado: string) {
         .set({ estado: estado as (typeof ESTADOS_PROPIEDAD)[number] })
         .where(eq(propiedades.id, propiedadId));
 
+      await registrar("Cambió el estado de una propiedad", { entidad: "propiedad", id: propiedadId, detalle: ESTADO_LABEL[estado] ?? estado });
       revalidatePath(`/propiedades/${propiedadId}`);
       revalidatePath("/propiedades");
 }
@@ -433,6 +439,7 @@ export async function actualizarDescripcion(
         .set({ descripcion: parsed.data.descripcion })
         .where(eq(propiedades.id, propiedadId));
 
+      await registrar("Editó la descripción", { entidad: "propiedad", id: propiedadId });
       revalidatePath(`/propiedades/${propiedadId}`);
       return { ok: Date.now() };
 }
@@ -456,6 +463,7 @@ export async function eliminarPropiedad(
         return { ok: false, error: e instanceof Error ? e.message : "No autorizado." };
       }
       try {
+        await registrar("Eliminó una propiedad", { entidad: "propiedad", id: propiedadId });
         await borrarPropiedad(propiedadId, quien);
       } catch (e) {
         return {
@@ -623,6 +631,7 @@ export async function editarPropiedad(
           .where(eq(portalesPublicados.propiedadId, propiedadId));
       }
 
+      await registrar("Editó una propiedad", { entidad: "propiedad", id: propiedadId });
       revalidatePath(`/propiedades/${propiedadId}`);
       revalidatePath("/propiedades");
       revalidatePath("/pipeline");
