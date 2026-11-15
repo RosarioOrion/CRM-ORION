@@ -977,3 +977,41 @@ export const registroActividad = pgTable("registro_actividad", {
       detalle: text("detalle"),
       creadoEn: timestamp("creado_en").notNull().defaultNow(),
 });
+
+// Mis finanzas (ULTRA PRIVADO: cada usuario ve solo lo suyo; ni la CEO ni
+// "Entrar como"). Movimientos de ingresos y gastos personales/laborales, y
+// el cierre de cada mes ("Money Day", el último día del mes).
+export const finanzasMovimientos = pgTable("finanzas_movimientos", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      usuarioId: text("usuario_id").notNull(),
+      fecha: timestamp("fecha").notNull(),
+      tipo: text("tipo").notNull(), // INGRESO | GASTO
+      categoria: text("categoria").notNull(),
+      monto: doublePrecision("monto").notNull(),
+      moneda: text("moneda").notNull().default("UYU"), // UYU | USD
+      nota: text("nota"),
+      // Comisión cobrada en Orion que se trajo sola como ingreso.
+      comisionId: text("comision_id"),
+      // Un ingreso traído de Comisiones que el usuario sacó (no se vuelve a traer).
+      oculto: boolean("oculto").notNull().default(false),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});
+
+export const finanzasMeses = pgTable(
+  "finanzas_meses",
+  {
+        id: text("id").primaryKey().$defaultFn(() => createId()),
+        usuarioId: text("usuario_id").notNull(),
+        mes: text("mes").notNull(), // YYYY-MM
+        cotizacion: doublePrecision("cotizacion"),
+        // Presupuesto por categoría, en pesos.
+        presupuesto: jsonb("presupuesto").$type<Record<string, number>>().notNull().default({}),
+        ingresoEsperado: doublePrecision("ingreso_esperado"),
+        notas: text("notas"),
+        cerradoEn: timestamp("cerrado_en"),
+        creadoEn: timestamp("creado_en").notNull().defaultNow(),
+  },
+  (table) => ({
+        unicoPorMes: unique("finanzas_meses_usuario_mes").on(table.usuarioId, table.mes),
+  })
+);

@@ -23,6 +23,8 @@ import {
   horasRestantes,
   type Etapa,
 } from "@/lib/captacion-flujo";
+import { hoyUY, mesAnterior, mesLabel, mesSiguiente } from "@/lib/finanzas";
+import { filaMes, movimientosDelMes } from "@/lib/finanzas-datos";
 
 // Inicio "Plan del día": qué hacer primero, en este orden (decidido en el
 // Mapa único de Orion):
@@ -65,6 +67,8 @@ export type PlanDelDia = {
   quietas: ItemPlan[];
   /** Captaciones con algo para hacer hoy (contactar, seguimiento S8/S12, tasación). */
   captaciones: ItemPlan[];
+  /** Recordatorio del Money Day (último día del mes, o si quedó sin cerrar). Sin montos. */
+  moneyDay: ItemPlan | null;
 };
 
 const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -272,6 +276,7 @@ export async function cargarPlanDelDia(yo: string): Promise<PlanDelDia> {
   return {
     avisos,
     captaciones: await captacionesDelDia(yo, finHoy),
+    moneyDay: await recordatorioMoneyDay(yo),
     seguimientos: segsHoy.sort((a, b) => a.orden - b.orden),
     hoy: hoy.sort((a, b) => a.orden - b.orden),
     agendaVencida,
@@ -416,4 +421,39 @@ async function captacionesDelDia(yo: string, finHoy: Date): Promise<ItemPlan[]> 
   }
   items.sort((a, b) => a.horas - b.horas);
   return items.map((it) => ({ id: it.id, titulo: it.titulo, detalle: it.detalle, href: it.href, urgente: it.urgente }));
+}
+
+/**
+ * Money Day: el último día del mes recuerda cerrar el mes; los primeros 7
+ * días, si el mes anterior tuvo movimientos y no se cerró, avisa que quedó
+ * pendiente. Solo dice que toca, nunca muestra montos (Mis finanzas es privado).
+ */
+async function recordatorioMoneyDay(yo: string): Promise<ItemPlan | null> {
+  try {
+    const hoy = hoyUY();
+    if (hoy.ultimoDia) {
+      const f = await filaMes(yo, hoy.mes);
+      if (f?.cerradoEn) return null;
+      return {
+        id: "money-day",
+        titulo: "💵 Hoy es tu Money Day",
+        detalle: `Cerrá ${mesLabel(hoy.mes)} y planeá ${mesLabel(mesSiguiente(hoy.mes))} (10 minutos).`,
+        href: "/finanzas/money-day",
+      };
+    }
+    if (hoy.dia <= 7) {
+      const ant = mesAnterior(hoy.mes);
+      const [f, movs] = await Promise.all([filaMes(yo, ant), movimientosDelMes(yo, ant)]);
+      if (f?.cerradoEn || movs.length === 0) return null;
+      return {
+        id: "money-day",
+        titulo: "💵 Te quedó pendiente el Money Day",
+        detalle: `Cerrá ${mesLabel(ant)} y planeá ${mesLabel(hoy.mes)}.`,
+        href: "/finanzas/money-day",
+      };
+    }
+  } catch {
+    // tablas de finanzas todavía no creadas
+  }
+  return null;
 }

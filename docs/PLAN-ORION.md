@@ -154,6 +154,25 @@ cuando cambie algo.
   - incluye: portada con el logo (`public/brand/orion-logo-informe.jpg`), valor, rango y publicación, la propiedad, gráfico "dónde se ubica en el mercado" con los comparables reales, por qué importa el precio de salida, el método, la tabla de comparables, los 4 compromisos, la firma del agente y un aviso de que no es una tasación oficial ni pericial.
   - Las "estadísticas" son las de la propia muestra; no se inventaron cifras de mercado externas. Si Rosario pasa datos con fuente, se pueden sumar.
 
+### Mis finanzas y Money Day (`src/lib/finanzas.ts`, `/finanzas`)
+
+- **ULTRA PRIVADO** (decisión de Rosario): cada usuario ve solo lo suyo. No lo ve la CEO ni se ve con "Entrar como" (muestra "Mis finanzas es privado"). **No se registra en Actividad.**
+- **Movimientos:** ingresos y gastos en $U o USD, con categorías agrupadas en Ingresos, Trabajo, Personales y Reservas (impuestos, fondo para meses flojos, ahorro).
+- Las **comisiones cobradas** en Orion entran solas como ingreso en USD (`comision_id`, una sola vez). Si se borran, quedan ocultas y no vuelven.
+- **Cotización del dólar por mes** (`finanzas_meses.cotizacion`): todo se ve en pesos.
+- **Presupuesto** por categoría e ingreso esperado por mes.
+- **Money Day: el ÚLTIMO DÍA de cada mes** (día fijo, decisión de Rosario). Pasos:
+  1. balance contra el presupuesto;
+  2. consejos (ahorro, impuestos, categorías pasadas, meses que cubre el fondo);
+  3. plan del mes siguiente.
+
+  Al guardar, cierra el mes.
+- **Plan del día:**
+  - el último día muestra "💵 Hoy es tu Money Day";
+  - los primeros 7 días, si el mes anterior quedó sin cerrar, avisa que está pendiente;
+  - nunca muestra montos.
+- La guía rápida para ingresos variables (pagate primero, fondo de 3 a 6 meses, 50/30/20 adaptada) está en la misma pantalla.
+
 ## Pendientes
 
 1. **Porcentajes finales de comisiones.** Rosario los define después de la reunión con César y Huillen.

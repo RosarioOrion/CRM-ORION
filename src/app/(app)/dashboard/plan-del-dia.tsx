@@ -56,7 +56,7 @@ function Seccion({
 /** Inicio: qué hacer primero hoy. */
 export function PlanDelDia({ plan }: { plan: Plan }) {
   const total =
-    plan.avisos.length + plan.captaciones.length + plan.seguimientos.length + plan.hoy.length + plan.quietas.length;
+    (plan.moneyDay ? 1 : 0) + plan.avisos.length + plan.captaciones.length + plan.seguimientos.length + plan.hoy.length + plan.quietas.length;
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
@@ -66,6 +66,15 @@ export function PlanDelDia({ plan }: { plan: Plan }) {
         </p>
       </div>
       <div className="flex flex-col gap-5">
+        {plan.moneyDay && (
+          <Link
+            href={plan.moneyDay.href}
+            className="block rounded-lg border border-orion-gold bg-orion-gold/15 px-3 py-2 transition hover:brightness-95"
+          >
+            <p className="text-sm font-semibold text-orion-navy dark:text-orion-gold">{plan.moneyDay.titulo}</p>
+            <p className="text-xs text-gray-600 dark:text-gray-300">{plan.moneyDay.detalle}</p>
+          </Link>
+        )}
         <Seccion titulo="⛔ No respondieron al aviso final" items={plan.avisos} verTodos="/contactos?tab=seguimiento" />
         <Seccion titulo="🚀 Captaciones" items={plan.captaciones} verTodos="/captaciones" />
         <SeguimientosPlan items={plan.seguimientos} verTodos="/contactos?tab=seguimiento" />
