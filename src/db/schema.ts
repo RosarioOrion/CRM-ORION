@@ -409,6 +409,8 @@ export const captaciones = pgTable("captaciones", {
       ultimoSeguimiento: timestamp("ultimo_seguimiento"),
       tasacionId: text("tasacion_id"),
       tasacionUso: text("tasacion_uso"),
+      // Tasando: 7 días; se pueden pedir 3 más una sola vez.
+      plazoExtendido: boolean("plazo_extendido").notNull().default(false),
       historial: jsonb("historial").$type<{ fecha: string; texto: string }[]>().notNull().default([]),
       creadoEn: timestamp("creado_en").notNull().defaultNow(),
 });

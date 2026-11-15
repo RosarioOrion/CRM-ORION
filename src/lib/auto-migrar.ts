@@ -105,6 +105,7 @@ const SENTENCIAS = [
   sql`ALTER TABLE captaciones ADD COLUMN IF NOT EXISTS tasacion_id text`,
   sql`ALTER TABLE captaciones ADD COLUMN IF NOT EXISTS tasacion_uso text`,
   sql`ALTER TABLE captaciones ADD COLUMN IF NOT EXISTS historial jsonb NOT NULL DEFAULT '[]'::jsonb`,
+  sql`ALTER TABLE captaciones ADD COLUMN IF NOT EXISTS plazo_extendido boolean NOT NULL DEFAULT false`,
   // Las captaciones que ya existían conservan su columna y, las que están
   // en Llamando, arrancan con 7 días de margen (no 48 hs) desde la actualización.
   sql`DO $$ BEGIN

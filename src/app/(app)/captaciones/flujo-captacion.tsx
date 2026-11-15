@@ -17,6 +17,8 @@ import {
 import {
   marcarSeguimientoCiclo,
   pasarAS12,
+  pedirMasTiempoTasacion,
+  vincularTasacionExistente,
   registrarIntento,
   resultadoContacto,
   resultadoTasacion,
@@ -37,8 +39,11 @@ export type DatosFlujo = {
   cicloTerminado: boolean;
   hechos: number;
   tasacionId: string | null;
+  plazoExtendido: boolean;
   convertida: boolean;
 };
+
+export type TasacionElegible = { id: string; texto: string };
 
 const btn =
   "rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50";
@@ -51,11 +56,14 @@ export function FlujoCaptacion({
   plantillas,
   agente,
   inmobiliaria,
+  tasaciones = [],
 }: {
   d: DatosFlujo;
   plantillas: Plantilla[];
   agente: string;
   inmobiliaria: string;
+  /** Tasaciones propias para vincular (solo en Tasando). */
+  tasaciones?: TasacionElegible[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -65,6 +73,7 @@ export function FlujoCaptacion({
   const [eligiendoS12, setEligiendoS12] = useState(false);
   const [motivo, setMotivo] = useState<MotivoS12>("PROBAR_SOLOS");
   const [uso, setUso] = useState<UsoTasacion | null>(null);
+  const [tasacionElegida, setTasacionElegida] = useState("");
 
   const wa = numeroWhatsApp(d.telefono);
   const enContacto = ETAPAS_CONTACTO.includes(d.etapa);
@@ -308,9 +317,35 @@ export function FlujoCaptacion({
       {/* 4. Tasando (venta) */}
       {d.etapa === "TASANDO" &&
         (!d.tasacionId ? (
-          <Link href={`/tasaciones/nueva?captacion=${d.id}`} className={`${btnAmbar} self-start`}>
-            📐 Hacer tasación
-          </Link>
+          <div className="flex flex-col gap-1.5">
+            <Link href={`/tasaciones/nueva?captacion=${d.id}`} className={`${btnAmbar} self-start`}>
+              📐 Hacer tasación
+            </Link>
+            {tasaciones.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <select
+                  value={tasacionElegida}
+                  onChange={(e) => setTasacionElegida(e.target.value)}
+                  className="max-w-[14rem] rounded border border-gray-300 px-2 py-1 text-xs text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+                >
+                  <option value="">…o vinculá una que ya hiciste</option>
+                  {tasaciones.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.texto}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={!tasacionElegida || pending}
+                  onClick={() => correr(() => vincularTasacionExistente(d.id, tasacionElegida))}
+                  className={btnGris}
+                >
+                  Vincular
+                </button>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="rounded-lg bg-gray-50 p-2 dark:bg-gray-900/40">
             <Link
@@ -348,6 +383,17 @@ export function FlujoCaptacion({
             </div>
           </div>
         ))}
+
+      {d.etapa === "TASANDO" && !d.plazoExtendido && (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => correr(() => pedirMasTiempoTasacion(d.id))}
+          className="self-start text-[11px] font-semibold text-orion-navy hover:underline disabled:opacity-50 dark:text-orion-gold"
+        >
+          ⏱ Necesito 3 días más (una sola vez)
+        </button>
+      )}
 
       {/* 5. Para publicar */}
       {d.etapa === "PARA_PUBLICAR" &&

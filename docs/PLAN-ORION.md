@@ -74,11 +74,18 @@ cuando cambie algo.
 - **S8 / S12:** cada seguimiento hay que hacerlo (llamar o escribir) y marcarlo, con **48 hs de margen**.
   - Al terminar S8 se puede pasar a S12; si no, se borra.
   - Al terminar S12 se borra.
-- **Tasando:** la tasación se hace desde la tarjeta y queda vinculada. Se marca si se **entregó al propietario** o fue de **uso interno**. Después: autorizó → Para publicar; no aceptó → S12.
+- **Tasando (7 días, +3 una sola vez con "Necesito 3 días más"; si vence, se borra):** la tasación se hace desde la tarjeta, o se vincula una ya hecha en Tasaciones. Se marca si se **entregó al propietario** o fue de **uso interno**. Después: autorizó → Para publicar; no aceptó → S12.
 - **Lo vencido va a la Papelera** (30 días, recuperable). El contacto también, si se creó para esa captación y no tiene nada más; así el número queda libre.
   - Revisión automática cada 15 min, y también al abrir Captaciones.
   - Si hubo llamada o WhatsApp pero no se marcó el resultado, pasa solo al siguiente seguimiento.
 - Las captaciones que ya existían arrancaron con 7 días de margen.
+- **Plan del día (Inicio):** sección "🚀 Captaciones" con lo que toca hoy. Incluye:
+  - primer contacto y seguimientos de 48 hs;
+  - S8/S12 cuando llega la fecha;
+  - fin de S8;
+  - Tasando.
+
+  Lo urgente (menos de 12 hs para borrarse) va primero y en rojo.
 
 ## Pendientes
 

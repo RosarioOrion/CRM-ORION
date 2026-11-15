@@ -12,8 +12,9 @@
 // 4. S8 / S12: cada seguimiento hay que hacerlo (llamar o escribir) y
 //    marcarlo; hay 48 hs de margen. Si no, se borra. Al terminar S8 se
 //    puede pasar a S12; al terminar S12 se borra.
-// 5. Tasando (venta): se hace la tasación, se entrega al propietario o se
-//    usa internamente, y si autoriza pasa a Para publicar.
+// 5. Tasando (venta, 7 días + 3 una sola vez): se hace (o se vincula) la
+//    tasación, se entrega al propietario o se usa internamente, y si
+//    autoriza pasa a Para publicar. Si vence, se borra.
 //
 // "Se borra" = va a la Papelera (30 días para recuperarlo) y el número
 // queda libre para otro agente.
@@ -53,6 +54,9 @@ export const COLUMNAS: { clave: string; label: string; icono: string; etapas: Et
 export const ETAPAS_CONTACTO: Etapa[] = ["LLAMANDO", "SEGUIMIENTO_1", "SEGUIMIENTO_2"];
 
 export const HORAS_PLAZO = 48;
+/** Tasando: días para hacer y entregar la tasación (+3 una sola vez). */
+export const DIAS_TASANDO = 7;
+export const DIAS_EXTRA_TASANDO = 3;
 const HORA = 3600 * 1000;
 const DIA = 24 * HORA;
 
@@ -92,6 +96,7 @@ export type DatosPlazo = {
   intentoEn: Date | null;
   seguimientosHechos: number;
   ultimoSeguimiento: Date | null;
+  plazoExtendido?: boolean;
 };
 
 export type Plazo = {
@@ -128,6 +133,15 @@ export function calcularPlazo(c: DatosPlazo): Plazo {
       proximo: terminado ? null : proximo,
       cicloTerminado: terminado,
       contactado: !!c.intentoEn,
+    };
+  }
+  if (etapa === "TASANDO") {
+    const dias = DIAS_TASANDO + (c.plazoExtendido ? DIAS_EXTRA_TASANDO : 0);
+    return {
+      vence: new Date(c.etapaDesde.getTime() + dias * DIA),
+      proximo: null,
+      cicloTerminado: false,
+      contactado: false,
     };
   }
   return { vence: null, proximo: null, cicloTerminado: false, contactado: false };
