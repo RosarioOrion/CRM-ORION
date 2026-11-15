@@ -15,6 +15,15 @@ import {
   type Categoria,
   type ZonaTipo,
 } from "@/lib/tasacion-pro";
+import {
+  aDatosRenta,
+  calcularRentabilidad,
+  calcularRenta,
+  METODO_LABEL,
+  pct,
+  valorFinal,
+  type RentaGuardada,
+} from "@/lib/rentabilidad";
 import { EliminarTasacionBoton } from "../eliminar-tasacion-boton";
 
 function formatoUsd(n: number) {
@@ -228,7 +237,13 @@ type TasacionFila = {
   notas: string | null;
   creadoEn: Date;
   agenteNombre: string;
-  detalle: { categoria: string; zonaTipo: string; departamento: string | null; sujeto: Record<string, number | boolean | undefined> };
+  detalle: {
+    categoria: string;
+    zonaTipo: string;
+    departamento: string | null;
+    sujeto: Record<string, number | boolean | undefined>;
+    renta?: RentaGuardada | null;
+  };
 };
 
 function BotonEditar({ id }: { id: string }) {
@@ -261,6 +276,13 @@ function DetallePro({ t, cat, puedeEditar }: { t: TasacionFila; cat: Categoria; 
   const r = calcularTasacionPro(cat, sujeto, t.comparables, zona);
   const u = r.unidad;
   const conf = CONFIABILIDAD_LABEL[r.confiabilidad];
+  const renta = t.detalle.renta ?? null;
+  const datosRenta = renta ? aDatosRenta(renta) : null;
+  const hayComps = t.comparables.length >= 4;
+  const final = valorFinal(hayComps ? r.valorCierre : null, renta?.valor ?? null);
+  const rentaNeta = datosRenta ? calcularRenta(datosRenta) : null;
+  const rindeAlFinal = datosRenta && final ? calcularRentabilidad(final.valor, datosRenta) : null;
+  const red = (n: number) => Math.round(n / 1000) * 1000;
   const dato = (label: string, valor: string | number | null | undefined) =>
     valor === null || valor === undefined || valor === "" ? null : (
       <p>
@@ -293,9 +315,46 @@ function DetallePro({ t, cat, puedeEditar }: { t: TasacionFila; cat: Categoria; 
         </div>
       </div>
 
+      {final && renta && (
+        <div className="mb-4 rounded-xl border border-orion-navy/30 bg-orion-navy/5 p-4 text-center dark:border-white/20">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Valor final · {METODO_LABEL[final.metodo]}</p>
+          <p className="text-3xl font-bold text-orion-navy dark:text-orion-gold">{formatoUsd(final.valor)}</p>
+          {final.metodo === "RENTA" && (
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+              Rango {formatoUsd(red(final.valor * 0.9))} – {formatoUsd(red(final.valor * 1.1))} · publicación sugerida{" "}
+              {formatoUsd(red(final.valor / 0.9))}
+            </p>
+          )}
+          {t.ajusteManual != null && (
+            <p className="mt-1 text-sm font-semibold text-orion-navy dark:text-orion-gold">
+              Ajuste manual del agente: {formatoUsd(t.ajusteManual)}
+            </p>
+          )}
+        </div>
+      )}
+
+      {renta && rentaNeta && (
+        <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Valor por renta (capitalización)</p>
+          <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+            <p><span className="text-gray-400">Alquiler: </span>{renta.moneda === "UYU" ? `$U ${renta.alquilerMensual?.toLocaleString("es-UY")} (a ${renta.cotizacion})` : formatoUsd(renta.alquilerMensual ?? 0)}/mes</p>
+            <p><span className="text-gray-400">Renta neta: </span>{formatoUsd(rentaNeta.rentaNeta)}/año</p>
+            <p><span className="text-gray-400">Tasa: </span>{renta.tasa.toLocaleString("es-UY")}%</p>
+            <p><span className="text-gray-400">Valor: </span><strong>{formatoUsd(renta.valor)}</strong></p>
+          </div>
+          {rindeAlFinal && (
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              Al valor final rinde {pct(rindeAlFinal.bruta)} bruto y {pct(rindeAlFinal.neta)} neto ({pct(rindeAlFinal.netaDespuesIrpf)} después
+              de IRPF).
+            </p>
+          )}
+        </div>
+      )}
+
+      {hayComps && (
       <div className="mb-6 rounded-xl border border-orion-gold bg-orion-gold/5 p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Resultado</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{renta ? "Resultado por comparables" : "Resultado"}</p>
           <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${conf.clase}`}>Confiabilidad {conf.texto}</span>
         </div>
         <div className="grid grid-cols-1 gap-3 text-center sm:grid-cols-3">
@@ -329,6 +388,7 @@ function DetallePro({ t, cat, puedeEditar }: { t: TasacionFila; cat: Categoria; 
           ))}
         </ul>
       </div>
+      )}
 
       <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Datos de la propiedad</p>
@@ -356,6 +416,7 @@ function DetallePro({ t, cat, puedeEditar }: { t: TasacionFila; cat: Categoria; 
         {t.notas && <p className="mt-3 whitespace-pre-wrap text-sm text-gray-600 dark:text-gray-300">{t.notas}</p>}
       </div>
 
+      {t.comparables.length > 0 && (
       <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
         <table className="w-full text-sm">
           <thead className="bg-orion-bg text-xs uppercase text-gray-400 dark:bg-gray-900">
@@ -410,6 +471,7 @@ function DetallePro({ t, cat, puedeEditar }: { t: TasacionFila; cat: Categoria; 
           </tbody>
         </table>
       </div>
+      )}
 
       <p className="mt-3 text-xs text-gray-400">
         Método comparativo homogeneizado: a las publicaciones activas (dinámicos) se les descuenta 10%; cada comparable se

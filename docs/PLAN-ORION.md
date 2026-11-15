@@ -135,6 +135,18 @@ cuando cambie algo.
 - **Base de tasaciones:**
   - "Sugerir comparables" trae también las tasaciones anteriores de todo el equipo (mismo tipo, barrio y ±25 % de superficie), como "📐 Tasación previa": sin el −10 % y sin contar como cierre.
   - La lista de Tasaciones se puede filtrar por tipo y por barrio.
+- **Rentabilidad y valor por renta (`src/lib/rentabilidad.ts`):**
+  - **Calculadora** en `/tasaciones/rentabilidad`:
+    - "¿Cuánto rinde?": rentabilidad bruta, neta, neta después de IRPF y años de recupero;
+    - "¿Cuánto vale por su renta?": valor a la tasa elegida ±1 %.
+  - Montos en USD, o en pesos con cotización.
+  - Gastos del dueño: contribución, primaria, otros, mantenimiento %, administración % y vacancia.
+  - IRPF: 12 % sobre lo cobrado menos contribución, primaria y administración.
+  - **En la tasación**, sección opcional "Está alquilada":
+    - valor = renta neta ÷ tasa (sugerida por tipo: local 7,5 %, apartamento 5,5 %, casa 5 %);
+    - si hay renta, se puede guardar sin comparables;
+    - con los dos métodos, el valor final es el promedio (conciliado). Se guarda en `detalle.renta`.
+  - Las tasas de referencia son orientativas y están en `TASAS_REFERENCIA`.
 - **Pendiente, fase 2:** informe en PDF para el propietario (logo, comparables, rango, 4 compromisos).
 
 ## Pendientes

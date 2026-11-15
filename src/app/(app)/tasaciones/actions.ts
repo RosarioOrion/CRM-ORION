@@ -19,6 +19,7 @@ import {
   type ZonaTipo,
 } from "@/lib/tasacion-pro";
 import { registrar } from "@/lib/registro-actividad";
+import { aDatosRenta, valorFinal, valorPorRenta, type FormRenta, type RentaGuardada } from "@/lib/rentabilidad";
 import { vincularTasacion } from "../captaciones/flujo-actions";
 
 export type TasacionState = { error?: string; ok?: number };
@@ -94,9 +95,26 @@ function leerTasacion(formData: FormData): { error: string } | { valores: Valore
 
   const comparables = parseComparables(comparablesRaw);
   if (!comparables) return { error: "Error al leer los comparables." };
-  if (comparables.length < MINIMO_COMPARABLES) {
+  // Valor por renta (opcional): permite tasar sin comparables si está alquilada.
+  let renta: RentaGuardada | null = null;
+  const rentaRaw = String(formData.get("rentaJson") || "");
+  if (rentaRaw) {
+    try {
+      const r = JSON.parse(rentaRaw) as FormRenta & { tasa?: number };
+      const datos = aDatosRenta(r);
+      const tasa = Number(r.tasa);
+      if (!datos) return { error: "En el valor por renta, cargá el alquiler (y la cotización si es en pesos)." };
+      if (!tasa || tasa <= 0 || tasa > 30) return { error: "En el valor por renta, cargá una tasa de capitalización válida." };
+      const valor = valorPorRenta(datos, tasa);
+      if (valor <= 0) return { error: "Con esos gastos la renta neta da cero o negativa: revisá los datos." };
+      renta = { ...r, tasa, valor };
+    } catch {
+      return { error: "Error al leer el valor por renta." };
+    }
+  }
+  if (comparables.length < MINIMO_COMPARABLES && !renta) {
     return {
-      error: `Necesitás al menos ${MINIMO_COMPARABLES} comparables completos. Tenés ${comparables.length}.`,
+      error: `Necesitás al menos ${MINIMO_COMPARABLES} comparables completos (tenés ${comparables.length}), o calcular el valor por renta.`,
     };
   }
   for (const c of comparables) {
@@ -106,6 +124,8 @@ function leerTasacion(formData: FormData): { error: string } | { valores: Valore
   }
 
   const resultado = calcularTasacionPro(categoria, sujeto, comparables, zonaTipo);
+  const porComparables = comparables.length >= MINIMO_COMPARABLES ? resultado.valorCierre : null;
+  const final = valorFinal(porComparables, renta?.valor ?? null)!;
   const { m2: _m2, estado: _e, ubicacion: _u, ...extras } = sujeto;
   void _m2; void _e; void _u;
   return {
@@ -118,11 +138,11 @@ function leerTasacion(formData: FormData): { error: string } | { valores: Valore
       estado,
       ubicacion,
       comparables,
-      promedioUsdM2: resultado.promedio,
-      valorEstimado: resultado.valorCierre,
+      promedioUsdM2: resultado.superficieSujeto > 0 ? final.valor / resultado.superficieSujeto : resultado.promedio,
+      valorEstimado: final.valor,
       ajusteManual,
       notas: notas || null,
-      detalle: { categoria, zonaTipo, departamento: departamento || null, sujeto: extras },
+      detalle: { categoria, zonaTipo, departamento: departamento || null, sujeto: extras, renta },
     },
   };
 }

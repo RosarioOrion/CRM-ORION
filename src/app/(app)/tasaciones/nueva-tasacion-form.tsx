@@ -21,6 +21,18 @@ import {
   type ZonaTipo,
 } from "@/lib/tasacion-pro";
 import { BARRIOS_CONOCIDOS } from "@/lib/revisar-propiedad";
+import {
+  aDatosRenta,
+  calcularRenta,
+  METODO_LABEL,
+  RENTA_VACIA,
+  tasaSugerida,
+  valorFinal,
+  valorPorRenta,
+  type FormRenta,
+  type RentaGuardada,
+} from "@/lib/rentabilidad";
+import { CamposRenta } from "./campos-renta";
 
 const initialState: TasacionState = {};
 
@@ -57,6 +69,7 @@ export type TasacionExistente = {
   comparables: ComparablePro[];
   ajusteManual: number | null;
   notas: string;
+  renta?: RentaGuardada | null;
 };
 
 export type TasacionInicial = {
@@ -137,6 +150,10 @@ export function NuevaTasacionForm({
   const [ubicacion, setUbicacion] = useState(e?.ubicacion ?? 3);
   const [notas, setNotas] = useState(e?.notas ?? "");
   const [ajusteManual, setAjusteManual] = useState(e?.ajusteManual != null ? String(e.ajusteManual) : "");
+  // Valor por renta (opcional).
+  const [usarRenta, setUsarRenta] = useState(!!e?.renta);
+  const [renta, setRenta] = useState<FormRenta>(e?.renta ?? RENTA_VACIA);
+  const [tasa, setTasa] = useState<number | undefined>(e?.renta?.tasa);
 
   // --- Comparables ---
   const [comparables, setComparables] = useState<ComparablePro[]>(e?.comparables.length ? e.comparables : [
@@ -223,7 +240,15 @@ export function NuevaTasacionForm({
   const yaCargado = (s: ComparableSugerido) => comparables.some((c) => c.link === s.link);
   const portales = busquedasEnPortales(tipo.split(" ")[0], zona, m2 ?? 0);
   const unidad = k?.unidad ?? "m²";
-  const faltan = MINIMO_COMPARABLES - completos.length;
+  const datosRenta = usarRenta ? aDatosRenta(renta) : null;
+  const tasaUsada = tasa ?? tasaSugerida(cat);
+  const valorRenta = datosRenta ? valorPorRenta(datosRenta, tasaUsada) : 0;
+  const rentaOk = valorRenta > 0;
+  const faltan = rentaOk ? 0 : MINIMO_COMPARABLES - completos.length;
+  const final = valorFinal(
+    completos.length >= MINIMO_COMPARABLES && resultado ? resultado.valorCierre : null,
+    rentaOk ? valorRenta : null
+  );
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
@@ -234,6 +259,7 @@ export function NuevaTasacionForm({
       <input type="hidden" name="ubicacion" value={ubicacion} />
       {inicial && <input type="hidden" name="captacionId" value={inicial.captacionId} />}
       {e && <input type="hidden" name="tasacionId" value={e.id} />}
+      {usarRenta && <input type="hidden" name="rentaJson" value={JSON.stringify({ ...renta, tasa: tasaUsada })} />}
 
       {/* 1. Tipo */}
       <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
@@ -632,6 +658,44 @@ export function NuevaTasacionForm({
             </button>
           </div>
 
+          {/* Valor por renta (opcional) */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+            <label className="flex items-center gap-2 text-sm font-semibold text-orion-navy dark:text-white">
+              <input type="checkbox" checked={usarRenta} onChange={(ev) => setUsarRenta(ev.target.checked)} />
+              Está alquilada: calcular también el valor por renta
+            </label>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              Útil en locales, oficinas y galpones, o cuando no hay comparables: valor = renta neta anual ÷ tasa de
+              capitalización. Con renta, la tasación se puede guardar aunque falten comparables.
+            </p>
+            {usarRenta && (
+              <div className="mt-4 flex flex-col gap-4">
+                <CamposRenta valor={renta} onChange={setRenta} />
+                <label className="flex max-w-xs flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+                  Tasa de capitalización (%)
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={tasa ?? ""}
+                    onChange={(ev) => setTasa(ev.target.value === "" ? undefined : Number(ev.target.value))}
+                    placeholder={`${tasaSugerida(cat)} (sugerida)`}
+                    className={input}
+                  />
+                  <span className="text-[10px] text-gray-400">
+                    Referencia: vivienda 4,5–6% · oficina 6–7,5% · local 6,5–8,5% · galpón 7,5–9,5%
+                  </span>
+                </label>
+                {datosRenta && (
+                  <p className="rounded-lg bg-orion-gold/10 px-3 py-2 text-sm text-gray-700 dark:text-gray-200">
+                    Renta neta {formatoUsd(calcularRenta(datosRenta).rentaNeta)}/año ÷ {tasaUsada}% ={" "}
+                    <strong>{formatoUsd(valorRenta)}</strong>
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* 4. Resultado */}
           {resultado && (
             <div className="rounded-xl border border-orion-gold bg-orion-gold/5 p-4">
@@ -665,6 +729,18 @@ export function NuevaTasacionForm({
                   <li key={m}>{m}</li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {final && (final.metodo !== "COMPARABLES" || usarRenta) && (
+            <div className="rounded-xl border border-orion-navy/30 bg-orion-navy/5 p-4 text-center dark:border-white/20">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Valor final · {METODO_LABEL[final.metodo]}</p>
+              <p className="text-2xl font-bold text-orion-navy dark:text-orion-gold">{formatoUsd(final.valor)}</p>
+              {final.metodo === "CONCILIADO" && resultado && (
+                <p className="text-xs text-gray-500">
+                  Comparables {formatoUsd(resultado.valorCierre)} · Renta {formatoUsd(valorRenta)}
+                </p>
+              )}
             </div>
           )}
 

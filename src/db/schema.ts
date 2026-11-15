@@ -821,6 +821,20 @@ export const tasaciones = pgTable("tasaciones", {
         zonaTipo: string;
         departamento: string | null;
         sujeto: Record<string, number | boolean | undefined>;
+        /** Valor por capitalización de renta (src/lib/rentabilidad.ts). */
+        renta?: {
+          moneda: "USD" | "UYU";
+          cotizacion?: number;
+          alquilerMensual?: number;
+          mesesVacios?: number;
+          contribucionAnual?: number;
+          primariaAnual?: number;
+          otrosGastosAnuales?: number;
+          mantenimientoPct?: number;
+          administracionPct?: number;
+          tasa: number;
+          valor: number;
+        } | null;
       }>(),
       agenteId: text("agente_id")
         .notNull()
