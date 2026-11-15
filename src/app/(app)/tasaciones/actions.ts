@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, ilike, inArray, isNotNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
@@ -45,6 +45,7 @@ function parseComparables(raw: string): ComparablePro[] | null {
       garajes: c.garajes === undefined || c.garajes === null || c.garajes === "" ? undefined : Math.max(0, Math.round(Number(c.garajes)) || 0),
       piscina: c.piscina ? true : undefined,
       esquina: c.esquina ? true : undefined,
+      esTasacion: c.esTasacion ? true : undefined,
       coneat: num(c.coneat),
     }));
   } catch {
@@ -52,13 +53,10 @@ function parseComparables(raw: string): ComparablePro[] | null {
   }
 }
 
-export async function crearTasacion(
-  _prevState: TasacionState,
-  formData: FormData
-): Promise<TasacionState> {
-  const sesion = await obtenerSesion();
-  if (!sesion) return { error: "No autorizado." };
+type ValoresTasacion = Omit<typeof tasaciones.$inferInsert, "id" | "agenteId" | "creadoEn">;
 
+/** Lee y valida el formulario (nueva o editar) y calcula el resultado. */
+function leerTasacion(formData: FormData): { error: string } | { valores: ValoresTasacion } {
   const tipo = String(formData.get("tipo") || "").trim();
   const direccion = String(formData.get("direccion") || "").trim();
   const zona = String(formData.get("zona") || "").trim();
@@ -110,10 +108,8 @@ export async function crearTasacion(
   const resultado = calcularTasacionPro(categoria, sujeto, comparables, zonaTipo);
   const { m2: _m2, estado: _e, ubicacion: _u, ...extras } = sujeto;
   void _m2; void _e; void _u;
-
-  const [fila] = await db
-    .insert(tasaciones)
-    .values({
+  return {
+    valores: {
       tipo,
       direccion: direccion || null,
       zona: zona || null,
@@ -127,8 +123,22 @@ export async function crearTasacion(
       ajusteManual,
       notas: notas || null,
       detalle: { categoria, zonaTipo, departamento: departamento || null, sujeto: extras },
-      agenteId: sesion.userId,
-    })
+    },
+  };
+}
+
+export async function crearTasacion(
+  _prevState: TasacionState,
+  formData: FormData
+): Promise<TasacionState> {
+  const sesion = await obtenerSesion();
+  if (!sesion) return { error: "No autorizado." };
+  const leido = leerTasacion(formData);
+  if ("error" in leido) return leido;
+
+  const [fila] = await db
+    .insert(tasaciones)
+    .values({ ...leido.valores, agenteId: sesion.userId })
     .returning({ id: tasaciones.id });
 
   await registrar("Hizo una tasación", { entidad: "tasacion", id: fila.id });
@@ -140,6 +150,26 @@ export async function crearTasacion(
     redirect("/captaciones");
   }
   redirect(`/tasaciones/${fila.id}`);
+}
+
+/** Editar una tasación guardada (la del agente, o cualquiera si es la CEO). */
+export async function editarTasacion(
+  _prevState: TasacionState,
+  formData: FormData
+): Promise<TasacionState> {
+  const sesion = await obtenerSesion();
+  if (!sesion) return { error: "No autorizado." };
+  const id = String(formData.get("tasacionId") || "");
+  const [actual] = await db.select({ agenteId: tasaciones.agenteId }).from(tasaciones).where(eq(tasaciones.id, id));
+  if (!actual) return { error: "La tasación ya no existe." };
+  if (actual.agenteId !== sesion.userId && !esCEO(sesion.rol)) return { error: "Solo quien la hizo (o la CEO) puede editarla." };
+  const leido = leerTasacion(formData);
+  if ("error" in leido) return leido;
+  await db.update(tasaciones).set(leido.valores).where(eq(tasaciones.id, id));
+  await registrar("Editó una tasación", { entidad: "tasacion", id });
+  revalidatePath("/tasaciones");
+  revalidatePath(`/tasaciones/${id}`);
+  redirect(`/tasaciones/${id}`);
 }
 
 export async function eliminarTasacion(tasacionId: string) {
@@ -193,7 +223,9 @@ const TIPOS_ORION: Record<string, string[]> = {
 export async function sugerirComparables(
   tipo: string,
   zona: string,
-  m2: number
+  m2: number,
+  /** Al editar: no sugerir la misma tasación. */
+  excluirId?: string
 ): Promise<{ error?: string; sugeridos?: ComparableSugerido[] }> {
   const sesion = await obtenerSesion();
   if (!sesion) return { error: "No autorizado." };
@@ -243,8 +275,61 @@ export async function sugerirComparables(
     .limit(8);
 
   const k = CAMPOS[cat];
+
+  // Base de tasaciones de Orion: las de todo el equipo, del mismo tipo y
+  // barrio, con superficie parecida. Su valor ya es de cierre (sin -10%).
+  const previas = (
+    await db
+      .select({
+        id: tasaciones.id,
+        tipo: tasaciones.tipo,
+        zona: tasaciones.zona,
+        direccion: tasaciones.direccion,
+        m2: tasaciones.m2,
+        estado: tasaciones.estado,
+        ubicacion: tasaciones.ubicacion,
+        valor: tasaciones.valorEstimado,
+        ajusteManual: tasaciones.ajusteManual,
+        detalle: tasaciones.detalle,
+        creadoEn: tasaciones.creadoEn,
+      })
+      .from(tasaciones)
+      .where(
+        and(
+          ilike(tasaciones.zona, `%${escapar(zona)}%`),
+          sql`${tasaciones.m2} between ${m2 * (1 - MARGEN_M2_SUGERIDOS)} and ${m2 * (1 + MARGEN_M2_SUGERIDOS)}`,
+          excluirId ? sql`${tasaciones.id} <> ${excluirId}` : undefined
+        )
+      )
+      .orderBy(desc(tasaciones.creadoEn))
+      .limit(30)
+  )
+    .filter((t) => categoriaDe(t.tipo) === cat)
+    .slice(0, 6);
+
+  const fecha = (d: Date) => d.toLocaleDateString("es-UY", { timeZone: "America/Montevideo" });
+  const deTasaciones: ComparableSugerido[] = previas.map((t) => {
+    const suj = (t.detalle?.sujeto ?? {}) as Record<string, number | boolean | undefined>;
+    return {
+      link: `/tasaciones/${t.id}`,
+      m2: t.m2,
+      precio: t.ajusteManual ?? t.valor,
+      esCierre: false,
+      esTasacion: true,
+      estado: t.estado,
+      ubicacion: t.ubicacion,
+      m2Terreno: k.terreno ? (suj.m2Terreno as number | undefined) : undefined,
+      garajes: k.garajes ? (suj.garajes as number | undefined) : undefined,
+      piscina: k.piscina && suj.piscina ? true : undefined,
+      codigo: "Tasación",
+      titulo: `${t.tipo} · ${t.direccion || t.zona || ""} (${fecha(t.creadoEn)})`,
+      zona: t.zona ?? "",
+      estadoPropiedad: "TASACION",
+    };
+  });
+
   return {
-    sugeridos: filas.map((f) => ({
+    sugeridos: [...filas.map((f) => ({
       link: `/propiedades/${f.id}`,
       m2: f.m2,
       precio: f.precio ?? 0,
@@ -258,6 +343,6 @@ export async function sugerirComparables(
       titulo: f.titulo,
       zona: f.zona,
       estadoPropiedad: f.estado,
-    })),
+    })), ...deTasaciones],
   };
 }

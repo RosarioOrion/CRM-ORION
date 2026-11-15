@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { tasaciones, usuarios } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
-import { puedeVerAgente } from "@/lib/permisos";
+import { esCEO, puedeVerAgente } from "@/lib/permisos";
 import { eq } from "drizzle-orm";
 import { OPCIONES_ESTADO, OPCIONES_UBICACION, calcularTasacion } from "@/lib/tasaciones";
 import {
@@ -67,7 +67,8 @@ export default async function TasacionDetallePage({
   // Tasación profesional (con categoría) o vieja (método de m² simple).
   const det = tasacion.detalle;
   const cat = det && det.categoria in CAMPOS ? (det.categoria as Categoria) : null;
-  if (cat && det) return <DetallePro t={{ ...tasacion, detalle: det }} cat={cat} />;
+  const puedeEditar = tasacion.agenteId === sesion.userId || esCEO(sesion.rol);
+  if (cat && det) return <DetallePro t={{ ...tasacion, detalle: det }} cat={cat} puedeEditar={puedeEditar} />;
 
   const resultado = calcularTasacion(
     tasacion.comparables,
@@ -100,7 +101,10 @@ export default async function TasacionDetallePage({
             })}
           </p>
         </div>
-        <EliminarTasacionBoton tasacionId={tasacion.id} />
+        <div className="flex items-center gap-2">
+          {puedeEditar && <BotonEditar id={tasacion.id} />}
+          <EliminarTasacionBoton tasacionId={tasacion.id} />
+        </div>
       </div>
 
       <div className="mb-6 grid grid-cols-3 gap-3 rounded-xl border border-orion-gold bg-orion-gold/5 p-4 text-center dark:border-orion-gold">
@@ -227,7 +231,18 @@ type TasacionFila = {
   detalle: { categoria: string; zonaTipo: string; departamento: string | null; sujeto: Record<string, number | boolean | undefined> };
 };
 
-function DetallePro({ t, cat }: { t: TasacionFila; cat: Categoria }) {
+function BotonEditar({ id }: { id: string }) {
+  return (
+    <Link
+      href={`/tasaciones/${id}/editar`}
+      className="rounded-lg border border-orion-navy px-3 py-1.5 text-sm font-semibold text-orion-navy hover:bg-orion-navy/5 dark:border-orion-gold dark:text-orion-gold"
+    >
+      ✏️ Editar
+    </Link>
+  );
+}
+
+function DetallePro({ t, cat, puedeEditar }: { t: TasacionFila; cat: Categoria; puedeEditar: boolean }) {
   const k = CAMPOS[cat];
   const zona: ZonaTipo = t.detalle.zonaTipo === "BALNEARIA" ? "BALNEARIA" : "URBANA";
   const suj = t.detalle.sujeto as Record<string, number | boolean | undefined>;
@@ -272,7 +287,10 @@ function DetallePro({ t, cat }: { t: TasacionFila; cat: Categoria }) {
             {new Date(t.creadoEn).toLocaleDateString("es-UY", { day: "2-digit", month: "2-digit", year: "numeric" })}
           </p>
         </div>
-        <EliminarTasacionBoton tasacionId={t.id} />
+        <div className="flex items-center gap-2">
+          {puedeEditar && <BotonEditar id={t.id} />}
+          <EliminarTasacionBoton tasacionId={t.id} />
+        </div>
       </div>
 
       <div className="mb-6 rounded-xl border border-orion-gold bg-orion-gold/5 p-4">
@@ -357,14 +375,14 @@ function DetallePro({ t, cat }: { t: TasacionFila; cat: Categoria }) {
               return (
                 <tr key={i} className={x.atipico ? "bg-red-50/60 dark:bg-red-900/20" : ""}>
                   <td className="px-3 py-2">{i + 1}</td>
-                  <td className="px-3 py-2">{c.esCierre ? "✅ Cierre" : "📊 Dinámico"}</td>
+                  <td className="px-3 py-2">{c.esTasacion ? "📐 Tasación previa" : c.esCierre ? "✅ Cierre" : "📊 Dinámico"}</td>
                   <td className="px-3 py-2">
                     {formatoSuperficie(x.superficie, u)}
                     {k.terreno && c.m2Terreno ? <span className="block text-[11px] text-gray-400">{c.m2} edif. · {c.m2Terreno} terreno</span> : null}
                   </td>
                   <td className="px-3 py-2">
                     {formatoUsd(c.precio)}
-                    {!c.esCierre && <span className="ml-1 text-[11px] text-gray-400">(-10%)</span>}
+                    {!c.esCierre && !c.esTasacion && <span className="ml-1 text-[11px] text-gray-400">(-10%)</span>}
                     {c.link && (
                       <>
                         {" "}

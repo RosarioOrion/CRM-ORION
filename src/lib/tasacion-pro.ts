@@ -110,6 +110,8 @@ export type ComparablePro = Medidas & {
   link: string;
   precio: number;
   esCierre: boolean;
+  /** Sale de una tasación anterior de Orion (valor estimado: sin -10%, no cuenta como cierre). */
+  esTasacion?: boolean;
   estado: number;
   ubicacion: number;
 };
@@ -198,7 +200,7 @@ export function calcularTasacionPro(
   const supS = superficieComparable(cat, sujeto, zona);
   const calc = comparables.map((c) => {
     const superficie = superficieComparable(cat, c, zona);
-    const precio = c.esCierre ? c.precio : c.precio * (1 - DESCUENTO_DINAMICO);
+    const precio = c.esCierre || c.esTasacion ? c.precio : c.precio * (1 - DESCUENTO_DINAMICO);
     const base = superficie > 0 ? precio / superficie : 0;
     const ajustes = ajustesComparable(cat, sujeto, c, zona);
     const factor = ajustes.reduce((f, a) => f * a.factor, 1);
@@ -216,7 +218,8 @@ export function calcularTasacionPro(
   const valorCierre = Math.round(promedio * supS);
   // Rango: ± la dispersión de la muestra (mínimo ±5%, máximo ±20%).
   const margen = Math.min(0.2, Math.max(0.05, dispersion));
-  const cierres = comparables.filter((c, i) => c.esCierre && calc[i].ajustado > 0).length;
+  const cierres = comparables.filter((c, i) => c.esCierre && !c.esTasacion && calc[i].ajustado > 0).length;
+  const previas = comparables.filter((c, i) => c.esTasacion && calc[i].ajustado > 0).length;
   const atipicos = calc.filter((c) => c.atipico).length;
 
   const motivos: string[] = [];
@@ -235,6 +238,7 @@ export function calcularTasacionPro(
       ? `${cierres} venta(s) cerrada(s) en la muestra.`
       : "No hay ventas cerradas: todos son publicaciones (precio de oferta, no de cierre)."
   );
+  if (previas) motivos.push(`${previas} tasación(es) anterior(es) de Orion usadas como comparable.`);
   if (atipicos) motivos.push(`${atipicos} comparable(s) se alejan más de 25% del resto: revisalos o reemplazalos.`);
 
   return {

@@ -49,6 +49,8 @@ export type Comparable = {
 };
 
 export type ComparableSugerido = Comparable & {
+  /** Sale de una tasación anterior de Orion. */
+  esTasacion?: boolean;
   m2Terreno?: number;
   garajes?: number;
   piscina?: boolean;
