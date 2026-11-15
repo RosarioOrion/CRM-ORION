@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { FILOSOFIA_ORION } from "@/lib/filosofia";
 import { db } from "@/db";
 
 // Cambios chicos de base de datos que se aplican solos al arrancar el
@@ -115,6 +116,17 @@ const SENTENCIAS = [
       INSERT INTO datos_cargados (clave) VALUES ('captacion-etapas');
     END IF;
   END $$`,
+  // Filosofía de Orion (Rosario): se carga una sola vez en Ajustes → Filosofía.
+  sql.raw(`DO $f$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM datos_cargados WHERE clave = 'filosofia-orion') THEN
+      IF EXISTS (SELECT 1 FROM configuracion_empresa) THEN
+        UPDATE configuracion_empresa SET filosofia = '${FILOSOFIA_ORION.replace(/'/g, "''")}', actualizado_en = now();
+      ELSE
+        INSERT INTO configuracion_empresa (id, filosofia) VALUES (md5(random()::text), '${FILOSOFIA_ORION.replace(/'/g, "''")}');
+      END IF;
+      INSERT INTO datos_cargados (clave) VALUES ('filosofia-orion');
+    END IF;
+  END $f$`),
 ];
 
 export async function autoMigrar() {
