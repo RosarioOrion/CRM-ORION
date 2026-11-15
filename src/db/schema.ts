@@ -800,6 +800,7 @@ export const tasaciones = pgTable("tasaciones", {
           estado: number;
           ubicacion: number;
           // Tasación profesional (src/lib/tasacion-pro.ts): según el tipo.
+          esTasacion?: boolean;
           m2Semi?: number;
           m2Desc?: number;
           m2Terreno?: number;

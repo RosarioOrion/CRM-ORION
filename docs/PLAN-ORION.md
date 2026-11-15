@@ -131,6 +131,10 @@ cuando cambie algo.
     - Baja: el resto.
   - se marcan los comparables que se alejan más de 25 % de la mediana.
 - Las tasaciones viejas (sin `detalle`) se siguen mostrando con el método anterior.
+- **Editar** (`/tasaciones/[id]/editar`): la puede editar quien la hizo o la CEO. Al guardar una vieja, pasa al método nuevo.
+- **Base de tasaciones:**
+  - "Sugerir comparables" trae también las tasaciones anteriores de todo el equipo (mismo tipo, barrio y ±25 % de superficie), como "📐 Tasación previa": sin el −10 % y sin contar como cierre.
+  - La lista de Tasaciones se puede filtrar por tipo y por barrio.
 - **Pendiente, fase 2:** informe en PDF para el propietario (logo, comparables, rango, 4 compromisos).
 
 ## Pendientes

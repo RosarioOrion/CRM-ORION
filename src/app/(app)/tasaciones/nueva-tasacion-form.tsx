@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState, useTransition } from "react";
-import { crearTasacion, sugerirComparables, type TasacionState } from "./actions";
+import { crearTasacion, editarTasacion, sugerirComparables, type TasacionState } from "./actions";
 import { busquedasEnPortales, type ComparableSugerido } from "@/lib/tasaciones";
 import {
   calcularTasacionPro,
@@ -34,6 +34,30 @@ const PUNTAJES = [
 const COMPARABLE_VACIO: ComparablePro = { link: "", m2: 0, precio: 0, esCierre: false, estado: 3, ubicacion: 3 };
 
 const DEPTOS_BALNEARIOS = ["Canelones", "Maldonado", "Rocha"];
+
+/** Tasación guardada que se edita. */
+export type TasacionExistente = {
+  id: string;
+  tipo: string;
+  departamento: string;
+  zona: string;
+  direccion: string;
+  link: string;
+  zonaTipo: ZonaTipo;
+  m2: number;
+  m2Semi?: number;
+  m2Desc?: number;
+  m2Terreno?: number;
+  garajes?: number;
+  piscina?: boolean;
+  esquina?: boolean;
+  coneat?: number;
+  estado: number;
+  ubicacion: number;
+  comparables: ComparablePro[];
+  ajusteManual: number | null;
+  notas: string;
+};
 
 export type TasacionInicial = {
   captacionId: string;
@@ -86,33 +110,36 @@ function Num({
   );
 }
 
-export function NuevaTasacionForm({ inicial }: { inicial?: TasacionInicial } = {}) {
-  const [state, formAction, pending] = useActionState(crearTasacion, initialState);
+export function NuevaTasacionForm({
+  inicial,
+  existente: e,
+}: { inicial?: TasacionInicial; existente?: TasacionExistente } = {}) {
+  const [state, formAction, pending] = useActionState(e ? editarTasacion : crearTasacion, initialState);
 
   // --- Propiedad a tasar ---
-  const [tipo, setTipo] = useState(tipoInicial(inicial?.tipo));
+  const [tipo, setTipo] = useState(tipoInicial(e?.tipo ?? inicial?.tipo));
   const cat: Categoria | null = tipo ? categoriaDe(tipo) : null;
   const k = cat ? CAMPOS[cat] : null;
-  const [departamento, setDepartamento] = useState("");
-  const [zona, setZona] = useState(inicial?.zona ?? "");
-  const [direccion, setDireccion] = useState(inicial?.direccion ?? "");
-  const [link, setLink] = useState(inicial?.link ?? "");
-  const [zonaTipo, setZonaTipo] = useState<ZonaTipo>("URBANA");
-  const [m2, setM2] = useState<number | undefined>();
-  const [m2Semi, setM2Semi] = useState<number | undefined>();
-  const [m2Desc, setM2Desc] = useState<number | undefined>();
-  const [m2Terreno, setM2Terreno] = useState<number | undefined>();
-  const [garajes, setGarajes] = useState<number | undefined>();
-  const [piscina, setPiscina] = useState(false);
-  const [esquina, setEsquina] = useState(false);
-  const [coneat, setConeat] = useState<number | undefined>();
-  const [estado, setEstado] = useState(3);
-  const [ubicacion, setUbicacion] = useState(3);
-  const [notas, setNotas] = useState("");
-  const [ajusteManual, setAjusteManual] = useState("");
+  const [departamento, setDepartamento] = useState(e?.departamento ?? "");
+  const [zona, setZona] = useState(e?.zona ?? inicial?.zona ?? "");
+  const [direccion, setDireccion] = useState(e?.direccion ?? inicial?.direccion ?? "");
+  const [link, setLink] = useState(e?.link ?? inicial?.link ?? "");
+  const [zonaTipo, setZonaTipo] = useState<ZonaTipo>(e?.zonaTipo ?? "URBANA");
+  const [m2, setM2] = useState<number | undefined>(e?.m2);
+  const [m2Semi, setM2Semi] = useState<number | undefined>(e?.m2Semi);
+  const [m2Desc, setM2Desc] = useState<number | undefined>(e?.m2Desc);
+  const [m2Terreno, setM2Terreno] = useState<number | undefined>(e?.m2Terreno);
+  const [garajes, setGarajes] = useState<number | undefined>(e?.garajes);
+  const [piscina, setPiscina] = useState(!!e?.piscina);
+  const [esquina, setEsquina] = useState(!!e?.esquina);
+  const [coneat, setConeat] = useState<number | undefined>(e?.coneat);
+  const [estado, setEstado] = useState(e?.estado ?? 3);
+  const [ubicacion, setUbicacion] = useState(e?.ubicacion ?? 3);
+  const [notas, setNotas] = useState(e?.notas ?? "");
+  const [ajusteManual, setAjusteManual] = useState(e?.ajusteManual != null ? String(e.ajusteManual) : "");
 
   // --- Comparables ---
-  const [comparables, setComparables] = useState<ComparablePro[]>([
+  const [comparables, setComparables] = useState<ComparablePro[]>(e?.comparables.length ? e.comparables : [
     { ...COMPARABLE_VACIO },
     { ...COMPARABLE_VACIO },
     { ...COMPARABLE_VACIO },
@@ -160,7 +187,7 @@ export function NuevaTasacionForm({ inicial }: { inicial?: TasacionInicial } = {
   function buscarSugeridos() {
     setErrorSugeridos("");
     iniciarBusqueda(async () => {
-      const r = await sugerirComparables(tipo, zona, m2 ?? 0);
+      const r = await sugerirComparables(tipo, zona, m2 ?? 0, e?.id);
       if (r.error) {
         setErrorSugeridos(r.error);
         setSugeridos(null);
@@ -178,6 +205,7 @@ export function NuevaTasacionForm({ inicial }: { inicial?: TasacionInicial } = {
           m2: s.m2,
           precio: s.precio,
           esCierre: s.esCierre,
+          esTasacion: s.esTasacion,
           estado: s.estado,
           ubicacion: s.ubicacion,
           m2Terreno: s.m2Terreno,
@@ -205,6 +233,7 @@ export function NuevaTasacionForm({ inicial }: { inicial?: TasacionInicial } = {
       <input type="hidden" name="estado" value={estado} />
       <input type="hidden" name="ubicacion" value={ubicacion} />
       {inicial && <input type="hidden" name="captacionId" value={inicial.captacionId} />}
+      {e && <input type="hidden" name="tasacionId" value={e.id} />}
 
       {/* 1. Tipo */}
       <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
@@ -401,7 +430,8 @@ export function NuevaTasacionForm({ inicial }: { inicial?: TasacionInicial } = {
               </div>
               <p className="mt-2 text-[11px] text-gray-400">
                 Orion busca propiedades en venta del mismo tipo y barrio, con ±25% de superficie. Las vendidas o
-                reservadas entran como Cierre y las activas como Dinámico (se les descuenta 10%).
+                reservadas entran como Cierre, las activas como Dinámico (se les descuenta 10%) y también aparecen las
+                tasaciones anteriores del equipo (📐 Tasación previa).
               </p>
               {errorSugeridos && <p className="mt-2 text-xs text-red-600">{errorSugeridos}</p>}
               {sugeridos && sugeridos.length === 0 && (
@@ -433,7 +463,8 @@ export function NuevaTasacionForm({ inicial }: { inicial?: TasacionInicial } = {
                           {s.codigo} · {s.titulo}
                         </a>
                         <span className="text-gray-400">
-                          {s.zona} · {s.m2} {unidad} · {formatoUsd(s.precio)} · {s.esCierre ? "✅ Cierre" : "📊 Dinámico"}
+                          {s.zona} · {s.m2} {unidad} · {formatoUsd(s.precio)} ·{" "}
+                          {s.esTasacion ? "📐 Tasación previa" : s.esCierre ? "✅ Cierre" : "📊 Dinámico"}
                         </span>
                       </div>
                       {yaCargado(s) ? (
@@ -470,15 +501,19 @@ export function NuevaTasacionForm({ inicial }: { inicial?: TasacionInicial } = {
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => cambiarComparable(i, { esCierre: !c.esCierre })}
+                          onClick={() =>
+                            cambiarComparable(i, c.esTasacion ? { esTasacion: undefined, esCierre: false } : { esCierre: !c.esCierre })
+                          }
                           className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                            c.esCierre
+                            c.esTasacion
+                              ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300"
+                              : c.esCierre
                               ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
                               : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
                           }`}
-                          title="Cierre = venta concretada · Dinámico = publicación activa"
+                          title="Cierre = venta concretada · Dinámico = publicación activa (−10%) · Tasación previa = valor de una tasación de Orion"
                         >
-                          {c.esCierre ? "✅ Cierre" : "📊 Dinámico"}
+                          {c.esTasacion ? "📐 Tasación previa" : c.esCierre ? "✅ Cierre" : "📊 Dinámico"}
                         </button>
                         {comparables.length > MINIMO_COMPARABLES && (
                           <button
@@ -661,7 +696,13 @@ export function NuevaTasacionForm({ inicial }: { inicial?: TasacionInicial } = {
             disabled={pending || faltan > 0}
             className="self-start rounded-lg bg-orion-navy px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {pending ? "Guardando…" : faltan > 0 ? `Necesitás ${faltan} comparable(s) más` : "Guardar tasación"}
+            {pending
+              ? "Guardando…"
+              : faltan > 0
+              ? `Necesitás ${faltan} comparable(s) más`
+              : e
+              ? "Guardar cambios"
+              : "Guardar tasación"}
           </button>
         </>
       )}
