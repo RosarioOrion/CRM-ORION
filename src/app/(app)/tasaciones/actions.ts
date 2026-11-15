@@ -16,6 +16,7 @@ import {
   type Categoria,
   type ComparablePro,
   type SujetoPro,
+  type FichaTasacion,
   type ZonaTipo,
 } from "@/lib/tasacion-pro";
 import { registrar } from "@/lib/registro-actividad";
@@ -48,6 +49,7 @@ function parseComparables(raw: string): ComparablePro[] | null {
       esquina: c.esquina ? true : undefined,
       esTasacion: c.esTasacion ? true : undefined,
       coneat: num(c.coneat),
+      luz: [1, 2, 3, 4].includes(Number(c.luz)) ? Number(c.luz) : undefined,
     }));
   } catch {
     return null;
@@ -90,6 +92,17 @@ function leerTasacion(formData: FormData): { error: string } | { valores: Valore
     piscina: k.piscina && formData.get("piscina") === "on" ? true : undefined,
     esquina: k.esquina && formData.get("esquina") === "on" ? true : undefined,
     coneat: k.coneat ? num(formData.get("coneat")) : undefined,
+    luz: k.luz && [1, 2, 3, 4].includes(Number(formData.get("luz"))) ? Number(formData.get("luz")) : undefined,
+  };
+  const texto = (n: string, max = 200) => String(formData.get(n) || "").trim().slice(0, max) || undefined;
+  const ficha: FichaTasacion = {
+    propietario: texto("propietario"),
+    telefono: texto("telefonoPropietario", 40),
+    padron: texto("padron", 40),
+    dormitorios: num(formData.get("dormitorios")),
+    banos: num(formData.get("banos")),
+    antiguedad: num(formData.get("antiguedad")),
+    descripcion: texto("descripcion", 3000),
   };
   if (k.terreno && !sujeto.m2Terreno) return { error: "Ingresá los m² de terreno (pesan mucho en el valor de una casa)." };
 
@@ -142,7 +155,7 @@ function leerTasacion(formData: FormData): { error: string } | { valores: Valore
       valorEstimado: final.valor,
       ajusteManual,
       notas: notas || null,
-      detalle: { categoria, zonaTipo, departamento: departamento || null, sujeto: extras, renta },
+      detalle: { categoria, zonaTipo, departamento: departamento || null, sujeto: extras, renta, ficha },
     },
   };
 }

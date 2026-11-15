@@ -147,7 +147,12 @@ cuando cambie algo.
     - si hay renta, se puede guardar sin comparables;
     - con los dos métodos, el valor final es el promedio (conciliado). Se guarda en `detalle.renta`.
   - Las tasas de referencia son orientativas y están en `TASAS_REFERENCIA`.
-- **Pendiente, fase 2:** informe en PDF para el propietario (logo, comparables, rango, 4 compromisos).
+- **Iluminación y ventilación:** puntaje 1–4 en apartamentos, casas y locales. Ajusta ±4 % por punto, solo si se cargó en el comparable.
+- **Datos para el informe** (`detalle.ficha`): propietario, teléfono, padrón, dormitorios, baños, antigüedad y descripción. No entran en el cálculo.
+- **Informe para el propietario** (`/informe-tasacion/[id]`, botón "📄 Informe"):
+  - página sin menú, siempre en colores claros, A4; se guarda como PDF con Imprimir;
+  - incluye: portada con el logo (`public/brand/orion-logo-informe.jpg`), valor, rango y publicación, la propiedad, gráfico "dónde se ubica en el mercado" con los comparables reales, por qué importa el precio de salida, el método, la tabla de comparables, los 4 compromisos, la firma del agente y un aviso de que no es una tasación oficial ni pericial.
+  - Las "estadísticas" son las de la propia muestra; no se inventaron cifras de mercado externas. Si Rosario pasa datos con fuente, se pueden sumar.
 
 ## Pendientes
 
@@ -155,8 +160,7 @@ cuando cambie algo.
    - Problema a resolver: con un agente en 45 % o 50 %, el reparto provisorio suma **105 % / 110 %**.
    - Hay que acordar de dónde sale la diferencia.
    - Se cambia en las constantes de `src/lib/comisiones.ts`.
-2. **Tasación, fase 2:** informe en PDF para el propietario.
-3. **Tutorial del CRM** (ver abajo). Se hace cuando Rosario diga que la primera etapa de Orion está cerrada.
+2. **Tutorial del CRM** (ver abajo). Se hace cuando Rosario diga que la primera etapa de Orion está cerrada.
 
 ## Plan del tutorial (acordado con Rosario)
 
