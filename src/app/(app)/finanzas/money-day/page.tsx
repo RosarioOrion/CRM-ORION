@@ -5,13 +5,13 @@ import {
   CATEGORIAS,
   consejosDelMes,
   GRUPO_LABEL,
+  GRUPOS_EGRESO,
   hoyUY,
   mesAnterior,
   mesLabel,
   mesSiguiente,
   pesos,
   resumirMes,
-  type Grupo,
 } from "@/lib/finanzas";
 import {
   filaMes,
@@ -86,8 +86,8 @@ export default async function MoneyDayPage({ searchParams }: { searchParams: Pro
         <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
             ["Entró", r.ingresos, "text-emerald-700 dark:text-emerald-300"],
-            ["Gastos", r.trabajo + r.personal, "text-red-700 dark:text-red-300"],
-            ["Reservas", r.reservas, "text-sky-700 dark:text-sky-300"],
+            ["Gastos", r.gastos, "text-red-700 dark:text-red-300"],
+            ["Impuestos y ahorro", r.separado, "text-sky-700 dark:text-sky-300"],
             ["Saldo", r.saldo, r.saldo < 0 ? "text-red-700" : "text-gray-900 dark:text-white"],
           ].map(([l, v, c]) => (
             <div key={l as string} className="rounded-lg bg-gray-50 p-3 text-center dark:bg-gray-900/40">
@@ -111,7 +111,7 @@ export default async function MoneyDayPage({ searchParams }: { searchParams: Pro
             </tr>
           </thead>
           <tbody>
-            {(["TRABAJO", "PERSONAL", "RESERVA"] as Grupo[]).map((g) => {
+            {GRUPOS_EGRESO.map((g) => {
               const cats = CATEGORIAS.filter((c) => c.grupo === g && ((r.porCategoria[c.clave] ?? 0) > 0 || (presupuesto[c.clave] ?? 0) > 0));
               if (!cats.length) return null;
               return [

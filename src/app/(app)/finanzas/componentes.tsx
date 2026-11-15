@@ -2,7 +2,7 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CATEGORIAS, GRUPO_LABEL, pesos, type Grupo } from "@/lib/finanzas";
+import { CATEGORIAS, GRUPO_LABEL, GRUPOS_EGRESO, pesos, type Grupo } from "@/lib/finanzas";
 import {
   agregarMovimiento,
   eliminarMovimiento,
@@ -19,7 +19,7 @@ const input =
 export function FormMovimiento({ hoy }: { hoy: string }) {
   const [state, action, pending] = useActionState(agregarMovimiento, inicial);
   const [tipo, setTipo] = useState<"INGRESO" | "GASTO">("GASTO");
-  const grupos: Grupo[] = tipo === "INGRESO" ? ["INGRESO"] : ["TRABAJO", "PERSONAL", "RESERVA"];
+  const grupos: Grupo[] = tipo === "INGRESO" ? ["INGRESO"] : GRUPOS_EGRESO;
   return (
     <form action={action} key={state.ok ?? "f"} className="flex flex-col gap-3">
       <div className="grid grid-cols-2 gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-900">
@@ -32,7 +32,7 @@ export function FormMovimiento({ hoy }: { hoy: string }) {
               tipo === t ? (t === "INGRESO" ? "bg-emerald-600 text-white" : "bg-orion-navy text-white") : "text-gray-500"
             }`}
           >
-            {t === "INGRESO" ? "➕ Ingreso" : "➖ Gasto o reserva"}
+            {t === "INGRESO" ? "➕ Ingreso" : "➖ Gasto o ahorro"}
           </button>
         ))}
       </div>
@@ -130,7 +130,7 @@ export function FormPresupuesto({
   const [ingreso, setIngreso] = useState(ingresoEsperado ? String(Math.round(ingresoEsperado)) : "");
   const total = (g: Grupo) =>
     CATEGORIAS.filter((c) => c.grupo === g).reduce((n, c) => n + (Number(valores[c.clave]) || 0), 0);
-  const egresos = total("TRABAJO") + total("PERSONAL") + total("RESERVA");
+  const egresos = GRUPOS_EGRESO.reduce((n, g) => n + total(g), 0);
   const libre = (Number(ingreso) || 0) - egresos;
   return (
     <form action={action} className="flex flex-col gap-4">
@@ -141,7 +141,7 @@ export function FormPresupuesto({
         <input name="ingresoEsperado" type="number" min="0" value={ingreso} onChange={(e) => setIngreso(e.target.value)} className={input} />
         <span className="text-[10px] text-gray-400">Sé prudente: contá solo lo que tenés casi seguro (reservas, señas firmadas).</span>
       </label>
-      {(["TRABAJO", "PERSONAL", "RESERVA"] as Grupo[]).map((g) => (
+      {GRUPOS_EGRESO.map((g) => (
         <div key={g}>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
             {GRUPO_LABEL[g]} · {pesos(total(g))}

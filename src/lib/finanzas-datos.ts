@@ -70,8 +70,8 @@ export async function ultimaCotizacion(usuarioId: string): Promise<number | null
 }
 
 /**
- * Fondo para meses flojos acumulado (todo lo separado en "Fondo") y gasto
- * mensual promedio de los últimos 3 meses (trabajo + personal), en pesos.
+ * Fondo de emergencia acumulado (todo lo separado en "Fondo") y gasto
+ * mensual promedio de los últimos 3 meses (fijos + variables personales), en pesos.
  */
 export async function indicadoresHistoricos(usuarioId: string, cotizacionHoy: number | null) {
   const [movs, meses] = await Promise.all([
@@ -105,7 +105,7 @@ export async function indicadoresHistoricos(usuarioId: string, cotizacionHoy: nu
     if (p === null) continue;
     const g = categoria(m.categoria)?.grupo;
     if (m.categoria === "FONDO") fondo += p;
-    if (g === "TRABAJO" || g === "PERSONAL") gastoPorMes.set(k, (gastoPorMes.get(k) ?? 0) + p);
+    if (g === "FIJOS" || g === "VARIABLES") gastoPorMes.set(k, (gastoPorMes.get(k) ?? 0) + p);
   }
   const ultimos = [...gastoPorMes.entries()].sort((a, b) => b[0].localeCompare(a[0])).slice(0, 3);
   const gastoPromedio = ultimos.length ? ultimos.reduce((n, [, v]) => n + v, 0) / ultimos.length : 0;

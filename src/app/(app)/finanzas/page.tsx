@@ -5,13 +5,13 @@ import {
   CATEGORIAS,
   categoria,
   GRUPO_LABEL,
+  GRUPOS_EGRESO,
   hoyUY,
   mesAnterior,
   mesLabel,
   mesSiguiente,
   pesos,
   resumirMes,
-  type Grupo,
 } from "@/lib/finanzas";
 import { filaMes, movimientosDelMes, sincronizarComisiones, ultimaCotizacion } from "@/lib/finanzas-datos";
 import { BorrarMovimiento, FormCotizacion, FormMovimiento, FormPresupuesto } from "./componentes";
@@ -95,8 +95,8 @@ export default async function FinanzasPage({ searchParams }: { searchParams: Pro
 
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {tarjeta("Ingresos", r.ingresos, "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-900/20 dark:text-emerald-200", fila?.ingresoEsperado ? `esperado ${pesos(fila.ingresoEsperado)}` : undefined)}
-        {tarjeta("Gastos", r.trabajo + r.personal, "border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-900/20 dark:text-red-200", `trabajo ${pesos(r.trabajo)} · personales ${pesos(r.personal)}`)}
-        {tarjeta("Reservas", r.reservas, "border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900 dark:bg-sky-900/20 dark:text-sky-200", "ahorro, fondo e impuestos")}
+        {tarjeta("Gastos", r.gastos, "border-red-200 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-900/20 dark:text-red-200", `personales ${pesos(r.porGrupo.FIJOS + r.porGrupo.VARIABLES)} · negocio ${pesos(r.porGrupo.NEGOCIO)}`)}
+        {tarjeta("Impuestos y ahorro", r.separado, "border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900 dark:bg-sky-900/20 dark:text-sky-200", "colchón, fondo, ahorro e impuestos")}
         {tarjeta("Saldo", r.saldo, r.saldo < 0 ? "border-red-300 bg-white text-red-700 dark:bg-gray-800" : "border-gray-200 bg-white text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white", "lo que quedó sin asignar")}
       </div>
 
@@ -107,7 +107,7 @@ export default async function FinanzasPage({ searchParams }: { searchParams: Pro
             <p className="mb-3 text-sm font-semibold text-orion-navy dark:text-white">
               {hayPresupuesto ? "Presupuesto vs. real" : "En qué se va la plata"}
             </p>
-            {(["TRABAJO", "PERSONAL", "RESERVA"] as Grupo[]).map((g) => {
+            {GRUPOS_EGRESO.map((g) => {
               const cats = CATEGORIAS.filter((c) => c.grupo === g && ((r.porCategoria[c.clave] ?? 0) > 0 || (presupuesto[c.clave] ?? 0) > 0));
               if (!cats.length) return null;
               return (
@@ -131,7 +131,7 @@ export default async function FinanzasPage({ searchParams }: { searchParams: Pro
                         </div>
                         {plan > 0 && (
                           <div className="h-1.5 rounded bg-gray-100 dark:bg-gray-700">
-                            <div className={`h-1.5 rounded ${pasado ? "bg-red-500" : g === "RESERVA" ? "bg-sky-500" : "bg-orion-gold"}`} style={{ width: `${pct}%` }} />
+                            <div className={`h-1.5 rounded ${pasado ? "bg-red-500" : g === "AHORRO" || g === "IMPUESTOS" ? "bg-sky-500" : "bg-orion-gold"}`} style={{ width: `${pct}%` }} />
                           </div>
                         )}
                       </div>
@@ -190,31 +190,31 @@ export default async function FinanzasPage({ searchParams }: { searchParams: Pro
           </div>
 
           <details className="rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
-            <summary className="cursor-pointer font-semibold text-orion-navy dark:text-white">📘 Guía rápida: ingresos variables</summary>
-            <ul className="mt-3 list-disc space-y-2 pl-5">
+            <summary className="cursor-pointer font-semibold text-orion-navy dark:text-white">📘 Bloque 3 del Manual: tus finanzas</summary>
+            <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+              Esta planilla es tu herramienta; cómo repartís tu dinero lo decidís vos según tu situación. Los capítulos
+              están en Capacitación.
+            </p>
+            <ul className="mt-2 list-disc space-y-2 pl-5">
               <li>
-                <strong>Pagate primero.</strong> Cuando cobrás una comisión, antes de gastar separá: impuestos y aportes, fondo
-                para meses flojos y ahorro.
+                <strong>Cap. 15 · Tu relación con el dinero.</strong> Págate primero, en cada cobro. Necesidades y deseos.
+                Gastos hormiga.
               </li>
               <li>
-                <strong>Fondo para meses flojos.</strong> En este trabajo hay meses sin cierres. La meta es juntar entre 3 y 6
-                meses de tus gastos.
+                <strong>Cap. 16 · Repartir por porcentajes.</strong> Decidí una vez a dónde va cada peso y aplicalo el mismo día
+                que cobrás.
               </li>
               <li>
-                <strong>Regla 50/30/20 (adaptada).</strong> Del promedio de lo que cobrás: hasta 50% para gastos fijos, 30% para
-                el trabajo y lo variable, y al menos 20% para reservas.
+                <strong>Cap. 17 · Control de gastos y Money Day.</strong> Registrá todos los días en las 5 categorías y cerrá
+                cada mes comparando presupuesto contra real.
               </li>
               <li>
-                <strong>Presupuestá con prudencia.</strong> Contá solo los ingresos casi seguros (reservas, señas firmadas), no
-                las operaciones que “seguro salen”.
+                <strong>Cap. 18 · Ingresos variables.</strong> Presupuesto base, sueldo fijo propio y colchón para los meses
+                flojos.
               </li>
               <li>
-                <strong>Separá lo del trabajo.</strong> Publicidad, combustible y celular son inversión: mirá cuáles te traen
-                clientes.
-              </li>
-              <li>
-                <strong>Money Day.</strong> El último día de cada mes: cerrás el mes, ves en qué se fue la plata y planeás el
-                siguiente.
+                <strong>Cap. 19 · Emergencias, impuestos y deudas.</strong> Fondo de emergencia (no es el colchón), gastos
+                anuales provisionados y plan para salir de deudas.
               </li>
             </ul>
           </details>
