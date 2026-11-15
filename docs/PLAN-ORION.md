@@ -150,7 +150,7 @@ cuando cambie algo.
 - **Iluminación y ventilación:** puntaje 1–4 en apartamentos, casas y locales. Ajusta ±4 % por punto, solo si se cargó en el comparable.
 - **Datos para el informe** (`detalle.ficha`): propietario, teléfono, padrón, dormitorios, baños, antigüedad y descripción. No entran en el cálculo.
 - **Informe para el propietario** (`/informe-tasacion/[id]`, botón "📄 Informe"):
-  - página sin menú, siempre en colores claros, A4; se guarda como PDF con Imprimir;
+  - página sin menú, siempre en colores claros, A4. Tiene dos botones: **⬇️ Descargar PDF** (se arma en el navegador con html-to-image + jsPDF, bloque por bloque, sin cortar secciones) y **🖨️ Imprimir**;
   - incluye: portada con el logo (`public/brand/orion-logo-informe.jpg`), valor, rango y publicación, la propiedad, gráfico "dónde se ubica en el mercado" con los comparables reales, por qué importa el precio de salida, el método, la tabla de comparables, los 4 compromisos, la firma del agente y un aviso de que no es una tasación oficial ni pericial.
   - Las "estadísticas" son las de la propia muestra; no se inventaron cifras de mercado externas. Si Rosario pasa datos con fuente, se pueden sumar.
 
