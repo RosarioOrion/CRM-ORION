@@ -15,6 +15,7 @@ import {
   esOrigenValido,
   rolesDe,
 } from "@/lib/contactos";
+import { registrar } from "@/lib/registro-actividad";
 
 const ContactoSchema = z.object({
   nombre: z.string().min(2, "Ingresá un nombre"),
@@ -96,6 +97,7 @@ export async function crearContacto(
         archivado: false,
       })
       .where(eq(contactos.id, agregarA));
+    await registrar("Le agregó un rol a un contacto", { entidad: "contacto", id: agregarA });
     revalidatePath("/contactos");
     revalidatePath(`/contactos/${agregarA}`);
     return { ok: Date.now(), irA: `/contactos/${agregarA}` };
@@ -117,6 +119,7 @@ export async function crearContacto(
     agenteId: sesion.userId,
   });
 
+  await registrar("Cargó un contacto", { detalle: parsed.data.nombre });
   revalidatePath("/contactos");
   return { ok: Date.now() };
 }
@@ -209,6 +212,7 @@ export async function unirContactos(
     return { ok: false, error: `No se pudo unir: ${e instanceof Error ? e.message : String(e)}` };
   }
 
+  await registrar("Unió dos contactos", { entidad: "contacto", id: principalId });
   revalidatePath("/contactos");
   revalidatePath(`/contactos/${principalId}`);
   revalidatePath("/papelera");
@@ -255,6 +259,7 @@ export async function actualizarDetalles(
     })
     .where(eq(contactos.id, contactoId));
 
+  await registrar("Editó un contacto", { entidad: "contacto", id: contactoId });
   revalidatePath("/contactos");
   revalidatePath(`/contactos/${contactoId}`);
   return { ok: true };
@@ -304,6 +309,7 @@ export async function actualizarDatosContacto(
     .set({ nombre, telefono: telefono || null, email: email || null })
     .where(eq(contactos.id, contactoId));
 
+  await registrar("Editó un contacto", { entidad: "contacto", id: contactoId });
   revalidatePath("/contactos");
   revalidatePath(`/contactos/${contactoId}`);
   return { ok: Date.now() };
@@ -317,6 +323,7 @@ export async function archivarContacto(contactoId: string, archivado: boolean) {
     .set({ archivado })
     .where(eq(contactos.id, contactoId));
 
+  await registrar(archivado ? "Archivó un contacto" : "Desarchivó un contacto", { entidad: "contacto", id: contactoId });
   revalidatePath("/contactos");
   revalidatePath(`/contactos/${contactoId}`);
 }
@@ -346,6 +353,7 @@ export async function eliminarContacto(contactoId: string): Promise<EliminarStat
   }
 
   try {
+    await registrar("Eliminó un contacto", { entidad: "contacto", id: contactoId });
     await borrarContacto(contactoId, agenteId);
   } catch (e) {
     return {

@@ -8,6 +8,7 @@ import { obtenerSesion } from "@/lib/auth";
 import { ahoraUY } from "@/lib/calendario";
 import { estadoSeguimiento } from "@/lib/seguimientos";
 import { aplicarAjustePrecio, registrarSeguimientoSemanal } from "@/lib/seguimiento-registro";
+import { registrar } from "@/lib/registro-actividad";
 
 // Acciones de las tarjetas de seguimiento del "Plan del día" (Inicio). Usan
 // el mismo registro que el "Seguimiento del lunes" del Pipeline.
@@ -72,6 +73,7 @@ export async function enviarSeguimientoPlan(contactoId: string): Promise<{ error
     nota: avisoFinal ? "Aviso final enviado desde el Plan del día" : "Mensaje semanal enviado desde el Plan del día",
     tarea: props.length ? "Seguimiento al dueño — mensaje enviado" : undefined,
   });
+  await registrar("Plan del día: mensaje enviado", { entidad: "contacto", id: contactoId });
   revalidar(contactoId, props.map((p) => p.id));
   return { ok: true };
 }
@@ -134,6 +136,7 @@ export async function responderSeguimientoPlan(
   }
   if (respuesta === "CAMBIO_PRECIO") revalidatePath("/propiedades");
 
+  await registrar("Plan del día: anotó la respuesta", { entidad: "contacto", id: contactoId, detalle: respuesta });
   revalidar(contactoId, props.map((p) => p.id));
   return { ok: true };
 }

@@ -18,6 +18,7 @@ import {
   semanaActual,
   type CategoriaPipeline,
 } from "@/lib/pipeline";
+import { registrar } from "@/lib/registro-actividad";
 
 async function requerirPropiedadDelAgente(propiedadId: string) {
   const sesion = await obtenerSesion();
@@ -56,6 +57,7 @@ export async function registrarAccionPipeline(
     nota: nota?.trim() || null,
   });
 
+  await registrar("Marcó una tarea del Pipeline", { entidad: "propiedad", id: propiedadId, detalle: descripcion });
   revalidatePath("/pipeline");
 }
 
@@ -82,6 +84,7 @@ export async function registrarAjustePrecio(
 
   await aplicarAjustePrecio(propiedadId, parsed.data.precio, parsed.data.moneda, sesion.userId);
 
+  await registrar("Ajustó el precio", { entidad: "propiedad", id: propiedadId, detalle: `${parsed.data.moneda} ${parsed.data.precio.toLocaleString("es-UY")}` });
   revalidatePath("/pipeline");
   revalidatePath(`/propiedades/${propiedadId}`);
   revalidatePath("/propiedades");
@@ -207,6 +210,7 @@ export async function registrarSeguimientoPipeline(
     nota,
   });
 
+  await registrar("Seguimiento al dueño (Pipeline)", { entidad: "propiedad", id: propiedadId, detalle: respondio ? "Respondió" : "Sin respuesta" });
   if (ajusteAceptado && ajustePrecio && ajusteMoneda) {
     await aplicarAjustePrecio(propiedadId, ajustePrecio, ajusteMoneda, sesion.userId);
     revalidatePath("/propiedades");
@@ -232,6 +236,7 @@ export async function registrarRepublicacion(propiedadId: string) {
     semana: semanaActual(diasEnMercado(p.inicio), p.operacion),
     descripcion: DESCRIPCION_REPUBLICADO,
   });
+  await registrar("Republicó una propiedad", { entidad: "propiedad", id: propiedadId });
   revalidarPipeline(propiedadId);
 }
 
@@ -267,6 +272,7 @@ export async function registrarEnvioLunes(
     tarea: "Seguimiento al dueño — mensaje enviado",
   });
 
+  await registrar("Seguimiento del lunes: mensaje enviado", { entidad: "propiedad", id: props[0].id, detalle: avisoFinal ? "Aviso final" : null });
   for (const p of props) revalidatePath(`/propiedades/${p.id}`);
   revalidatePath("/pipeline");
   revalidatePath("/dashboard");
@@ -298,6 +304,7 @@ export async function registrarRespuestaLunes(
     nota,
   });
 
+  await registrar("Seguimiento del lunes: anotó la respuesta", { entidad: "propiedad", id: props[0].id });
   for (const p of props) revalidatePath(`/propiedades/${p.id}`);
   revalidatePath("/pipeline");
   revalidatePath("/dashboard");

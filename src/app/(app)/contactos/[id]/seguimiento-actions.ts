@@ -7,6 +7,7 @@ import { contactos, propiedades, busquedas, seguimientos } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { ahoraUY } from "@/lib/calendario";
 import { esCanal, estadoSeguimiento, DIAS_ENTRE_SEGUIMIENTOS } from "@/lib/seguimientos";
+import { registrar } from "@/lib/registro-actividad";
 
 async function miContacto(contactoId: string) {
   const sesion = await obtenerSesion();
@@ -87,6 +88,7 @@ export async function registrarSeguimiento(
     await db.update(contactos).set({ frioDesde: null }).where(eq(contactos.id, contactoId));
   }
 
+  await registrar("Anotó un seguimiento", { entidad: "contacto", id: contactoId, detalle: respondio ? "Respondió" : "Sin respuesta" });
   revalidatePath(`/contactos/${contactoId}`);
   revalidatePath("/contactos");
   revalidatePath("/dashboard");
@@ -127,6 +129,7 @@ export async function marcarFrio(
         .set({ activa: false })
         .where(and(inArray(busquedas.id, busquedaIds), eq(busquedas.contactoId, contactoId)));
   });
+  await registrar("Marcó un contacto como frío", { entidad: "contacto", id: contactoId });
   revalidatePath(`/contactos/${contactoId}`);
   revalidatePath("/contactos");
   revalidatePath("/propiedades");
@@ -186,6 +189,7 @@ export async function reactivarContacto(
         .set({ activa: true })
         .where(and(inArray(busquedas.id, busquedaIds), eq(busquedas.contactoId, contactoId)));
   });
+  await registrar("Reactivó un contacto", { entidad: "contacto", id: contactoId });
   revalidatePath(`/contactos/${contactoId}`);
   revalidatePath("/contactos");
   revalidatePath("/propiedades");

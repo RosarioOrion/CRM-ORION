@@ -82,6 +82,19 @@ const SENTENCIAS = [
     creado_en timestamp NOT NULL DEFAULT now(),
     CONSTRAINT objetivos_mensuales_usuario_mes UNIQUE (usuario_id, mes)
   )`,
+  // Registro de actividad de cada usuario.
+  sql`CREATE TABLE IF NOT EXISTS registro_actividad (
+    id text PRIMARY KEY,
+    usuario_id text NOT NULL,
+    suplantado_por text,
+    accion text NOT NULL,
+    entidad text,
+    entidad_id text,
+    detalle text,
+    creado_en timestamp NOT NULL DEFAULT now()
+  )`,
+  sql`CREATE INDEX IF NOT EXISTS registro_actividad_usuario_idx ON registro_actividad (usuario_id, creado_en)`,
+  sql`CREATE INDEX IF NOT EXISTS registro_actividad_fecha_idx ON registro_actividad (creado_en)`,
 ];
 
 export async function autoMigrar() {

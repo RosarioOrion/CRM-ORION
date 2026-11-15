@@ -14,6 +14,7 @@ import {
   type Comparable,
   type ComparableSugerido,
 } from "@/lib/tasaciones";
+import { registrar } from "@/lib/registro-actividad";
 
 export type TasacionState = { error?: string; ok?: number };
 
@@ -92,6 +93,7 @@ export async function crearTasacion(
     })
     .returning({ id: tasaciones.id });
 
+  await registrar("Hizo una tasación", { entidad: "tasacion", id: fila.id });
   revalidatePath("/tasaciones");
   redirect(`/tasaciones/${fila.id}`);
 }

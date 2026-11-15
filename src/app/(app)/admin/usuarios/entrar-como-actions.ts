@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { usuarios } from "@/db/schema";
 import { crearSesion, obtenerSesion } from "@/lib/auth";
+import { registrar } from "@/lib/registro-actividad";
 
 // "Entrar como" (solo la CEO): usar Orion con el usuario de otra persona,
 // para corregir errores o probar cargando datos a su nombre. Lo que se hace
@@ -21,6 +22,7 @@ export async function entrarComo(usuarioId: string): Promise<{ error?: string }>
     .where(eq(usuarios.id, usuarioId));
   if (!u || !u.activo || !u.aprobado) return { error: "Ese usuario no está activo." };
   if (u.rol === "CEO") return { error: "No se puede entrar como CEO." };
+  await registrar("Entró a Orion como otro usuario", { detalle: u.nombre });
   // Sin "recordar": si se cierra el navegador, se cierra la sesión.
   await crearSesion({ userId: u.id, nombre: u.nombre, rol: u.rol, suplantadoPor: sesion.userId }, false);
   redirect("/dashboard");

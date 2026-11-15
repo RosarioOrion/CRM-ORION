@@ -907,3 +907,17 @@ export const seguimientos = pgTable("seguimientos", {
       ajustePrecio: integer("ajuste_precio"),
       ajusteMoneda: text("ajuste_moneda"),
 });
+
+// Registro de actividad: qué hizo cada usuario en Orion (lo ven la CEO y
+// los jefes de su equipo). Si la CEO lo hizo con "Entrar como", queda en
+// suplantadoPor.
+export const registroActividad = pgTable("registro_actividad", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      usuarioId: text("usuario_id").notNull(),
+      suplantadoPor: text("suplantado_por"),
+      accion: text("accion").notNull(),
+      entidad: text("entidad"),
+      entidadId: text("entidad_id"),
+      detalle: text("detalle"),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});

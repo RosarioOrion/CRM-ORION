@@ -31,6 +31,7 @@ const NAV = [
 // que le corresponde). Ajustes: solo la CEO.
 const NAV_ADMIN = [
   { href: "/productividad", label: "Productividad", icon: "📈", soloCEO: false },
+  { href: "/actividad", label: "Actividad", icon: "🕒", soloCEO: false },
   { href: "/admin/usuarios", label: "Usuarios", icon: "🛡️", soloCEO: false },
   { href: "/ajustes", label: "Ajustes", icon: "⚙️", soloCEO: true },
 ];

@@ -12,6 +12,9 @@ import {
   ESTADOS_ACTIVIDAD,
   type EstadoActividad,
 } from "@/lib/calendario";
+import { registrar } from "@/lib/registro-actividad";
+import { ESTADO_VISITA_LABEL } from "@/lib/visitas";
+import { ESTADO_ACTIVIDAD_LABEL } from "@/lib/calendario";
 
 const VisitaSchema = z.object({
   propiedadId: z.string().min(1, "Elegí la propiedad"),
@@ -84,6 +87,7 @@ export async function crearVisita(
     notas: parsed.data.notas ?? null,
   });
 
+  await registrar("Agendó una visita", { entidad: "propiedad", id: parsed.data.propiedadId });
   revalidatePath("/agenda");
   revalidatePath("/dashboard");
   return { ok: true };
@@ -104,6 +108,7 @@ export async function cambiarEstadoVisita(
     .set({ estado, resultado: resultado?.trim() || null })
     .where(eq(visitas.id, visitaId));
 
+  await registrar("Actualizó una visita", { detalle: ESTADO_VISITA_LABEL[estado] ?? estado });
   revalidatePath("/agenda");
 }
 
@@ -206,6 +211,7 @@ export async function crearActividad(
     };
   }
 
+  await registrar("Agendó una actividad", { detalle: parsed.data.titulo });
   revalidatePath("/agenda");
   revalidatePath("/dashboard");
   return { ok: true };
@@ -226,6 +232,7 @@ export async function cambiarEstadoActividad(
     .set({ estado, resultado: resultado?.trim() || null })
     .where(eq(actividades.id, actividadId));
 
+  await registrar("Actualizó una actividad", { detalle: ESTADO_ACTIVIDAD_LABEL[estado] ?? estado });
   revalidatePath("/agenda");
   revalidatePath("/dashboard");
 }
