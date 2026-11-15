@@ -48,6 +48,12 @@ export default async function SubirMaterialPage() {
                   {TIPO_MATERIAL_LABEL[d.tipo]} · {fechaCorta(d.creadoEn)} · {d.subidoPorNombre}
                 </p>
               </div>
+              <Link
+                href={`/capacitacion/${d.id}/editar`}
+                className="rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-semibold text-orion-navy hover:border-orion-navy dark:border-gray-600 dark:text-white"
+              >
+                ✏️ Editar
+              </Link>
               <EliminarDocumentoBoton documentoId={d.id} />
             </div>
           ))}

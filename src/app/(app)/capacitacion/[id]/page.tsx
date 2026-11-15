@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { documentosCapacitacion, usuarios } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
+import { esCEO } from "@/lib/permisos";
 import { fechaCorta, pesoLegible, visorDeLink } from "@/lib/capacitacion";
 import { VisorPdf } from "./visor-pdf";
 import { asegurarColumnaTipo } from "../datos";
@@ -64,6 +65,11 @@ export default async function VerMaterialPage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {esCEO(sesion.rol) && (
+            <Link href={`/capacitacion/${id}/editar`} className={boton}>
+              ✏️ Editar
+            </Link>
+          )}
           {!pdfPropio && d.link && !visor && (
             <a href={d.link} target="_blank" rel="noopener noreferrer" className={boton}>
               🔗 Abrir en otra pestaña
