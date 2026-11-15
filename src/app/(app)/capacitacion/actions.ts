@@ -93,6 +93,62 @@ export async function subirDocumentoCapacitacion(
   return { ok: Date.now() };
 }
 
+/** Editar un material ya subido (título, descripción, link, páginas o reemplazar el PDF). */
+export async function editarDocumentoCapacitacion(
+  _prevState: DocumentoState,
+  formData: FormData
+): Promise<DocumentoState> {
+  try {
+    await requerirAdmin();
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No autorizado." };
+  }
+  const id = String(formData.get("documentoId") || "");
+  await asegurarColumnaTipo();
+  const [actual] = await db
+    .select({ tipo: documentosCapacitacion.tipo, archivoNombre: documentosCapacitacion.archivoNombre })
+    .from(documentosCapacitacion)
+    .where(eq(documentosCapacitacion.id, id));
+  if (!actual) return { error: "Ese material ya no existe." };
+
+  const titulo = String(formData.get("titulo") || "").trim();
+  const descripcion = String(formData.get("descripcion") || "").trim();
+  const link = String(formData.get("link") || "").trim();
+  const paginasRaw = String(formData.get("paginas") || "").trim();
+  const paginas = paginasRaw ? Math.max(0, Math.round(Number(paginasRaw))) : null;
+  const archivo = formData.get("archivo");
+  const esVideo = actual.tipo === "VIDEO";
+
+  if (!titulo) return { error: "Ingresá un título." };
+  if (link && !/^https?:\/\//i.test(link)) return { error: "El link tiene que empezar con http:// o https://" };
+  if (esVideo && !link) return { error: "Pegá el link de la clase grabada." };
+
+  const cambios: Partial<typeof documentosCapacitacion.$inferInsert> = {
+    titulo,
+    descripcion: descripcion || null,
+    link: link || null,
+    paginas: esVideo ? null : paginas,
+  };
+  if (!esVideo && archivo instanceof File && archivo.size > 0) {
+    if (archivo.type !== "application/pdf") return { error: "El archivo tiene que ser un PDF." };
+    if (archivo.size > ARCHIVO_MAX_BYTES) {
+      return { error: `El PDF pesa más de ${Math.round(ARCHIVO_MAX_BYTES / (1024 * 1024))}MB. Pegá un link en vez de subirlo.` };
+    }
+    const buffer = Buffer.from(await archivo.arrayBuffer());
+    cambios.archivo = `data:application/pdf;base64,${buffer.toString("base64")}`;
+    cambios.archivoNombre = archivo.name;
+    cambios.archivoPesoBytes = archivo.size;
+  } else if (!esVideo && !actual.archivoNombre && !link) {
+    return { error: "Subí un PDF o pegá un link al documento." };
+  }
+
+  await db.update(documentosCapacitacion).set(cambios).where(eq(documentosCapacitacion.id, id));
+  revalidatePath("/capacitacion");
+  revalidatePath("/capacitacion/subir");
+  revalidatePath(`/capacitacion/${id}`);
+  return { ok: Date.now() };
+}
+
 export async function eliminarDocumentoCapacitacion(documentoId: string) {
   await requerirAdmin();
   await db.delete(documentosCapacitacion).where(eq(documentosCapacitacion.id, documentoId));
