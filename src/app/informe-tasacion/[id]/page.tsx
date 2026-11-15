@@ -32,7 +32,7 @@ const red = (n: number) => Math.round(n / 1000) * 1000;
 
 function Seccion({ titulo, children, salto }: { titulo: string; children: React.ReactNode; salto?: boolean }) {
   return (
-    <section className={`mb-8 ${salto ? "salto" : ""}`} style={{ breakInside: "avoid-page" }}>
+    <section data-pdf={salto ? "salto" : "bloque"} className={`mb-8 bg-white ${salto ? "salto" : ""}`} style={{ breakInside: "avoid-page" }}>
       <h2 className="mb-3 border-b pb-1 text-lg font-bold" style={{ color: NAVY, borderColor: GOLD }}>
         {titulo}
       </h2>
@@ -130,11 +130,13 @@ export default async function InformeTasacionPage({ params }: { params: Promise<
           * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
       `}</style>
-      <BotonImprimir />
+      <BotonImprimir
+        nombreArchivo={`Tasación ${[t.tipo, t.direccion || t.zona].filter(Boolean).join(" ")} - ${empresa}`.replace(/[\\/:*?"<>|]/g, "")}
+      />
 
       <article className="hoja mx-auto my-6 max-w-[210mm] bg-white px-10 py-10 text-[13px] leading-relaxed shadow-lg">
         {/* Portada */}
-        <header className="mb-8 flex flex-col items-center rounded-xl px-6 py-8 text-center" style={{ background: NAVY }}>
+        <header data-pdf="bloque" className="mb-8 flex flex-col items-center rounded-xl px-6 py-8 text-center" style={{ background: NAVY }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/orion-logo-informe.jpg" alt={empresa} className="mb-4 h-40 w-40 rounded-lg object-cover" />
           <p className="text-xs uppercase tracking-[0.3em]" style={{ color: GOLD }}>
@@ -357,7 +359,7 @@ export default async function InformeTasacionPage({ params }: { params: Promise<
         )}
 
         {/* Firma */}
-        <footer className="mt-10 border-t pt-4 text-xs text-gray-600" style={{ borderColor: GOLD }}>
+        <footer data-pdf="bloque" className="mt-10 border-t bg-white pt-4 text-xs text-gray-600" style={{ borderColor: GOLD }}>
           <div className="flex flex-wrap justify-between gap-4">
             <div>
               <p className="font-semibold" style={{ color: NAVY }}>
