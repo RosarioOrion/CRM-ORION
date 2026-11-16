@@ -169,6 +169,15 @@ const SENTENCIAS = [
       INSERT INTO datos_cargados (clave) VALUES ('capacitacion-areas');
     END IF;
   END $a$`),
+  // Buscador dentro de los PDF de Capacitación.
+  sql`ALTER TABLE documentos_capacitacion ADD COLUMN IF NOT EXISTS texto_indexado_en timestamp`,
+  sql`CREATE TABLE IF NOT EXISTS capacitacion_paginas (
+    documento_id text NOT NULL,
+    pagina integer NOT NULL,
+    texto text NOT NULL,
+    busqueda text NOT NULL,
+    PRIMARY KEY (documento_id, pagina)
+  )`,
   // Filosofía de Orion (Rosario): se carga una sola vez en Ajustes → Filosofía.
   sql.raw(`DO $f$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM datos_cargados WHERE clave = 'filosofia-orion') THEN

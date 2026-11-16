@@ -10,6 +10,13 @@ export async function register() {
     // Capacitación: número, bloque y áreas de los materiales que no los tienen.
     const { completarIndiceCapacitacion } = await import("./lib/manual-indice-datos");
     await completarIndiceCapacitacion().catch((e) => console.error("[capacitacion] índice", e));
+    // Buscador: extrae en segundo plano el texto de los PDF que todavía no lo tienen.
+    const { indexarPendientes } = await import("./lib/capacitacion-texto");
+    setTimeout(() => {
+      indexarPendientes()
+        .then((n) => n && console.log(`[capacitacion] texto extraído de ${n} material(es)`))
+        .catch((e) => console.error("[capacitacion] texto", e));
+    }, 20_000);
 
     const { iniciarRecordatorios } = await import("./lib/recordatorios");
     iniciarRecordatorios();

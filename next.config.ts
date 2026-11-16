@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // pdf.js se usa en el servidor para leer el texto de los PDF de
+  // Capacitación (buscador): sin empaquetar, así encuentra su "worker".
+  serverExternalPackages: ["pdfjs-dist"],
   experimental: {
     serverActions: {
       // La app valida hasta 5MB por foto y permite subir varias juntas

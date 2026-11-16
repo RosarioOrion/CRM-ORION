@@ -9,7 +9,7 @@ import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 
 const ZOOMS = [0.75, 1, 1.25, 1.5, 2, 2.5];
 
-export function VisorPdf({ url, titulo }: { url: string; titulo: string }) {
+export function VisorPdf({ url, titulo, paginaInicial }: { url: string; titulo: string; paginaInicial?: number }) {
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [error, setError] = useState(false);
   const [zoom, setZoom] = useState(1);
@@ -47,6 +47,17 @@ export function VisorPdf({ url, titulo }: { url: string; titulo: string }) {
     ro.observe(scroller);
     return () => ro.disconnect();
   }, [scroller]);
+
+  // Desde el buscador: ir a la página encontrada (una vez, al abrir).
+  const [saltado, setSaltado] = useState(false);
+  useEffect(() => {
+    if (saltado || !paginaInicial || !doc || !ancho || !scroller) return;
+    const el = scroller.querySelector<HTMLElement>(`[data-pagina="${paginaInicial}"]`);
+    if (!el) return;
+    scroller.scrollTo({ top: arribaDe(el, scroller) });
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSaltado(true);
+  }, [saltado, paginaInicial, doc, ancho, scroller]);
 
   // Esc cierra la pantalla completa.
   useEffect(() => {
@@ -103,6 +114,7 @@ export function VisorPdf({ url, titulo }: { url: string; titulo: string }) {
                 // Restamos el padding para que al 100% entre justo.
                 ancho={Math.max(200, Math.min(ancho - 8, 1000)) * zoom}
                 root={scroller}
+                destacada={n + 1 === paginaInicial}
               />
             ))}
           </div>
@@ -112,22 +124,41 @@ export function VisorPdf({ url, titulo }: { url: string; titulo: string }) {
   );
 }
 
+/** Posición para dejar una página arriba de todo dentro del visor. */
+function arribaDe(el: HTMLElement, contenedor: HTMLElement) {
+  return el.getBoundingClientRect().top - contenedor.getBoundingClientRect().top + contenedor.scrollTop - 8;
+}
+
 /** Una página: se dibuja solo cuando está cerca de la pantalla (ahorra memoria en el celu). */
 function PaginaPdf({
   doc,
   numero,
   ancho,
   root,
+  destacada,
 }: {
   doc: PDFDocumentProxy;
   numero: number;
   ancho: number;
   root: HTMLElement | null;
+  destacada?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [visible, setVisible] = useState(numero <= 2);
+  const [visible, setVisible] = useState(numero <= 2 || !!destacada);
   const [proporcion, setProporcion] = useState(1.414); // alto/ancho (A4 hasta saberlo)
+  const centrada = useRef(false);
+
+  // Página buscada: una vez dibujada (ya con su alto real), se vuelve a ubicar arriba.
+  useEffect(() => {
+    if (!destacada || centrada.current || !root || !ref.current) return;
+    const el = ref.current;
+    const t = setTimeout(() => {
+      root.scrollTo({ top: arribaDe(el, root) });
+      centrada.current = true;
+    }, 400);
+    return () => clearTimeout(t);
+  }, [destacada, root, proporcion]);
 
   useEffect(() => {
     const el = ref.current;
@@ -171,7 +202,8 @@ function PaginaPdf({
   return (
     <div
       ref={ref}
-      className="bg-white shadow-lg"
+      data-pagina={numero}
+      className={`bg-white shadow-lg ${destacada ? "outline outline-4 outline-orion-gold" : ""}`}
       style={{ width: ancho, height: Math.round(ancho * proporcion) }}
     >
       <canvas ref={canvasRef} className="block h-full w-full select-none" />

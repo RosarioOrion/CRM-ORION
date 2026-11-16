@@ -5,16 +5,18 @@ import { listarAreas, listarMaterial } from "./datos";
 import { BuscadorDocumentos } from "./buscador-documentos";
 import { LeccionFilosofia } from "./leccion-filosofia";
 import { IndicePorBloque, IndicePorTema, PestanasIndice, type Vista } from "./indice";
+import { CajaBusqueda, ResultadosBusqueda } from "./busqueda";
 
 export default async function CapacitacionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ vista?: string; area?: string }>;
+  searchParams: Promise<{ vista?: string; area?: string; q?: string }>;
 }) {
   const sesion = await obtenerSesion();
   if (!sesion) return null;
   const admin = esCEO(sesion.rol);
-  const { vista: vistaParam, area } = await searchParams;
+  const { vista: vistaParam, area, q: qParam } = await searchParams;
+  const q = (qParam ?? "").trim();
   const vista: Vista = vistaParam === "bloque" || vistaParam === "todo" ? vistaParam : "tema";
   const [material, areas] = await Promise.all([listarMaterial(), listarAreas()]);
 
@@ -39,12 +41,19 @@ export default async function CapacitacionPage({
         )}
       </div>
 
-      {!area && <LeccionFilosofia esCeo={admin} />}
+      {!area && !q && <LeccionFilosofia esCeo={admin} />}
 
-      <PestanasIndice vista={vista} />
-      {vista === "tema" && <IndicePorTema areas={areas} material={material} area={area ?? null} />}
-      {vista === "bloque" && <IndicePorBloque material={material} />}
-      {vista === "todo" && <BuscadorDocumentos documentos={material} />}
+      <CajaBusqueda q={q} />
+      {q ? (
+        <ResultadosBusqueda q={q} material={material} />
+      ) : (
+        <>
+          <PestanasIndice vista={vista} />
+          {vista === "tema" && <IndicePorTema areas={areas} material={material} area={area ?? null} />}
+          {vista === "bloque" && <IndicePorBloque material={material} />}
+          {vista === "todo" && <BuscadorDocumentos documentos={material} />}
+        </>
+      )}
     </div>
   );
 }
