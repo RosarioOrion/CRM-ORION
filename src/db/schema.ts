@@ -735,6 +735,22 @@ export const documentosCapacitacion = pgTable("documentos_capacitacion", {
       subidoPorId: text("subido_por_id")
         .notNull()
         .references(() => usuarios.id),
+      // Índice del Manual Orion (src/lib/manual-indice.ts): capítulo / anexo /
+      // otro, número o letra, orden para listar, bloque y áreas por tema.
+      clase: text("clase"),
+      numero: text("numero"),
+      orden: integer("orden"),
+      bloque: text("bloque"),
+      areas: jsonb("areas").$type<string[]>().notNull().default([]),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});
+
+// Áreas por tema de Capacitación (editables por la CEO: nombre, ícono, orden).
+export const capacitacionAreas = pgTable("capacitacion_areas", {
+      clave: text("clave").primaryKey(),
+      nombre: text("nombre").notNull(),
+      icono: text("icono").notNull().default("📘"),
+      orden: integer("orden").notNull().default(0),
       creadoEn: timestamp("creado_en").notNull().defaultNow(),
 });
 

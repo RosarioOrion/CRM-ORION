@@ -7,6 +7,9 @@ export async function register() {
     // Primero, cambios de base de datos pendientes (ej. roles de contactos).
     const { autoMigrar } = await import("./lib/auto-migrar");
     await autoMigrar();
+    // Capacitación: número, bloque y áreas de los materiales que no los tienen.
+    const { completarIndiceCapacitacion } = await import("./lib/manual-indice-datos");
+    await completarIndiceCapacitacion().catch((e) => console.error("[capacitacion] índice", e));
 
     const { iniciarRecordatorios } = await import("./lib/recordatorios");
     iniciarRecordatorios();

@@ -1,13 +1,29 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { documentosCapacitacion } from "@/db/schema";
+import { capacitacionAreas, documentosCapacitacion } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { esCEO } from "@/lib/permisos";
 import { esTipoMaterial } from "@/lib/capacitacion";
-import { asegurarColumnaTipo } from "./datos";
+import { asegurarColumnaTipo, listarAreas } from "./datos";
+import { LETRAS_ANEXO, ordenDe, BLOQUES, type Clase } from "@/lib/manual-indice";
+
+/** Número, bloque y áreas que vienen del formulario. */
+async function leerIndice(formData: FormData) {
+  const claseRaw = String(formData.get("clase") || "OTRO");
+  const clase: Clase = claseRaw === "CAPITULO" || claseRaw === "ANEXO" ? claseRaw : "OTRO";
+  let numero: string | null = String(formData.get("numero") || "").trim().toUpperCase() || null;
+  if (clase === "CAPITULO") numero = numero && /^\d{1,2}$/.test(numero) ? String(Number(numero)) : null;
+  else if (clase === "ANEXO") numero = numero && LETRAS_ANEXO.includes(numero) ? numero : null;
+  else numero = null;
+  const bloqueRaw = String(formData.get("bloque") || "");
+  const bloque = BLOQUES.some((b) => b.clave === bloqueRaw) ? bloqueRaw : null;
+  const validas = new Set((await listarAreas()).map((a) => a.clave));
+  const areas = [...new Set(formData.getAll("areas").map(String))].filter((a) => validas.has(a));
+  return { clase, numero, orden: ordenDe(clase, numero), bloque, areas };
+}
 
 async function requerirAdmin() {
   const sesion = await obtenerSesion();
@@ -76,7 +92,9 @@ export async function subirDocumentoCapacitacion(
   }
 
   await asegurarColumnaTipo();
+  const indice = await leerIndice(formData);
   await db.insert(documentosCapacitacion).values({
+    ...indice,
     tipo,
     titulo,
     descripcion: descripcion || null,
@@ -124,6 +142,7 @@ export async function editarDocumentoCapacitacion(
   if (esVideo && !link) return { error: "Pegá el link de la clase grabada." };
 
   const cambios: Partial<typeof documentosCapacitacion.$inferInsert> = {
+    ...(await leerIndice(formData)),
     titulo,
     descripcion: descripcion || null,
     link: link || null,
@@ -154,4 +173,52 @@ export async function eliminarDocumentoCapacitacion(documentoId: string) {
   await db.delete(documentosCapacitacion).where(eq(documentosCapacitacion.id, documentoId));
   revalidatePath("/capacitacion");
   revalidatePath("/capacitacion/subir");
+}
+
+// --- Áreas por tema (solo la CEO) ------------------------------------------
+
+export async function guardarArea(_prev: DocumentoState, formData: FormData): Promise<DocumentoState> {
+  try {
+    await requerirAdmin();
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No autorizado." };
+  }
+  const clave = String(formData.get("clave") || "").trim();
+  const nombre = String(formData.get("nombre") || "").trim().slice(0, 60);
+  const icono = String(formData.get("icono") || "").trim().slice(0, 8) || "📘";
+  const orden = Math.round(Number(formData.get("orden")) || 0);
+  if (!nombre) return { error: "Ponele un nombre al área." };
+  if (clave) {
+    await db.update(capacitacionAreas).set({ nombre, icono, orden }).where(eq(capacitacionAreas.clave, clave));
+  } else {
+    const base =
+      nombre
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") || "area";
+    await db
+      .insert(capacitacionAreas)
+      .values({ clave: `${base}-${Date.now().toString(36)}`, nombre, icono, orden });
+  }
+  revalidatePath("/capacitacion");
+  revalidatePath("/capacitacion/areas");
+  return { ok: Date.now() };
+}
+
+export async function eliminarArea(clave: string): Promise<{ error?: string }> {
+  try {
+    await requerirAdmin();
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No autorizado." };
+  }
+  await db.delete(capacitacionAreas).where(eq(capacitacionAreas.clave, clave));
+  // Se saca el área de los materiales que la tenían.
+  await db.execute(
+    sql`UPDATE documentos_capacitacion SET areas = areas - ${clave} WHERE areas ? ${clave}`
+  );
+  revalidatePath("/capacitacion");
+  revalidatePath("/capacitacion/areas");
+  return {};
 }

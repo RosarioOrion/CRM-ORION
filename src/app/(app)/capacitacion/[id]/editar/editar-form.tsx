@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { CamposIndice, type AreaOpcion, type IndiceInicial } from "../../campos-indice";
 import { editarDocumentoCapacitacion, type DocumentoState } from "../../actions";
 
 const initialState: DocumentoState = {};
@@ -16,9 +17,11 @@ export type MaterialEditable = {
   link: string;
   paginas: number | null;
   archivoNombre: string | null;
+  indice: IndiceInicial;
 };
 
-export function EditarDocumentoForm({ d }: { d: MaterialEditable }) {
+export function EditarDocumentoForm({ d, areas }: { d: MaterialEditable; areas: AreaOpcion[] }) {
+  const [titulo, setTitulo] = useState(d.titulo);
   const [state, formAction, pending] = useActionState(editarDocumentoCapacitacion, initialState);
   const esVideo = d.tipo === "VIDEO";
   return (
@@ -29,7 +32,7 @@ export function EditarDocumentoForm({ d }: { d: MaterialEditable }) {
       <input type="hidden" name="documentoId" value={d.id} />
       <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
         Título *
-        <input name="titulo" defaultValue={d.titulo} required className={inputClass} />
+        <input name="titulo" value={titulo} onChange={(e) => setTitulo(e.target.value)} required className={inputClass} />
       </label>
       <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
         Descripción
@@ -74,6 +77,8 @@ export function EditarDocumentoForm({ d }: { d: MaterialEditable }) {
           </label>
         </>
       )}
+
+      <CamposIndice areas={areas} titulo={titulo} inicial={d.indice} />
 
       {state.error && <p className="text-xs text-red-600">{state.error}</p>}
       {state.ok && !state.error && <p className="text-xs text-green-600">✓ Cambios guardados.</p>}

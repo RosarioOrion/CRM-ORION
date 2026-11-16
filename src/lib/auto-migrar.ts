@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { FILOSOFIA_ORION } from "@/lib/filosofia";
+import { AREAS_INICIALES } from "@/lib/manual-indice";
 import { db } from "@/db";
 
 // Cambios chicos de base de datos que se aplican solos al arrancar el
@@ -146,6 +147,28 @@ const SENTENCIAS = [
     creado_en timestamp NOT NULL DEFAULT now(),
     CONSTRAINT finanzas_meses_usuario_mes UNIQUE (usuario_id, mes)
   )`,
+  // Índice del Manual Orion en Capacitación: número, bloque y áreas.
+  sql`ALTER TABLE documentos_capacitacion ADD COLUMN IF NOT EXISTS clase text`,
+  sql`ALTER TABLE documentos_capacitacion ADD COLUMN IF NOT EXISTS numero text`,
+  sql`ALTER TABLE documentos_capacitacion ADD COLUMN IF NOT EXISTS orden integer`,
+  sql`ALTER TABLE documentos_capacitacion ADD COLUMN IF NOT EXISTS bloque text`,
+  sql`ALTER TABLE documentos_capacitacion ADD COLUMN IF NOT EXISTS areas jsonb NOT NULL DEFAULT '[]'::jsonb`,
+  sql`CREATE TABLE IF NOT EXISTS capacitacion_areas (
+    clave text PRIMARY KEY,
+    nombre text NOT NULL,
+    icono text NOT NULL DEFAULT '📘',
+    orden integer NOT NULL DEFAULT 0,
+    creado_en timestamp NOT NULL DEFAULT now()
+  )`,
+  // Las 12 áreas de Rosario (Tabla B), una sola vez: después se editan.
+  sql.raw(`DO $a$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM datos_cargados WHERE clave = 'capacitacion-areas') THEN
+      INSERT INTO capacitacion_areas (clave, nombre, icono, orden) VALUES
+        ${AREAS_INICIALES.map((x) => `('${x.clave}', '${x.nombre.replace(/'/g, "''")}', '${x.icono}', ${x.orden})`).join(",\n        ")}
+      ON CONFLICT (clave) DO NOTHING;
+      INSERT INTO datos_cargados (clave) VALUES ('capacitacion-areas');
+    END IF;
+  END $a$`),
   // Filosofía de Orion (Rosario): se carga una sola vez en Ajustes → Filosofía.
   sql.raw(`DO $f$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM datos_cargados WHERE clave = 'filosofia-orion') THEN

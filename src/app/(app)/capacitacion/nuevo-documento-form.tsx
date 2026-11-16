@@ -1,21 +1,28 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { subirDocumentoCapacitacion, type DocumentoState } from "./actions";
 import { visorDeLink, type TipoMaterial } from "@/lib/capacitacion";
+import { CamposIndice, type AreaOpcion } from "./campos-indice";
 
 const initialState: DocumentoState = {};
 
 const inputClass =
   "rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900";
 
-export function NuevoDocumentoForm() {
+export function NuevoDocumentoForm({ areas }: { areas: AreaOpcion[] }) {
   const [tipo, setTipo] = useState<TipoMaterial>("PDF");
+  const [titulo, setTitulo] = useState("");
   const [state, formAction, pending] = useActionState(
     subirDocumentoCapacitacion,
     initialState
   );
   const esVideo = tipo === "VIDEO";
+  // Guardado: se limpia el título para cargar el siguiente.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (state.ok) setTitulo("");
+  }, [state.ok]);
 
   return (
     <form
@@ -46,7 +53,14 @@ export function NuevoDocumentoForm() {
         ))}
       </div>
 
-      <input name="titulo" placeholder="Título *" required className={inputClass} />
+      <input
+        name="titulo"
+        value={titulo}
+        onChange={(e) => setTitulo(e.target.value)}
+        placeholder="Título * (ej. CAP. 27- PROSPECCION- CAPTACION)"
+        required
+        className={inputClass}
+      />
       <textarea
         name="descripcion"
         placeholder="Descripción (opcional): de qué trata, para quién es…"
@@ -79,6 +93,8 @@ export function NuevoDocumentoForm() {
           />
         </>
       )}
+
+      <CamposIndice key={state.ok ?? "i"} areas={areas} titulo={titulo} />
 
       {state.error && <p className="text-xs text-red-600">{state.error}</p>}
       {state.ok && !state.error && (
