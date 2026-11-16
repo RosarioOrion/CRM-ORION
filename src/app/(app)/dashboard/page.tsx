@@ -9,12 +9,14 @@ import {
   usuarios,
 } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
-import { equipoVisible, esSupervisor } from "@/lib/permisos";
+import { equipoVisible, esCEO, esSupervisor } from "@/lib/permisos";
 import { eq, and, count, ne, inArray, or } from "drizzle-orm";
 import { limpiarTitulo } from "@/lib/propiedades";
 import { aDiaHora, esTipoEvento, type EventoCalendario } from "@/lib/calendario";
 import { Calendario } from "./calendario";
 import { SelectorAgente } from "../agenda/selector-agente";
+import { FraseDelDia } from "./frase-del-dia";
+import { fraseDelDia } from "@/lib/frase-del-dia";
 import { PlanDelDia } from "./plan-del-dia";
 import { cargarPlanDelDia } from "@/lib/plan-del-dia";
 import { resumenMisPropiedades } from "@/lib/mis-propiedades";
@@ -218,10 +220,11 @@ export default async function DashboardPage({
   const eventos = await cargarEventos(ids, yo, nombres);
   // El Plan del día es siempre el propio (no el del agente que se esté mirando).
   // Objetivo, plan y propiedades son siempre los propios.
-  const [objetivo, plan, misPropiedades] = await Promise.all([
+  const [objetivo, plan, misPropiedades, frase] = await Promise.all([
     cargarObjetivoMes(yo),
     cargarPlanDelDia(yo),
     resumenMisPropiedades(yo),
+    fraseDelDia(),
   ]);
 
   return (
@@ -229,6 +232,9 @@ export default async function DashboardPage({
       <h1 className="text-2xl font-bold text-orion-navy">
         Hola, {sesion?.nombre?.split(" ")[0]} 👋
       </h1>
+      <div className="mt-4">
+        <FraseDelDia frase={frase} esCeo={esCEO(sesion!.rol)} />
+      </div>
       <div className="mt-4">
         <ObjetivoMes key={`${objetivo.mes}-${objetivo.objetivo}`} datos={objetivo} />
       </div>

@@ -214,6 +214,14 @@ cuando cambie algo.
   - Los resultados se agrupan por capítulo, con la página y un fragmento resaltado. `/capacitacion/[id]?pagina=N&q=` abre el visor en esa página, marcada en dorado.
   - **Los materiales que son solo un link (Drive) no se pueden buscar**: hay que subir el PDF a Orion. Un PDF escaneado (imagen, sin texto) tampoco.
 
+### Frase del día en el Inicio (`src/lib/frase-del-dia.ts`)
+
+- Tarjeta "✨ Frase del día" arriba del Inicio: frase, "🎯 Acción de hoy" y link al capítulo (abre en la página).
+- **Fuente:** la "AFIRMACIÓN DEL CAPÍTULO" y la "Acción asociada" del final de cada capítulo del manual. Se leen del texto ya extraído por el buscador (`capacitacion_paginas`); el título viene con letras espaciadas ("A F I R M A C I Ó N…").
+- También suma las **frases propias** que carga la CEO en `/capacitacion/frases` (tabla `frases_inicio`).
+- Es la misma frase para todo el equipo y cambia a la medianoche de Uruguay, rotando por la lista.
+- Si no hay nada cargado, usa 3 frases de respaldo escritas para Orion. No se atribuyen frases a personas famosas, para no inventar citas.
+
 ## Pendientes
 
 1. **Porcentajes finales de comisiones.** Rosario los define después de la reunión con César y Huillen.
