@@ -742,7 +742,18 @@ export const documentosCapacitacion = pgTable("documentos_capacitacion", {
       orden: integer("orden"),
       bloque: text("bloque"),
       areas: jsonb("areas").$type<string[]>().notNull().default([]),
+      // Cuándo se extrajo el texto del PDF para el buscador (null = pendiente).
+      textoIndexadoEn: timestamp("texto_indexado_en"),
       creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});
+
+// Texto de cada página de los PDF de Capacitación (buscador dentro del manual).
+// "busqueda" es el texto en minúsculas y sin tildes, para buscar.
+export const capacitacionPaginas = pgTable("capacitacion_paginas", {
+      documentoId: text("documento_id").notNull(),
+      pagina: integer("pagina").notNull(),
+      texto: text("texto").notNull(),
+      busqueda: text("busqueda").notNull(),
 });
 
 // Áreas por tema de Capacitación (editables por la CEO: nombre, ícono, orden).

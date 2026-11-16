@@ -8,6 +8,7 @@ import { obtenerSesion } from "@/lib/auth";
 import { esCEO } from "@/lib/permisos";
 import { esTipoMaterial } from "@/lib/capacitacion";
 import { asegurarColumnaTipo, listarAreas } from "./datos";
+import { indexarDocumento } from "@/lib/capacitacion-texto";
 import { LETRAS_ANEXO, ordenDe, BLOQUES, type Clase } from "@/lib/manual-indice";
 
 /** Número, bloque y áreas que vienen del formulario. */
@@ -93,7 +94,7 @@ export async function subirDocumentoCapacitacion(
 
   await asegurarColumnaTipo();
   const indice = await leerIndice(formData);
-  await db.insert(documentosCapacitacion).values({
+  const [nuevo] = await db.insert(documentosCapacitacion).values({
     ...indice,
     tipo,
     titulo,
@@ -104,7 +105,9 @@ export async function subirDocumentoCapacitacion(
     link: link || null,
     paginas: tipo === "PDF" ? paginas : null,
     subidoPorId: sesion.userId,
-  });
+  }).returning({ id: documentosCapacitacion.id });
+  // Buscador: se extrae el texto del PDF en segundo plano.
+  if (archivoDataUri) void indexarDocumento(nuevo.id).catch(() => {});
 
   revalidatePath("/capacitacion");
   revalidatePath("/capacitacion/subir");
@@ -162,6 +165,7 @@ export async function editarDocumentoCapacitacion(
   }
 
   await db.update(documentosCapacitacion).set(cambios).where(eq(documentosCapacitacion.id, id));
+  if (cambios.archivo) void indexarDocumento(id).catch(() => {});
   revalidatePath("/capacitacion");
   revalidatePath("/capacitacion/subir");
   revalidatePath(`/capacitacion/${id}`);

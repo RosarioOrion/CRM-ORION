@@ -199,7 +199,12 @@ cuando cambie algo.
     - **Todo**: buscador por título, ordenado Cap. 0–57 y después Anexos A–J.
   - Los materiales se muestran como "Cap. 27 · Prospección y captación" (`nombreMaterial`, con los nombres de la Tabla C).
   - La Lección 1 (filosofía) queda cerrada por defecto.
-- **Etapa 3 (pendiente):** buscador dentro de los PDF por página, sin mayúsculas ni tildes, que abre el visor en esa página.
+- **Etapa 3 (hecha):** buscador dentro de los PDF (`src/lib/capacitacion-texto.ts`).
+  - El texto de cada página se extrae con pdf.js en el servidor (`serverExternalPackages: ["pdfjs-dist"]` en `next.config.ts`) y se guarda en `capacitacion_paginas`: `texto` y `busqueda` (en minúsculas y sin tildes).
+  - Se extrae al subir o reemplazar un PDF, y al arrancar en segundo plano para los que tienen `texto_indexado_en` vacío. Si falla, se reintenta en el próximo arranque.
+  - La búsqueda va desde el inicio de una palabra ("iva" no encuentra "positiva").
+  - Los resultados se agrupan por capítulo, con la página y un fragmento resaltado. `/capacitacion/[id]?pagina=N&q=` abre el visor en esa página, marcada en dorado.
+  - **Los materiales que son solo un link (Drive) no se pueden buscar**: hay que subir el PDF a Orion. Un PDF escaneado (imagen, sin texto) tampoco.
 
 ## Pendientes
 

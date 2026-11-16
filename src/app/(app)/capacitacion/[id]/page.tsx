@@ -12,9 +12,13 @@ import { asegurarColumnaTipo } from "../datos";
 
 export default async function VerMaterialPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ pagina?: string; q?: string }>;
 }) {
+  const { pagina: paginaParam, q } = await searchParams;
+  const pagina = Number(paginaParam) > 0 ? Math.floor(Number(paginaParam)) : undefined;
   const sesion = await obtenerSesion();
   if (!sesion) notFound();
   const { id } = await params;
@@ -90,7 +94,19 @@ export default async function VerMaterialPage({
       )}
 
       {pdfPropio ? (
-        <VisorPdf url={pdfPropio} titulo={d.titulo} />
+        <>
+          {pagina && (
+            <p className="mb-2 rounded-lg bg-orion-gold/15 px-3 py-2 text-sm text-gray-700 dark:text-gray-200">
+              🔎 {q ? <>“<strong>{q}</strong>” aparece en la </> : "Abriste la "}página <strong>{pagina}</strong> (marcada en dorado).{" "}
+              {q && (
+                <Link href={`/capacitacion?q=${encodeURIComponent(q)}`} className="font-semibold text-orion-navy hover:underline dark:text-orion-gold">
+                  ← Volver a los resultados
+                </Link>
+              )}
+            </p>
+          )}
+          <VisorPdf url={pdfPropio} titulo={d.titulo} paginaInicial={pagina} />
+        </>
       ) : visor?.tipo === "video" ? (
         <video
           src={visor.src}
