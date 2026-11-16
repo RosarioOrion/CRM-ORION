@@ -14,6 +14,7 @@ import {
   type Etapa,
 } from "@/lib/captacion-flujo";
 import { vencerCaptaciones } from "@/lib/captacion-borrar";
+import { vincularTasacionesSolas } from "@/lib/captacion-tasacion";
 import { datosParaWhatsApp } from "../mensajes/actions";
 import { NuevaCaptacionForm, type CaptacionInicial } from "./nueva-captacion-form";
 import { FlujoCaptacion } from "./flujo-captacion";
@@ -62,6 +63,8 @@ export default async function CaptacionesPage({
 
   // Lo vencido se borra antes de mostrar (además del chequeo cada 15 min).
   await vencerCaptaciones().catch(() => {});
+  // Tasaciones hechas desde Tasaciones que son, sin dudas, las de una captación en "Tasando".
+  await vincularTasacionesSolas(sesion!.userId).catch(() => 0);
 
   const misContactos = await db
     .select({ id: contactos.id, nombre: contactos.nombre })

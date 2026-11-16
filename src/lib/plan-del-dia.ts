@@ -25,6 +25,7 @@ import {
 } from "@/lib/captacion-flujo";
 import { hoyUY, mesAnterior, mesLabel, mesSiguiente } from "@/lib/finanzas";
 import { filaMes, movimientosDelMes } from "@/lib/finanzas-datos";
+import { vincularTasacionesSolas } from "@/lib/captacion-tasacion";
 
 // Inicio "Plan del día": qué hacer primero, en este orden (decidido en el
 // Mapa único de Orion):
@@ -368,6 +369,7 @@ async function completarAcciones(
 async function captacionesDelDia(yo: string, finHoy: Date): Promise<ItemPlan[]> {
   let filas;
   try {
+    await vincularTasacionesSolas(yo).catch(() => 0);
     filas = await db
       .select({
         id: captaciones.id,
@@ -407,7 +409,11 @@ async function captacionesDelDia(yo: string, finHoy: Date): Promise<ItemPlan[]> 
       else if (plazo.proximo && plazo.proximo < finHoy)
         detalle = `${ETAPA_LABEL[etapa]}: toca el seguimiento ${c.seguimientosHechos + 1} de ${CICLOS[etapa].total} · ${borra}`;
     } else if (etapa === "TASANDO") {
-      detalle = `${c.tasacionId ? "Entregá la tasación y marcá si autorizó" : "Hacé la tasación"} · ${borra}`;
+      detalle = `${
+        c.tasacionId
+          ? "Tasación hecha: marcá en la tarjeta si la entregaste y si autorizó"
+          : "Hacé la tasación (o vinculá una ya hecha en la tarjeta)"
+      } · ${borra}`;
     }
     if (!detalle) continue;
     items.push({
