@@ -181,6 +181,20 @@ cuando cambie algo.
   - nunca muestra montos.
 - La guía de la pantalla resume y remite a los capítulos 15 a 19 (están en Capacitación).
 
+### Índice del Manual en Capacitación (`src/lib/manual-indice.ts`)
+
+- El Manual Orion tiene los capítulos 0 a 57 y los anexos A a J (68 materiales). Rosario pasó las tablas en `Instrucciones_Code_Indice_Capacitacion.md`:
+  - Tabla A: bloques;
+  - Tabla B: áreas por tema;
+  - Tabla C: nombres.
+- **Etapa 1 (hecha):**
+  - columnas `clase` (CAPITULO, ANEXO u OTRO), `numero`, `orden`, `bloque` y `areas` (jsonb) en `documentos_capacitacion`;
+  - tabla `capacitacion_areas`, editable por la CEO en `/capacitacion/areas`;
+  - al arrancar, `completarIndiceCapacitacion()` completa los materiales con `clase` vacía leyendo el número del título ("CAP. 27-", "CAP 20-", "1 -", "ANEXO C-"). No pisa lo editado a mano;
+  - en Subir y Editar, los campos se sugieren desde el título.
+- **Etapa 2 (pendiente):** índice "Por tema" y "Por bloque" arriba de la biblioteca, y la vista "Todo" ordenada.
+- **Etapa 3 (pendiente):** buscador dentro de los PDF por página, sin mayúsculas ni tildes, que abre el visor en esa página.
+
 ## Pendientes
 
 1. **Porcentajes finales de comisiones.** Rosario los define después de la reunión con César y Huillen.

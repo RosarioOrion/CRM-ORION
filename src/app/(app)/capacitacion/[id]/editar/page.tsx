@@ -5,7 +5,8 @@ import { db } from "@/db";
 import { documentosCapacitacion } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { esCEO } from "@/lib/permisos";
-import { asegurarColumnaTipo } from "../../datos";
+import { asegurarColumnaTipo, listarAreas } from "../../datos";
+import type { Clase } from "@/lib/manual-indice";
 import { EditarDocumentoForm } from "./editar-form";
 
 // Editar un material de Capacitación (solo la CEO, igual que subir).
@@ -22,10 +23,15 @@ export default async function EditarMaterialPage({ params }: { params: Promise<{
       link: documentosCapacitacion.link,
       paginas: documentosCapacitacion.paginas,
       archivoNombre: documentosCapacitacion.archivoNombre,
+      clase: documentosCapacitacion.clase,
+      numero: documentosCapacitacion.numero,
+      bloque: documentosCapacitacion.bloque,
+      areas: documentosCapacitacion.areas,
     })
     .from(documentosCapacitacion)
     .where(eq(documentosCapacitacion.id, id));
   if (!d) notFound();
+  const areas = await listarAreas();
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -42,7 +48,14 @@ export default async function EditarMaterialPage({ params }: { params: Promise<{
           link: d.link ?? "",
           paginas: d.paginas,
           archivoNombre: d.archivoNombre,
+          indice: {
+            clase: (d.clase === "CAPITULO" || d.clase === "ANEXO" ? d.clase : "OTRO") as Clase,
+            numero: d.numero,
+            bloque: d.bloque,
+            areas: d.areas ?? [],
+          },
         }}
+        areas={areas}
       />
     </div>
   );

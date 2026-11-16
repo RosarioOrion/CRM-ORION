@@ -1,6 +1,6 @@
-import { desc, eq, isNotNull, sql } from "drizzle-orm";
+import { asc, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { documentosCapacitacion, usuarios } from "@/db/schema";
+import { capacitacionAreas, documentosCapacitacion, usuarios } from "@/db/schema";
 import { esTipoMaterial, type TipoMaterial } from "@/lib/capacitacion";
 
 export type Material = {
@@ -14,7 +14,26 @@ export type Material = {
   paginas: number | null;
   creadoEn: string;
   subidoPorNombre: string;
+  clase: string | null;
+  numero: string | null;
+  orden: number | null;
+  bloque: string | null;
+  areas: string[];
 };
+
+export type Area = { clave: string; nombre: string; icono: string; orden: number };
+
+/** Áreas por tema, en su orden. */
+export async function listarAreas(): Promise<Area[]> {
+  try {
+    return await db
+      .select({ clave: capacitacionAreas.clave, nombre: capacitacionAreas.nombre, icono: capacitacionAreas.icono, orden: capacitacionAreas.orden })
+      .from(capacitacionAreas)
+      .orderBy(asc(capacitacionAreas.orden), asc(capacitacionAreas.nombre));
+  } catch {
+    return []; // tabla todavía no creada
+  }
+}
 
 // La columna "tipo" (PDF / clase grabada) se agregó después. Si todavía no
 // se corrió Admin → Migrar, la crea acá (una vez por servidor) para que
@@ -53,15 +72,22 @@ export async function listarMaterial(): Promise<Material[]> {
       paginas: documentosCapacitacion.paginas,
       creadoEn: documentosCapacitacion.creadoEn,
       subidoPorNombre: usuarios.nombre,
+      clase: documentosCapacitacion.clase,
+      numero: documentosCapacitacion.numero,
+      orden: documentosCapacitacion.orden,
+      bloque: documentosCapacitacion.bloque,
+      areas: documentosCapacitacion.areas,
     })
     .from(documentosCapacitacion)
     .innerJoin(usuarios, eq(documentosCapacitacion.subidoPorId, usuarios.id))
-    .orderBy(desc(documentosCapacitacion.creadoEn));
+    // Capítulos 0–57, después anexos A–J, después el resto (lo más nuevo primero).
+    .orderBy(sql`coalesce(${documentosCapacitacion.orden}, 5000)`, desc(documentosCapacitacion.creadoEn));
 
   return filas.map((f) => ({
     ...f,
     tipo: esTipoMaterial(f.tipo) ? f.tipo : "PDF",
     tieneArchivo: Boolean(f.tieneArchivo),
+    areas: f.areas ?? [],
     creadoEn: f.creadoEn.toISOString(),
   }));
 }
