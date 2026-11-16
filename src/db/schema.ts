@@ -1042,3 +1042,12 @@ export const finanzasMeses = pgTable(
         unicoPorMes: unique("finanzas_meses_usuario_mes").on(table.usuarioId, table.mes),
   })
 );
+
+// Frases propias para la "Frase del día" del Inicio (las carga la CEO). Se
+// suman a las afirmaciones que Orion saca de los capítulos del manual.
+export const frasesInicio = pgTable("frases_inicio", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      texto: text("texto").notNull(),
+      accion: text("accion"),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});

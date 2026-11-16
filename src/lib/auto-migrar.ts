@@ -178,6 +178,13 @@ const SENTENCIAS = [
     busqueda text NOT NULL,
     PRIMARY KEY (documento_id, pagina)
   )`,
+  // Frases propias para la "Frase del día" del Inicio.
+  sql`CREATE TABLE IF NOT EXISTS frases_inicio (
+    id text PRIMARY KEY,
+    texto text NOT NULL,
+    accion text,
+    creado_en timestamp NOT NULL DEFAULT now()
+  )`,
   // Filosofía de Orion (Rosario): se carga una sola vez en Ajustes → Filosofía.
   sql.raw(`DO $f$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM datos_cargados WHERE clave = 'filosofia-orion') THEN
