@@ -116,3 +116,38 @@ export function tituloSinNumero(titulo: string): string {
     .replace(/^\s*(cap(?:[íi]tulo|\.)?\s*\.?\s*[-:]?\s*\d{1,2}|anexo\s*[-.:]?\s*[a-j](?![a-z])|\d{1,2}\s*(?=[-–—.:)·]))\s*[-–—.:)·]?\s*/i, "")
     .trim() || titulo;
 }
+
+/** Nombres de referencia de cada capítulo y anexo (Tabla C de Rosario). */
+export const NOMBRES_CAPITULOS = [
+  "Introducción", "Mentalidad del agente", "Creencias limitantes", "Afirmaciones y diálogo interno",
+  "Metas que se cumplen", "Hábitos y rutinas", "Manejo emocional", "Equilibrio y bienestar",
+  "Primera impresión", "Diferenciación, nicho y marca", "Cómo empezar en el rubro", "Pensar como dueño",
+  "Negocio en regla", "Red de aliados", "Construir, delegar, escalar", "Relación con el dinero",
+  "Repartir por porcentajes", "Control de gastos y Money Day", "Finanzas con ingresos variables",
+  "Fondos, impuestos y deudas", "Ahorro, inversión y patrimonio", "Plan financiero anual",
+  "Cómo funciona el negocio", "Mercado uruguayo en números", "Kaizen y 5S semanal", "CRM y próxima acción",
+  "KPI, comisiones e ingresos", "Prospección y captación", "Análisis y clasificación", "Tasación profesional",
+  "Documentación y escribanía", "Fotografía y publicación", "Portales, redes y publicidad", "Tecnología e IA",
+  "Comunicación y confianza", "Consultas y calificación", "Garantías de alquiler", "La visita",
+  "Negociación y cierre", "Reserva y firma", "Proceso de alquiler", "Proceso de venta", "Firma y fidelización",
+  "Atención y reclamos", "Ética y reputación", "Leyes de alquiler", "Impuestos", "Ley 20.380",
+  "Lavado de activos y datos", "Administración", "Inversores", "Crédito hipotecario", "Venta en pozo",
+  "Alto valor y campos", "Alquiler temporario", "Seguridad en visitas", "Primera operación", "Cierre",
+];
+
+export const NOMBRES_ANEXOS: Record<string, string> = {
+  A: "Checklists", B: "Plantillas", C: "Guiones", D: "Informe de barrios", E: "Planillas",
+  F: "Afirmaciones", G: "Glosario", H: "Contactos", I: "Preguntas", J: "Soluciones",
+};
+
+/**
+ * Cómo se muestra un material: "Cap. 27 · Prospección y captación",
+ * "Anexo C · Guiones", o el título tal cual si no es del manual.
+ */
+export function nombreMaterial(clase: string | null | undefined, numero: string | null | undefined, titulo: string): string {
+  const et = etiquetaNumero(clase, numero);
+  if (!et) return titulo;
+  const nombre =
+    clase === "CAPITULO" ? NOMBRES_CAPITULOS[Number(numero)] : clase === "ANEXO" ? NOMBRES_ANEXOS[numero ?? ""] : undefined;
+  return `${et} · ${nombre ?? tituloSinNumero(titulo)}`;
+}

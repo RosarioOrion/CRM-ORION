@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { documentosCapacitacion, usuarios } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { esCEO } from "@/lib/permisos";
+import { bloqueLabel, nombreMaterial } from "@/lib/manual-indice";
 import { fechaCorta, pesoLegible, visorDeLink } from "@/lib/capacitacion";
 import { VisorPdf } from "./visor-pdf";
 import { asegurarColumnaTipo } from "../datos";
@@ -28,6 +29,9 @@ export default async function VerMaterialPage({
       archivoPesoBytes: documentosCapacitacion.archivoPesoBytes,
       link: documentosCapacitacion.link,
       paginas: documentosCapacitacion.paginas,
+      clase: documentosCapacitacion.clase,
+      numero: documentosCapacitacion.numero,
+      bloque: documentosCapacitacion.bloque,
       creadoEn: documentosCapacitacion.creadoEn,
       subidoPorNombre: usuarios.nombre,
     })
@@ -56,8 +60,9 @@ export default async function VerMaterialPage({
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-xl font-bold text-orion-navy dark:text-white">
-            {esVideo ? "🎬" : "📄"} {d.titulo}
+            {esVideo ? "🎬" : "📄"} {nombreMaterial(d.clase, d.numero, d.titulo)}
           </h1>
+          {bloqueLabel(d.bloque) && <p className="text-xs font-semibold text-orion-gold">{bloqueLabel(d.bloque)}</p>}
           <p className="mt-1 text-xs text-gray-400">
             {d.subidoPorNombre} · {fechaCorta(d.creadoEn.toISOString())}
             {d.paginas ? ` · ${d.paginas} pág.` : ""}

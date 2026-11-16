@@ -192,7 +192,13 @@ cuando cambie algo.
   - tabla `capacitacion_areas`, editable por la CEO en `/capacitacion/areas`;
   - al arrancar, `completarIndiceCapacitacion()` completa los materiales con `clase` vacía leyendo el número del título ("CAP. 27-", "CAP 20-", "1 -", "ANEXO C-"). No pisa lo editado a mano;
   - en Subir y Editar, los campos se sugieren desde el título.
-- **Etapa 2 (pendiente):** índice "Por tema" y "Por bloque" arriba de la biblioteca, y la vista "Todo" ordenada.
+- **Etapa 2 (hecha):**
+  - Capacitación tiene 3 pestañas:
+    - **Por tema** (principal): tarjetas de áreas con la cantidad de materiales; `?area=` muestra la lista;
+    - **Por bloque**: orden de lectura;
+    - **Todo**: buscador por título, ordenado Cap. 0–57 y después Anexos A–J.
+  - Los materiales se muestran como "Cap. 27 · Prospección y captación" (`nombreMaterial`, con los nombres de la Tabla C).
+  - La Lección 1 (filosofía) queda cerrada por defecto.
 - **Etapa 3 (pendiente):** buscador dentro de los PDF por página, sin mayúsculas ni tildes, que abre el visor en esa página.
 
 ## Pendientes

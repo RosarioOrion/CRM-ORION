@@ -23,7 +23,7 @@ export async function LeccionFilosofia({ esCeo }: { esCeo: boolean }) {
   const compromisos = bloques.filter((b) => b.tipo === "compromiso");
 
   return (
-    <details open className="group mb-6 rounded-xl border border-orion-gold/40 bg-white shadow-sm dark:bg-gray-800">
+    <details className="group mb-6 rounded-xl border border-orion-gold/40 bg-white shadow-sm dark:bg-gray-800">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-t-xl bg-orion-navy px-5 py-3 text-white">
         <span>
           <span className="mr-2 rounded bg-orion-gold px-2 py-0.5 text-xs font-bold text-orion-navy">Lección 1</span>

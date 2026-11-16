@@ -1,15 +1,22 @@
 import Link from "next/link";
 import { obtenerSesion } from "@/lib/auth";
 import { esCEO } from "@/lib/permisos";
-import { listarMaterial } from "./datos";
+import { listarAreas, listarMaterial } from "./datos";
 import { BuscadorDocumentos } from "./buscador-documentos";
 import { LeccionFilosofia } from "./leccion-filosofia";
+import { IndicePorBloque, IndicePorTema, PestanasIndice, type Vista } from "./indice";
 
-export default async function CapacitacionPage() {
+export default async function CapacitacionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ vista?: string; area?: string }>;
+}) {
   const sesion = await obtenerSesion();
   if (!sesion) return null;
   const admin = esCEO(sesion.rol);
-  const material = await listarMaterial();
+  const { vista: vistaParam, area } = await searchParams;
+  const vista: Vista = vistaParam === "bloque" || vistaParam === "todo" ? vistaParam : "tema";
+  const [material, areas] = await Promise.all([listarMaterial(), listarAreas()]);
 
   return (
     <div>
@@ -19,7 +26,7 @@ export default async function CapacitacionPage() {
             Capacitación
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Biblioteca del equipo: tocá un material para leerlo o ver la clase.
+            Manual Orion y material del equipo: buscá por tema, seguí el orden del manual o mirá todo.
           </p>
         </div>
         {admin && (
@@ -32,9 +39,12 @@ export default async function CapacitacionPage() {
         )}
       </div>
 
-      <LeccionFilosofia esCeo={admin} />
+      {!area && <LeccionFilosofia esCeo={admin} />}
 
-      <BuscadorDocumentos documentos={material} />
+      <PestanasIndice vista={vista} />
+      {vista === "tema" && <IndicePorTema areas={areas} material={material} area={area ?? null} />}
+      {vista === "bloque" && <IndicePorBloque material={material} />}
+      {vista === "todo" && <BuscadorDocumentos documentos={material} />}
     </div>
   );
 }
