@@ -75,6 +75,14 @@ cuando cambie algo.
   - Al terminar S8 se puede pasar a S12; si no, se borra.
   - Al terminar S12 se borra.
 - **Tasando (7 días, +3 una sola vez con "Necesito 3 días más"; si vence, se borra):** la tasación se hace desde la tarjeta, o se vincula una ya hecha en Tasaciones. Se marca si se **entregó al propietario** o fue de **uso interno**. Después: autorizó → Para publicar; no aceptó → S12.
+- **Tasación hecha desde Tasaciones** (`src/lib/captacion-tasacion.ts`): se vincula sola a la captación en Tasando si no hay dudas. Condiciones:
+  - mismo agente;
+  - misma zona o dirección;
+  - mismo tipo;
+  - hecha después de cargar la captación;
+  - una sola candidata.
+
+  Se revisa al guardar la tasación, al abrir Captaciones y en el Plan del día. Si hay más de una posible, el agente la elige en la tarjeta. El aviso de Tasando desaparece recién al marcar entregada o uso interno y autorizó o no aceptó.
 - **Lo vencido va a la Papelera** (30 días, recuperable). El contacto también, si se creó para esa captación y no tiene nada más; así el número queda libre.
   - Revisión automática cada 15 min, y también al abrir Captaciones.
   - Si hubo llamada o WhatsApp pero no se marcó el resultado, pasa solo al siguiente seguimiento.

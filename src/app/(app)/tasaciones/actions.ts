@@ -22,6 +22,7 @@ import {
 import { registrar } from "@/lib/registro-actividad";
 import { aDatosRenta, valorFinal, valorPorRenta, type FormRenta, type RentaGuardada } from "@/lib/rentabilidad";
 import { vincularTasacion } from "../captaciones/flujo-actions";
+import { vincularTasacionesSolas } from "@/lib/captacion-tasacion";
 
 export type TasacionState = { error?: string; ok?: number };
 
@@ -182,6 +183,8 @@ export async function crearTasacion(
     await vincularTasacion(captacionId, fila.id);
     redirect("/captaciones");
   }
+  // Hecha desde Tasaciones: si es la de una captación en "Tasando", se vincula sola.
+  await vincularTasacionesSolas(sesion.userId).catch(() => 0);
   redirect(`/tasaciones/${fila.id}`);
 }
 
