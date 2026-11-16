@@ -1049,5 +1049,10 @@ export const frasesInicio = pgTable("frases_inicio", {
       id: text("id").primaryKey().$defaultFn(() => createId()),
       texto: text("texto").notNull(),
       accion: text("accion"),
+      // Base de frases de autores (carga inicial) o propias de la CEO.
+      autor: text("autor"),
+      fuente: text("fuente"),
+      categoria: text("categoria"),
+      origen: text("origen").notNull().default("PROPIA"), // SEMILLA | PROPIA
       creadoEn: timestamp("creado_en").notNull().defaultNow(),
 });
