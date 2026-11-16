@@ -4,7 +4,7 @@ import { obtenerSesion } from "@/lib/auth";
 import { esCEO } from "@/lib/permisos";
 import { fechaCorta, TIPO_MATERIAL_LABEL } from "@/lib/capacitacion";
 import { listarAreas, listarMaterial } from "../datos";
-import { bloqueLabel, etiquetaNumero, tituloSinNumero } from "@/lib/manual-indice";
+import { bloqueLabel, nombreMaterial } from "@/lib/manual-indice";
 import { NuevoDocumentoForm } from "../nuevo-documento-form";
 import { EliminarDocumentoBoton } from "../eliminar-documento-boton";
 
@@ -49,7 +49,7 @@ export default async function SubirMaterialPage() {
                   href={`/capacitacion/${d.id}`}
                   className="block truncate text-sm font-semibold text-orion-navy hover:underline dark:text-white"
                 >
-                  {etiquetaNumero(d.clase, d.numero) ? `${etiquetaNumero(d.clase, d.numero)} · ${tituloSinNumero(d.titulo)}` : d.titulo}
+                  {nombreMaterial(d.clase, d.numero, d.titulo)}
                 </Link>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400">
                   {bloqueLabel(d.bloque) ?? "Sin bloque"}

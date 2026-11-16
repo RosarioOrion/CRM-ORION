@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { fechaCorta, pesoLegible, TIPO_MATERIAL_LABEL } from "@/lib/capacitacion";
 import type { Material } from "./datos";
+import { nombreMaterial } from "@/lib/manual-indice";
 
 const FILTROS = [
   { key: "todo", label: "Todo" },
@@ -20,7 +21,7 @@ export function BuscadorDocumentos({ documentos }: { documentos: Material[] }) {
     return documentos.filter(
       (d) =>
         (filtro === "todo" || d.tipo === filtro) &&
-        (!q || `${d.titulo} ${d.descripcion ?? ""}`.toLowerCase().includes(q))
+        (!q || `${nombreMaterial(d.clase, d.numero, d.titulo)} ${d.titulo} ${d.descripcion ?? ""}`.toLowerCase().includes(q))
     );
   }, [busqueda, filtro, documentos]);
 
@@ -78,7 +79,7 @@ export function BuscadorDocumentos({ documentos }: { documentos: Material[] }) {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-orion-navy group-hover:underline dark:text-white">
-                    {d.titulo}
+                    {nombreMaterial(d.clase, d.numero, d.titulo)}
                   </p>
                   {d.descripcion && (
                     <p className="mt-1 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">
