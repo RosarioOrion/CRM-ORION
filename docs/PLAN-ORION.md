@@ -220,7 +220,13 @@ cuando cambie algo.
 - **Fuente:** la "AFIRMACIÓN DEL CAPÍTULO" y la "Acción asociada" del final de cada capítulo del manual. Se leen del texto ya extraído por el buscador (`capacitacion_paginas`); el título viene con letras espaciadas ("A F I R M A C I Ó N…").
 - También suma las **frases propias** que carga la CEO en `/capacitacion/frases` (tabla `frases_inicio`).
 - Es la misma frase para todo el equipo y cambia a la medianoche de Uruguay, rotando por la lista.
-- Si no hay nada cargado, usa 3 frases de respaldo escritas para Orion. No se atribuyen frases a personas famosas, para no inventar citas.
+- **Base de frases de autores** (`src/lib/frases-semilla.ts`, pedido de Rosario): unas 320 frases que se cargan una sola vez en `frases_inicio` (`origen='SEMILLA'`, marca `frases-semilla` en `datos_cargados`). Categorías: Mentalidad, Filosofía oriental, Kaizen y hábitos, Estoicos y clásicos, Ventas y personas, Dinero, Refranes y proverbios.
+  - Libros incluidos, entre otros: *Piense y hágase rico*, *Los 7 hábitos*, *Padre rico, padre pobre*, *Mente millonaria*, *Si lo crees, lo creas*, *Vendes o vendes* / *10X*, *Cómo ganar amigos*, *Hábitos atómicos*, *El vendedor más grande del mundo*, *Los cuatro acuerdos*, *El hombre más rico de Babilonia*, Tao Te Ching, Analectas, Dhammapada, Sun Tzu, Musashi, Marco Aurelio, Séneca, Epicteto.
+  - **Regla:** solo frases que están en la obra o el autor indicado (traducción libre). Las citas famosas mal atribuidas quedan afuera; los refranes van como refranes.
+  - La tarjeta muestra "— Autor, Obra" y la categoría.
+- Las frases (manual + autores + propias) se mezclan con un orden fijo (hash del texto) para que no salgan en bloques.
+- En `/capacitacion/frases` la CEO filtra por categoría, busca por frase, autor o libro, borra cualquier frase y suma propias con autor, obra y categoría.
+- Si no hay nada cargado, usa 3 frases de respaldo escritas para Orion.
 
 ## Pendientes
 

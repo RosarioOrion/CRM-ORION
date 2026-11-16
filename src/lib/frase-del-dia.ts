@@ -2,6 +2,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { capacitacionPaginas, documentosCapacitacion, frasesInicio } from "@/db/schema";
 import { nombreMaterial } from "@/lib/manual-indice";
+import { CATEGORIA_FRASE, FRASES_SEMILLA, type CategoriaFrase } from "@/lib/frases-semilla";
 
 // "Frase del día" del Inicio: cada capítulo del Manual Orion termina con una
 // "AFIRMACIÓN DEL CAPÍTULO" y su "Acción asociada". Orion las saca del texto de
@@ -13,7 +14,33 @@ export type Frase = {
   accion: string | null;
   /** Capítulo de donde sale, con link a la página. */
   fuente: { nombre: string; href: string } | null;
+  /** Frases de autores: quién la dijo y de qué obra. */
+  autor?: string | null;
+  obra?: string | null;
+  categoria?: string | null;
 };
+
+/** Carga una sola vez la base de frases de autores (frases-semilla.ts). */
+export async function cargarFrasesSemilla() {
+  const ya = await db.execute(sql`SELECT 1 FROM datos_cargados WHERE clave = 'frases-semilla'`);
+  if (ya.length) return 0;
+  await db.insert(frasesInicio).values(
+    FRASES_SEMILLA.map((f) => ({ texto: f.t, accion: null, autor: f.a, fuente: f.f ?? null, categoria: f.c, origen: "SEMILLA" }))
+  );
+  await db.execute(sql`INSERT INTO datos_cargados (clave) VALUES ('frases-semilla') ON CONFLICT DO NOTHING`);
+  return FRASES_SEMILLA.length;
+}
+
+/** Etiqueta de categoría ("🧠 Mentalidad"). */
+export const etiquetaCategoria = (c: string | null | undefined) =>
+  c && c in CATEGORIA_FRASE ? CATEGORIA_FRASE[c as CategoriaFrase] : null;
+
+/** Hash estable de un texto, para mezclar siempre igual. */
+function hash(t: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
 
 const TITULO = /A\s?F\s?I\s?R\s?M\s?A\s?C\s?I\s?[OÓ]\s?N\s+D\s?E\s?L\s+C\s?A\s?P\s?[IÍ]\s?T\s?U\s?L\s?O/i;
 
@@ -89,10 +116,13 @@ export async function fraseDelDia(ahora: Date = new Date()): Promise<Frase> {
   }
   try {
     const propias = await db.select().from(frasesInicio).orderBy(asc(frasesInicio.creadoEn));
-    for (const f of propias) pool.push({ texto: f.texto, accion: f.accion, fuente: null });
+    for (const f of propias)
+      pool.push({ texto: f.texto, accion: f.accion, fuente: null, autor: f.autor, obra: f.fuente, categoria: f.categoria });
   } catch {
     // tabla todavía no creada
   }
-  const lista = pool.length ? pool : RESPALDO;
+  // Mezcla fija (no depende del orden de carga): así se alternan manual,
+  // autores, refranes y frases propias en lugar de ir en bloques.
+  const lista = pool.length ? [...pool].sort((a, b) => hash(a.texto) - hash(b.texto)) : RESPALDO;
   return lista[((diaUY(ahora) % lista.length) + lista.length) % lista.length];
 }

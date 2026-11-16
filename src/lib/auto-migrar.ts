@@ -185,6 +185,10 @@ const SENTENCIAS = [
     accion text,
     creado_en timestamp NOT NULL DEFAULT now()
   )`,
+  sql`ALTER TABLE frases_inicio ADD COLUMN IF NOT EXISTS autor text`,
+  sql`ALTER TABLE frases_inicio ADD COLUMN IF NOT EXISTS fuente text`,
+  sql`ALTER TABLE frases_inicio ADD COLUMN IF NOT EXISTS categoria text`,
+  sql`ALTER TABLE frases_inicio ADD COLUMN IF NOT EXISTS origen text NOT NULL DEFAULT 'PROPIA'`,
   // Filosofía de Orion (Rosario): se carga una sola vez en Ajustes → Filosofía.
   sql.raw(`DO $f$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM datos_cargados WHERE clave = 'filosofia-orion') THEN
