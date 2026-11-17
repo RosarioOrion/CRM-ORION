@@ -42,6 +42,11 @@ export function FilaMaterial({ m }: { m: Material }) {
         <Link href={`/capacitacion/${m.id}`} className="font-semibold text-orion-navy hover:underline dark:text-white">
           {nombreMaterial(m.clase, m.numero, m.titulo)}
         </Link>
+        {m.tieneAudio && (
+          <span className="ml-2 rounded-full bg-orion-gold/20 px-2 py-0.5 text-[11px] font-semibold text-orion-navy dark:text-orion-gold">
+            🎙️ Audio
+          </span>
+        )}
         {m.descripcion && <p className="mt-0.5 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">{m.descripcion}</p>}
         <p className="mt-1 text-[11px] text-gray-400">
           {[m.paginas ? `${m.paginas} pág.` : null, peso].filter(Boolean).join(" · ")}

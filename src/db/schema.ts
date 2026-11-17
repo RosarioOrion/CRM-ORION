@@ -756,6 +756,21 @@ export const capacitacionPaginas = pgTable("capacitacion_paginas", {
       busqueda: text("busqueda").notNull(),
 });
 
+// Audios grabados de un material de Capacitación (uno o varias partes).
+// La columna "datos" (bytea) no está acá a propósito: se lee y escribe con
+// SQL directo, por pedazos (ver src/lib/capacitacion-audio.ts).
+export const capacitacionAudios = pgTable("capacitacion_audios", {
+      id: text("id").primaryKey().$defaultFn(() => createId()),
+      documentoId: text("documento_id").notNull(),
+      parte: integer("parte").notNull().default(1),
+      nombre: text("nombre").notNull(),
+      mime: text("mime").notNull(),
+      peso: integer("peso").notNull(),
+      duracionSeg: integer("duracion_seg"),
+      completo: boolean("completo").notNull().default(false),
+      creadoEn: timestamp("creado_en").notNull().defaultNow(),
+});
+
 // Áreas por tema de Capacitación (editables por la CEO: nombre, ícono, orden).
 export const capacitacionAreas = pgTable("capacitacion_areas", {
       clave: text("clave").primaryKey(),

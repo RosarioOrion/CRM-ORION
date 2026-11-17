@@ -230,7 +230,26 @@ cuando cambie algo.
   - voz (prefiere es-UY/es-AR, después latinoamericanas y España) y velocidad, que se recuerdan en el navegador.
 - **Pausa = cortar y retomar en la misma parte**, porque `pause()` falla en varios celulares.
 - Pide mantener la pantalla encendida (Wake Lock). En el celular puede cortarse si se bloquea la pantalla o se cambia de app.
-- Más adelante, con presupuesto: voz natural paga (ElevenLabs u otra) o audios MP3 pregrabados por capítulo.
+- Si el capítulo tiene **audio grabado**, se muestra el audio y no la lectura automática.
+- Más adelante, con presupuesto: voz natural paga (ElevenLabs u otra).
+
+### Audio grabado de los capítulos (`src/lib/capacitacion-audio.ts`, tabla `capacitacion_audios`)
+
+- Rosario va a grabar los capítulos con su voz. Ideal: **1 audio por capítulo**; si es largo, **varias partes** que se escuchan seguidas.
+- **Máximo 80 MB por archivo** (`AUDIO_MAX_BYTES`). Con la grabadora del celular en calidad normal (~0,5–1 MB por minuto) entra un capítulo de 1 h o más. En calidad alta (~2 MB/min), unos 40 min.
+- **Subir:** solo la CEO, en ✏️ Editar → "🎙️ Audio del capítulo" (o el botón 🎙️ del visor).
+  - Se sube **de a pedazos de 4 MB** (`PUT /api/capacitacion/[id]/audio/[audioId]?desde=`), con 3 reintentos; al final `?fin=1` lo marca completo.
+  - Las subidas que quedaron por la mitad se borran después de un día.
+  - Si se eligen varios archivos juntos, se ordenan por nombre ("parte 1", "parte 2"…).
+- **Guardado:** en la base (bytea con `STORAGE EXTERNAL`). El GET responde por pedazos (Range, de hasta 2 MB), así se puede adelantar y anda en iPhone.
+  - Ojo: ocupa lugar en la base de Railway (unos 15–30 MB por capítulo).
+- **Escuchar** (todos los usuarios con sesión):
+  - reproductor arriba del PDF; si hay varias partes, pasa sola a la siguiente;
+  - velocidad 1x / 1,25x / 1,5x / 0,9x;
+  - "seguí desde donde quedaste" (en el navegador);
+  - título en la pantalla bloqueada (Media Session). Sigue sonando con el celular bloqueado.
+- En el índice, los materiales con audio llevan "🎙️ Audio", y en la vista Todo hay un filtro "🎙️ Con audio".
+- Al borrar un material se borran sus audios.
 
 ### Frase del día en el Inicio (`src/lib/frase-del-dia.ts`)
 
