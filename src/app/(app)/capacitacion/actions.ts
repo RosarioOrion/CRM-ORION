@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { capacitacionAreas, documentosCapacitacion } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
+import { borrarAudiosDe } from "@/lib/capacitacion-audio";
 import { esCEO } from "@/lib/permisos";
 import { esTipoMaterial } from "@/lib/capacitacion";
 import { asegurarColumnaTipo, listarAreas } from "./datos";
@@ -175,6 +176,7 @@ export async function editarDocumentoCapacitacion(
 export async function eliminarDocumentoCapacitacion(documentoId: string) {
   await requerirAdmin();
   await db.delete(documentosCapacitacion).where(eq(documentosCapacitacion.id, documentoId));
+  await borrarAudiosDe(documentoId);
   revalidatePath("/capacitacion");
   revalidatePath("/capacitacion/subir");
 }

@@ -2,6 +2,7 @@ import { asc, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { capacitacionAreas, documentosCapacitacion, usuarios } from "@/db/schema";
 import { esTipoMaterial, type TipoMaterial } from "@/lib/capacitacion";
+import { materialesConAudio } from "@/lib/capacitacion-audio";
 
 export type Material = {
   id: string;
@@ -19,6 +20,8 @@ export type Material = {
   orden: number | null;
   bloque: string | null;
   areas: string[];
+  /** Tiene audio grabado (🎙️). */
+  tieneAudio: boolean;
 };
 
 export type Area = { clave: string; nombre: string; icono: string; orden: number };
@@ -83,7 +86,9 @@ export async function listarMaterial(): Promise<Material[]> {
     // Capítulos 0–57, después anexos A–J, después el resto (lo más nuevo primero).
     .orderBy(sql`coalesce(${documentosCapacitacion.orden}, 5000)`, desc(documentosCapacitacion.creadoEn));
 
+  const conAudio = await materialesConAudio();
   return filas.map((f) => ({
+    tieneAudio: conAudio.has(f.id),
     ...f,
     tipo: esTipoMaterial(f.tipo) ? f.tipo : "PDF",
     tieneArchivo: Boolean(f.tieneArchivo),

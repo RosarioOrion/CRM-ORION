@@ -10,6 +10,7 @@ const FILTROS = [
   { key: "todo", label: "Todo" },
   { key: "PDF", label: "📄 Documentos" },
   { key: "VIDEO", label: "🎬 Clases grabadas" },
+  { key: "AUDIO", label: "🎙️ Con audio" },
 ] as const;
 
 export function BuscadorDocumentos({ documentos }: { documentos: Material[] }) {
@@ -20,7 +21,7 @@ export function BuscadorDocumentos({ documentos }: { documentos: Material[] }) {
     const q = busqueda.trim().toLowerCase();
     return documentos.filter(
       (d) =>
-        (filtro === "todo" || d.tipo === filtro) &&
+        (filtro === "todo" || (filtro === "AUDIO" ? d.tieneAudio : d.tipo === filtro)) &&
         (!q || `${nombreMaterial(d.clase, d.numero, d.titulo)} ${d.titulo} ${d.descripcion ?? ""}`.toLowerCase().includes(q))
     );
   }, [busqueda, filtro, documentos]);
@@ -80,6 +81,11 @@ export function BuscadorDocumentos({ documentos }: { documentos: Material[] }) {
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-orion-navy group-hover:underline dark:text-white">
                     {nombreMaterial(d.clase, d.numero, d.titulo)}
+                    {d.tieneAudio && (
+                      <span className="ml-2 rounded-full bg-orion-gold/20 px-2 py-0.5 text-[11px] font-semibold text-orion-navy dark:text-orion-gold">
+                        🎙️ Audio
+                      </span>
+                    )}
                   </p>
                   {d.descripcion && (
                     <p className="mt-1 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">

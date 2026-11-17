@@ -178,6 +178,22 @@ const SENTENCIAS = [
     busqueda text NOT NULL,
     PRIMARY KEY (documento_id, pagina)
   )`,
+  // Audios de los capítulos (grabados por la CEO). El archivo va en bytea
+  // sin comprimir (STORAGE EXTERNAL) para poder leer pedazos al reproducir.
+  sql`CREATE TABLE IF NOT EXISTS capacitacion_audios (
+    id text PRIMARY KEY,
+    documento_id text NOT NULL,
+    parte integer NOT NULL DEFAULT 1,
+    nombre text NOT NULL,
+    mime text NOT NULL,
+    peso integer NOT NULL,
+    duracion_seg integer,
+    completo boolean NOT NULL DEFAULT false,
+    datos bytea NOT NULL DEFAULT ''::bytea,
+    creado_en timestamp NOT NULL DEFAULT now()
+  )`,
+  sql`ALTER TABLE capacitacion_audios ALTER COLUMN datos SET STORAGE EXTERNAL`,
+  sql`CREATE INDEX IF NOT EXISTS capacitacion_audios_doc ON capacitacion_audios (documento_id, parte)`,
   // Frases propias para la "Frase del día" del Inicio.
   sql`CREATE TABLE IF NOT EXISTS frases_inicio (
     id text PRIMARY KEY,

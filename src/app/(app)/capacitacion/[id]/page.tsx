@@ -9,6 +9,8 @@ import { bloqueLabel, nombreMaterial } from "@/lib/manual-indice";
 import { fechaCorta, pesoLegible, visorDeLink } from "@/lib/capacitacion";
 import { VisorPdf } from "./visor-pdf";
 import { Escuchar } from "./escuchar";
+import { AudioDelCapitulo } from "./audio-capitulo";
+import { listarAudios } from "@/lib/capacitacion-audio";
 import { asegurarColumnaTipo } from "../datos";
 
 export default async function VerMaterialPage({
@@ -50,6 +52,8 @@ export default async function VerMaterialPage({
   const pdfPropio = d.archivoNombre ? `/api/capacitacion/${id}` : null;
   const visor = !pdfPropio && d.link ? visorDeLink(d.link) : null;
   const peso = pesoLegible(d.archivoPesoBytes);
+  // Audio grabado por la CEO (si hay, va en lugar de la lectura automática).
+  const audios = await listarAudios(id);
   // Texto ya extraído del PDF (buscador): sirve para "🎧 Escuchar".
   const textoPaginas = pdfPropio
     ? await db
@@ -89,6 +93,11 @@ export default async function VerMaterialPage({
               ✏️ Editar
             </Link>
           )}
+          {esCEO(sesion.rol) && (
+            <Link href={`/capacitacion/${id}/editar#audio`} className={boton}>
+              🎙️ {audios.length ? "Audio" : "Subir audio"}
+            </Link>
+          )}
           {!pdfPropio && d.link && !visor && (
             <a href={d.link} target="_blank" rel="noopener noreferrer" className={boton}>
               🔗 Abrir en otra pestaña
@@ -103,6 +112,10 @@ export default async function VerMaterialPage({
         </p>
       )}
 
+      {audios.length > 0 && (
+        <AudioDelCapitulo documentoId={id} titulo={nombreMaterial(d.clase, d.numero, d.titulo)} audios={audios} />
+      )}
+
       {pdfPropio ? (
         <>
           {pagina && (
@@ -115,7 +128,7 @@ export default async function VerMaterialPage({
               )}
             </p>
           )}
-          {textoPaginas.some((p) => p.texto.trim()) && (
+          {audios.length === 0 && textoPaginas.some((p) => p.texto.trim()) && (
             <Escuchar paginas={textoPaginas.filter((p) => p.texto.trim())} paginaInicial={pagina} />
           )}
           <VisorPdf url={pdfPropio} titulo={d.titulo} paginaInicial={pagina} />

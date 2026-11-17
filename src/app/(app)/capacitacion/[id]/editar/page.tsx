@@ -8,6 +8,8 @@ import { esCEO } from "@/lib/permisos";
 import { asegurarColumnaTipo, listarAreas } from "../../datos";
 import type { Clase } from "@/lib/manual-indice";
 import { EditarDocumentoForm } from "./editar-form";
+import { AudiosCapitulo } from "./audios";
+import { listarAudios } from "@/lib/capacitacion-audio";
 
 // Editar un material de Capacitación (solo la CEO, igual que subir).
 export default async function EditarMaterialPage({ params }: { params: Promise<{ id: string }> }) {
@@ -31,7 +33,7 @@ export default async function EditarMaterialPage({ params }: { params: Promise<{
     .from(documentosCapacitacion)
     .where(eq(documentosCapacitacion.id, id));
   if (!d) notFound();
-  const areas = await listarAreas();
+  const [areas, audios] = await Promise.all([listarAreas(), listarAudios(id)]);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -57,6 +59,7 @@ export default async function EditarMaterialPage({ params }: { params: Promise<{
         }}
         areas={areas}
       />
+      <AudiosCapitulo documentoId={id} audios={audios} />
     </div>
   );
 }
