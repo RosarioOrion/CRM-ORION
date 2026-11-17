@@ -2,7 +2,7 @@ import Link from "next/link";
 import { db } from "@/db";
 import { propiedades, contactos, usuarios } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
-import { eq, desc, and, ilike, inArray, or, sql } from "drizzle-orm";
+import { eq, desc, and, asc, inArray, or, sql, type AnyColumn } from "drizzle-orm";
 import { NuevaPropiedadForm } from "./nueva-propiedad-form";
 import {
   ESTADO_LABEL,
@@ -33,6 +33,11 @@ const TABS: { estado: string; label: string }[] = [
 
 // Filtro de operación. Va en "op" porque "operacion" ya lo usa el alta de
 // propiedad (desde la ficha de un contacto propietario).
+// Búsqueda sin distinguir mayúsculas ni tildes ("cesar" encuentra "César").
+const sinTildes = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const contiene = (col: AnyColumn, q: string) =>
+  sql`translate(lower(coalesce(${col}, '')), 'áéíóúüàèìòùâêîôûäëïö', 'aeiouuaeiouaeiouaeio') LIKE ${`%${sinTildes(q)}%`}`;
+
 const OPERACIONES: { op: string; label: string }[] = [
   { op: "", label: "Venta y alquiler" },
   { op: "VENTA", label: "Solo ventas" },
@@ -42,7 +47,7 @@ const OPERACIONES: { op: string; label: string }[] = [
 export default async function PropiedadesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ estado?: string; q?: string; dueno?: string; operacion?: string; op?: string; etapa?: string; revisar?: string; nuevo?: string }>;
+  searchParams: Promise<{ estado?: string; q?: string; agente?: string; dueno?: string; operacion?: string; op?: string; etapa?: string; revisar?: string; nuevo?: string }>;
 }) {
   const params = await searchParams;
   // Desde el panel "Mis propiedades" del Inicio: una etapa (o el aviso de
@@ -62,6 +67,13 @@ export default async function PropiedadesPage({
   const revisar = params.revisar === "1";
 
   const sesion = await obtenerSesion();
+  // Filtro por agente: las propiedades de un compañero (en solo lectura).
+  const agentes = await db
+    .select({ id: usuarios.id, nombre: usuarios.nombre })
+    .from(usuarios)
+    .where(eq(usuarios.activo, true))
+    .orderBy(asc(usuarios.nombre));
+  const agente = agentes.find((a) => a.id === params.agente) ?? null;
   let idsEtapa: string[] | null = null;
   if (etapa) {
     const r = await resumenMisPropiedades(sesion!.userId);
@@ -80,7 +92,11 @@ export default async function PropiedadesPage({
   // busca en las de TODOS los agentes (por código, título o nombre del
   // agente), así se pueden ver las de un compañero escribiendo su nombre.
   // Las ajenas se ven en solo lectura: solo el agente a cargo las edita.
-  const condiciones = q ? [] : [eq(propiedades.agenteId, sesion!.userId)];
+  const condiciones = agente
+    ? [eq(propiedades.agenteId, agente.id)]
+    : q
+      ? []
+      : [eq(propiedades.agenteId, sesion!.userId)];
   if (estadoActivo !== "todas") {
     condiciones.push(
       eq(propiedades.estado, estadoActivo as (typeof ESTADOS_PROPIEDAD)[number])
@@ -95,11 +111,7 @@ export default async function PropiedadesPage({
   }
   if (q) {
     condiciones.push(
-      or(
-        ilike(propiedades.codigo, `%${q}%`),
-        ilike(propiedades.titulo, `%${q}%`),
-        ilike(usuarios.nombre, `%${q}%`)
-      )!
+      or(contiene(propiedades.codigo, q), contiene(propiedades.titulo, q), contiene(usuarios.nombre, q))!
     );
   }
 
@@ -155,6 +167,7 @@ export default async function PropiedadesPage({
     if (etapa) sp.set("etapa", etapa);
     if (revisar) sp.set("revisar", "1");
     if (q) sp.set("q", q);
+    if (agente) sp.set("agente", agente.id);
     return `/propiedades?${sp.toString()}`;
   }
 
@@ -173,7 +186,15 @@ export default async function PropiedadesPage({
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           {misPropiedades.length} propiedad(es)
-          {q ? ` · resultados de todos los agentes para "${q}"` : " · mis propiedades"}
+          {agente
+            ? agente.id === sesion!.userId
+              ? " · mis propiedades"
+              : ` · de ${agente.nombre}`
+            : q
+              ? ` · resultados de todos los agentes`
+              : " · mis propiedades"}
+          {q ? ` para "${q}"` : ""}
+          {estadoActivo !== "todas" ? ` · ${TABS.find((t) => t.estado === estadoActivo)?.label.toLowerCase()}` : ""}
           {op === "VENTA" ? " · solo ventas" : op === "ALQUILER" ? " · solo alquileres" : ""}
         </p>
         {etapaLabel && (
@@ -236,6 +257,19 @@ export default async function PropiedadesPage({
           <input type="hidden" name="estado" value={estadoActivo} />
           {op && <input type="hidden" name="op" value={op} />}
           {etapa && <input type="hidden" name="etapa" value={etapa} />}
+          <select
+            name="agente"
+            defaultValue={agente?.id ?? ""}
+            aria-label="Agente"
+            className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+          >
+            <option value="">👤 Agente: {q ? "todos" : "yo"}</option>
+            {agentes.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.nombre}
+              </option>
+            ))}
+          </select>
           <input
             type="search"
             name="q"
@@ -256,6 +290,14 @@ export default async function PropiedadesPage({
         {misPropiedades.length === 0 ? (
           <p className="col-span-full rounded-xl border border-gray-200 bg-white p-6 text-center text-sm text-gray-400 dark:bg-gray-800 dark:border-gray-700">
             No hay propiedades para este filtro.
+            {estadoActivo !== "todas" && (
+              <>
+                {" "}
+                <Link href={hrefFiltro("todas", op)} className="font-semibold text-orion-navy underline dark:text-orion-gold">
+                  Ver en todos los estados
+                </Link>
+              </>
+            )}
           </p>
         ) : (
           misPropiedades.map(({ p, agenteNombre, avisos }) => {
