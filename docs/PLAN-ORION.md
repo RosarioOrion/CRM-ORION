@@ -214,6 +214,24 @@ cuando cambie algo.
   - Los resultados se agrupan por capítulo, con la página y un fragmento resaltado. `/capacitacion/[id]?pagina=N&q=` abre el visor en esa página, marcada en dorado.
   - **Los materiales que son solo un link (Drive) no se pueden buscar**: hay que subir el PDF a Orion. Un PDF escaneado (imagen, sin texto) tampoco.
 
+### Leer en voz alta en Capacitación (`src/lib/lectura-voz.ts`, `capacitacion/[id]/escuchar.tsx`)
+
+- Pedido de Rosario: escuchar un capítulo mientras trabaja, **gratis**.
+- Usa la voz que trae el celular o la computadora (Web Speech API, `speechSynthesis`). No hay servicio pago ni claves.
+- Lee el texto ya extraído del PDF (`capacitacion_paginas`). Solo aparece en materiales con PDF subido a Orion y con texto (no en links de Drive ni en PDF escaneados).
+- `textoParaLeer()` limpia el texto:
+  - une las palabras cortadas con guion;
+  - arregla títulos con letras separadas ("Afirmación del capítulo", "Manual Orion");
+  - saca números de página, viñetas y emojis.
+- `partesParaLeer()` corta el texto en partes de unas 220 letras: algunas voces se cortan solas con textos largos.
+- Controles:
+  - ▶ / ⏸ / ⏹ y ⏮ ⏭ por página;
+  - arranca en la página abierta (`?pagina=`);
+  - voz (prefiere es-UY/es-AR, después latinoamericanas y España) y velocidad, que se recuerdan en el navegador.
+- **Pausa = cortar y retomar en la misma parte**, porque `pause()` falla en varios celulares.
+- Pide mantener la pantalla encendida (Wake Lock). En el celular puede cortarse si se bloquea la pantalla o se cambia de app.
+- Más adelante, con presupuesto: voz natural paga (ElevenLabs u otra) o audios MP3 pregrabados por capítulo.
+
 ### Frase del día en el Inicio (`src/lib/frase-del-dia.ts`)
 
 - Tarjeta "✨ Frase del día" arriba del Inicio: frase, "🎯 Acción de hoy" y link al capítulo (abre en la página).
