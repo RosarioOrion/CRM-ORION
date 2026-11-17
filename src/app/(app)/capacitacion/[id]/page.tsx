@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { documentosCapacitacion, usuarios } from "@/db/schema";
+import { capacitacionPaginas, documentosCapacitacion, usuarios } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { esCEO } from "@/lib/permisos";
 import { bloqueLabel, nombreMaterial } from "@/lib/manual-indice";
 import { fechaCorta, pesoLegible, visorDeLink } from "@/lib/capacitacion";
 import { VisorPdf } from "./visor-pdf";
+import { Escuchar } from "./escuchar";
 import { asegurarColumnaTipo } from "../datos";
 
 export default async function VerMaterialPage({
@@ -49,6 +50,15 @@ export default async function VerMaterialPage({
   const pdfPropio = d.archivoNombre ? `/api/capacitacion/${id}` : null;
   const visor = !pdfPropio && d.link ? visorDeLink(d.link) : null;
   const peso = pesoLegible(d.archivoPesoBytes);
+  // Texto ya extraído del PDF (buscador): sirve para "🎧 Escuchar".
+  const textoPaginas = pdfPropio
+    ? await db
+        .select({ pagina: capacitacionPaginas.pagina, texto: capacitacionPaginas.texto })
+        .from(capacitacionPaginas)
+        .where(eq(capacitacionPaginas.documentoId, id))
+        .orderBy(asc(capacitacionPaginas.pagina))
+        .catch(() => [])
+    : [];
   const boton =
     "rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-orion-navy transition hover:border-orion-navy dark:border-gray-600 dark:text-white";
 
@@ -104,6 +114,9 @@ export default async function VerMaterialPage({
                 </Link>
               )}
             </p>
+          )}
+          {textoPaginas.some((p) => p.texto.trim()) && (
+            <Escuchar paginas={textoPaginas.filter((p) => p.texto.trim())} paginaInicial={pagina} />
           )}
           <VisorPdf url={pdfPropio} titulo={d.titulo} paginaInicial={pagina} />
         </>
