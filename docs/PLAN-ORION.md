@@ -251,6 +251,18 @@ cuando cambie algo.
 - En el índice, los materiales con audio llevan "🎙️ Audio", y en la vista Todo hay un filtro "🎙️ Con audio".
 - Al borrar un material se borran sus audios.
 
+### Imprimir ejercicios (`src/lib/paginas-imprimibles.ts`, `capacitacion/[id]/imprimir-paginas.tsx`)
+
+- Pedido de Rosario: no imprimir el manual entero, sino **solo los ejercicios**. Alcanza con que funcione en la computadora.
+- Botón **"🖨️ Imprimir ejercicios"** en el visor de cada material con PDF subido a Orion. Lo ven todos los usuarios.
+- Se detectan solas en el texto del buscador:
+  - **Ejercicios:** "Ejercicio N · Título". No cuenta las menciones del tipo "en el Ejercicio 2".
+  - **Autoevaluación:** el título con "Puntuá…".
+  - **Checklist:** el título con ☐.
+
+  No cuentan las menciones del índice del capítulo. Además se pueden sumar otras páginas a mano ("3, 8-9").
+- Imprime **solo esas páginas**: las dibuja con pdf.js a ~200 dpi y las imprime desde un marco oculto, en A4, una por hoja. En el cuadro de impresión también se puede elegir "Guardar como PDF".
+
 ### Frase del día en el Inicio (`src/lib/frase-del-dia.ts`)
 
 - Tarjeta "✨ Frase del día" arriba del Inicio: frase, "🎯 Acción de hoy" y link al capítulo (abre en la página).
