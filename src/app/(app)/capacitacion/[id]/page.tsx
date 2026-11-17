@@ -10,6 +10,8 @@ import { fechaCorta, pesoLegible, visorDeLink } from "@/lib/capacitacion";
 import { VisorPdf } from "./visor-pdf";
 import { Escuchar } from "./escuchar";
 import { AudioDelCapitulo } from "./audio-capitulo";
+import { ImprimirPaginas } from "./imprimir-paginas";
+import { seccionesImprimibles } from "@/lib/paginas-imprimibles";
 import { listarAudios } from "@/lib/capacitacion-audio";
 import { asegurarColumnaTipo } from "../datos";
 
@@ -88,6 +90,14 @@ export default async function VerMaterialPage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {pdfPropio && (
+            <ImprimirPaginas
+              url={pdfPropio}
+              titulo={nombreMaterial(d.clase, d.numero, d.titulo)}
+              totalPaginas={d.paginas ?? (textoPaginas.length ? textoPaginas[textoPaginas.length - 1].pagina : null)}
+              secciones={seccionesImprimibles(textoPaginas)}
+            />
+          )}
           {esCEO(sesion.rol) && (
             <Link href={`/capacitacion/${id}/editar`} className={boton}>
               ✏️ Editar
