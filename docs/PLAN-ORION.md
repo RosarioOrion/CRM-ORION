@@ -263,6 +263,14 @@ cuando cambie algo.
   No cuentan las menciones del índice del capítulo. Además se pueden sumar otras páginas a mano ("3, 8-9").
 - Imprime **solo esas páginas**: las dibuja con pdf.js a ~200 dpi y las imprime desde un marco oculto, en A4, una por hoja. En el cuadro de impresión también se puede elegir "Guardar como PDF".
 
+### Fotos para Marketplace en el celular (`propiedades/[id]/preparar-marketplace.tsx`)
+
+- En el celular, "📲 Guardar en la galería" usa el menú de compartir (`navigator.share`).
+- **Chrome en Android acepta hasta 10 archivos y unos 50 MB por vez.** Con más, falla sin avisar; antes ese error se tomaba como "cerró el menú" y no pasaba nada.
+- Ahora las fotos se comparten **en tandas de hasta 10** (y 45 MB): un botón por tanda ("Guardar fotos 1 a 10", "11 a 13"). Cada tanda necesita su propio toque, porque el celular lo exige.
+- Si el menú falla por otra cosa, aparece la grilla **"Guardar de a una"**: se mantiene apretada cada foto y se elige "Guardar imagen". También está el link para abrirla a mano.
+- En la computadora sigue el .zip.
+
 ### Frase del día en el Inicio (`src/lib/frase-del-dia.ts`)
 
 - Tarjeta "✨ Frase del día" arriba del Inicio: frase, "🎯 Acción de hoy" y link al capítulo (abre en la página).
