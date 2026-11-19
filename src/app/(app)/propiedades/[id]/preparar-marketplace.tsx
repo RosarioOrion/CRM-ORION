@@ -63,6 +63,28 @@ function armarZip(archivos: { nombre: string; datos: Uint8Array }[]): Blob {
   return new Blob([...partes, ...central, fin], { type: "application/zip" });
 }
 
+// El menú de compartir del celular acepta pocas fotos por vez (Chrome en
+// Android: hasta 10 archivos y unos 50 MB). Con más, falla sin avisar; por
+// eso se comparten en tandas.
+const MAX_POR_TANDA = 10;
+const MAX_BYTES_TANDA = 45 * 1024 * 1024;
+function enTandas(archivos: File[]): File[][] {
+  const tandas: File[][] = [];
+  let actual: File[] = [];
+  let bytes = 0;
+  for (const f of archivos) {
+    if (actual.length && (actual.length >= MAX_POR_TANDA || bytes + f.size > MAX_BYTES_TANDA)) {
+      tandas.push(actual);
+      actual = [];
+      bytes = 0;
+    }
+    actual.push(f);
+    bytes += f.size;
+  }
+  if (actual.length) tandas.push(actual);
+  return tandas;
+}
+
 function Campo({ etiqueta, valor, largo }: { etiqueta: string; valor: string; largo?: boolean }) {
   const [copiado, setCopiado] = useState(false);
   if (!valor) return null;
@@ -105,10 +127,16 @@ export function PrepararMarketplace({ datos }: { datos: DatosMarketplace }) {
   const [archivosCel, setArchivosCel] = useState<File[] | null>(null);
   const [esCelular, setEsCelular] = useState(false);
   const [guardadas, setGuardadas] = useState(false);
+  // Tandas ya compartidas y, si el menú de compartir no anda, la lista de
+  // fotos para guardar de a una.
+  const [tandasListas, setTandasListas] = useState<number[]>([]);
+  const [unaPorUna, setUnaPorUna] = useState(false);
+  const tandas = archivosCel ? enTandas(archivosCel) : [];
 
   useEffect(() => {
     if (!abierto || archivosCel || datos.fotos.length === 0) return;
     const movil = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- detección del dispositivo al abrir
     setEsCelular(movil);
     if (!movil) return;
     let cancelado = false;
@@ -133,30 +161,26 @@ export function PrepararMarketplace({ datos }: { datos: DatosMarketplace }) {
     };
   }, [abierto, archivosCel, datos.fotos, datos.codigo]);
 
-  async function guardarEnGaleria() {
-    if (!archivosCel) return;
+  async function guardarEnGaleria(n: number) {
+    const tanda = tandas[n];
+    if (!tanda) return;
     setError(null);
     const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
-    if (nav.share && nav.canShare?.({ files: archivosCel })) {
-      try {
-        await nav.share({ files: archivosCel });
-        setGuardadas(true);
-      } catch {
-        // La persona cerró el menú: no es un error.
-      }
+    if (!nav.share || !nav.canShare?.({ files: tanda })) {
+      setUnaPorUna(true);
       return;
     }
-    // Sin menú de compartir: se descargan una por una (quedan en Descargas / galería).
-    for (const f of archivosCel) {
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(f);
-      a.download = f.name;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      await new Promise((r) => setTimeout(r, 400));
+    try {
+      await nav.share({ files: tanda });
+      const listas = [...new Set([...tandasListas, n])];
+      setTandasListas(listas);
+      if (listas.length === tandas.length) setGuardadas(true);
+    } catch (e) {
+      // Si la persona cerró el menú no es un error; cualquier otra cosa sí.
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      setError("El celular no dejó compartir las fotos. Guardalas de a una acá abajo.");
+      setUnaPorUna(true);
     }
-    setGuardadas(true);
   }
 
   async function descargarFotos() {
@@ -219,16 +243,32 @@ export function PrepararMarketplace({ datos }: { datos: DatosMarketplace }) {
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            {esCelular && datos.fotos.length > 0 && (
-              <button
-                type="button"
-                disabled={!archivosCel}
-                onClick={guardarEnGaleria}
-                className="rounded-lg bg-orion-gold px-3 py-1.5 text-xs font-semibold text-orion-navy disabled:opacity-60"
-              >
-                {archivosCel
-                  ? `📲 Guardar las ${archivosCel.length} fotos en la galería`
-                  : "Preparando fotos para el celular…"}
+            {esCelular && datos.fotos.length > 0 && !archivosCel && !error && (
+              <span className="text-xs text-gray-500">Preparando fotos para el celular…</span>
+            )}
+            {esCelular &&
+              tandas.map((t, n) => {
+                const desde = tandas.slice(0, n).reduce((s, x) => s + x.length, 1);
+                const lista = tandasListas.includes(n);
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => guardarEnGaleria(n)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                      lista ? "bg-green-100 text-green-800" : "bg-orion-gold text-orion-navy"
+                    }`}
+                  >
+                    {lista ? "✓ " : "📲 "}
+                    {tandas.length === 1
+                      ? `Guardar las ${t.length} fotos en la galería`
+                      : `Guardar fotos ${desde} a ${desde + t.length - 1}`}
+                  </button>
+                );
+              })}
+            {esCelular && archivosCel && !unaPorUna && (
+              <button type="button" onClick={() => setUnaPorUna(true)} className="text-xs text-gray-500 underline">
+                Guardar de a una
               </button>
             )}
             {datos.fotos.length > 0 && esCelular ? null : datos.fotos.length > 0 ? (
@@ -253,11 +293,30 @@ export function PrepararMarketplace({ datos }: { datos: DatosMarketplace }) {
             </a>
           </div>
           {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+          {esCelular && unaPorUna && (
+            <div className="mt-3">
+              <p className="mb-2 text-[11px] text-gray-500 dark:text-gray-400">
+                Mantené apretada cada foto y elegí <b>“Guardar imagen”</b> o <b>“Descargar imagen”</b>. Están en el
+                orden de la ficha.
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {datos.fotos.map((src, i) => (
+                  <a key={src} href={src} download={`${datos.codigo}-${String(i + 1).padStart(2, "0")}.jpg`} className="relative block">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- foto propia servida por /api/fotos */}
+                    <img src={src} alt={`Foto ${i + 1}`} className="aspect-square w-full rounded object-cover" />
+                    <span className="absolute left-1 top-1 rounded bg-black/60 px-1 text-[10px] text-white">{i + 1}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
           {esCelular && (
             <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
               {guardadas
                 ? "✓ Listo. En Facebook elegí las fotos desde la galería (quedan en el mismo orden)."
-                : "En el menú que se abre tocá “Guardar imágenes” (iPhone) o “Guardar en Fotos / Galería” (Android). También podés compartirlas directo a Facebook."}
+                : `En el menú que se abre tocá “Guardar imágenes” (iPhone) o “Guardar en Fotos / Galería” (Android). También podés compartirlas directo a Facebook.${
+                    tandas.length > 1 ? " El celular deja de a 10 fotos por vez: tocá cada botón." : ""
+                  }`}
             </p>
           )}
           <p className="mt-3 text-[11px] text-gray-400">
