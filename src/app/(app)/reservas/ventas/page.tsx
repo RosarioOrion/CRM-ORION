@@ -2,7 +2,8 @@ import { db } from "@/db";
 import { reservasVenta, usuarios } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { equipoVisible, esCEO, esSupervisor } from "@/lib/permisos";
-import { eq, desc, inArray } from "drizzle-orm";
+import { eq, desc, inArray, or } from "drizzle-orm";
+import { usuariosParaReparto } from "@/lib/reparto-reserva-form";
 import { NuevaReservaVentaForm } from "./nueva-reserva-venta-form";
 import { TablaReservasVenta } from "./tabla-reservas-venta";
 
@@ -27,16 +28,32 @@ export default async function ReservasVentaPage() {
       porcentajePorParte: reservasVenta.porcentajePorParte,
       agenteId: reservasVenta.agenteId,
       agenteNombre: usuarios.nombre,
+      tipoComision: reservasVenta.tipoComision,
+      quienPaga: reservasVenta.quienPaga,
+      agentePropiedadId: reservasVenta.agentePropiedadId,
+      agenteClienteId: reservasVenta.agenteClienteId,
+      comisionesGeneradas: reservasVenta.comisionesGeneradas,
     })
     .from(reservasVenta)
     .innerJoin(usuarios, eq(reservasVenta.agenteId, usuarios.id))
-    .where(esCEO(sesion.rol) ? undefined : inArray(reservasVenta.agenteId, visibles))
+    // Las compartidas las ven los dos agentes (y sus jefes).
+    .where(
+      esCEO(sesion.rol)
+        ? undefined
+        : or(
+            inArray(reservasVenta.agenteId, visibles),
+            inArray(reservasVenta.agentePropiedadId, visibles),
+            inArray(reservasVenta.agenteClienteId, visibles)
+          )
+    )
     .orderBy(desc(reservasVenta.creadoEn));
 
   const reservas = filas.map((r) => ({
     ...r,
-    puedeEditar: esCEO(sesion.rol) || r.agenteId === sesion.userId,
+    puedeEditar:
+      esCEO(sesion.rol) || [r.agenteId, r.agentePropiedadId, r.agenteClienteId].includes(sesion.userId),
   }));
+  const usuariosReparto = await usuariosParaReparto();
 
   return (
     <div>
@@ -57,10 +74,15 @@ export default async function ReservasVentaPage() {
       </p>
 
       <div className="mb-6">
-        <NuevaReservaVentaForm />
+        <NuevaReservaVentaForm usuarios={usuariosReparto} yoId={sesion.userId} esCeo={esCEO(sesion.rol)} />
       </div>
 
-      <TablaReservasVenta reservas={reservas} />
+      <TablaReservasVenta
+        reservas={reservas}
+        usuarios={usuariosReparto}
+        yoId={sesion.userId}
+        esCeo={esCEO(sesion.rol)}
+      />
     </div>
   );
 }

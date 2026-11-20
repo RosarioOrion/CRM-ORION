@@ -2,13 +2,25 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { crearReservaVenta, type ReservaVentaState } from "./actions";
+import { CamposReparto } from "../campos-reparto";
+import type { QuienPaga, UsuarioEquipo } from "@/lib/reparto-reserva";
 
 const initialState: ReservaVentaState = {};
 
 const inputClass =
   "rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy dark:border-gray-700 dark:bg-gray-900 dark:text-white";
 
-export function NuevaReservaVentaForm() {
+export function NuevaReservaVentaForm({
+  usuarios,
+  yoId,
+  esCeo,
+}: {
+  usuarios: UsuarioEquipo[];
+  yoId: string;
+  esCeo: boolean;
+}) {
+  const [quienPaga, setQuienPaga] = useState<QuienPaga>("AMBAS");
+  const [vuelta, setVuelta] = useState(0);
   const [state, formAction, pending] = useActionState(crearReservaVenta, initialState);
   const [abierto, setAbierto] = useState(false);
   const [precioCierre, setPrecioCierre] = useState("");
@@ -16,11 +28,15 @@ export function NuevaReservaVentaForm() {
 
   useEffect(() => {
     if (state?.ok && !pending) {
+      /* eslint-disable react-hooks/set-state-in-effect -- cerrar y limpiar el formulario al guardar */
       setAbierto(false);
       const form = document.getElementById("form-nueva-reserva-venta") as HTMLFormElement | null;
       form?.reset();
       setPrecioCierre("");
       setPorcentaje("3");
+      setQuienPaga("AMBAS");
+      setVuelta((v) => v + 1);
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [state?.ok, pending]);
 
@@ -123,24 +139,46 @@ export function NuevaReservaVentaForm() {
           placeholder="% por parte"
           className={inputClass}
         />
-        <input
-          name="comisionVendedor"
-          type="number"
-          min="0"
-          placeholder="Com. vendedor (auto, editable)"
-          defaultValue={sugerido || undefined}
-          key={`cv-${sugerido}`}
-          className={inputClass}
+        <CamposReparto
+          key={vuelta}
+          operacion="VENTA"
+          usuarios={usuarios}
+          yoId={yoId}
+          esCeo={esCeo}
+          onQuienPaga={setQuienPaga}
         />
-        <input
-          name="comisionComprador"
-          type="number"
-          min="0"
-          placeholder="Com. comprador (auto, editable)"
-          defaultValue={sugerido || undefined}
-          key={`cc-${sugerido}`}
-          className={inputClass}
-        />
+        {quienPaga !== "CLIENTE" ? (
+          <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+            Comisión que paga el vendedor (USD)
+            <input
+              name="comisionVendedor"
+              type="number"
+              min="0"
+              placeholder="Com. vendedor (auto, editable)"
+              defaultValue={sugerido || undefined}
+              key={`cv-${sugerido}`}
+              className={inputClass}
+            />
+          </label>
+        ) : (
+          <input type="hidden" name="comisionVendedor" value="0" />
+        )}
+        {quienPaga !== "PROPIETARIO" ? (
+          <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+            Comisión que paga el comprador (USD)
+            <input
+              name="comisionComprador"
+              type="number"
+              min="0"
+              placeholder="Com. comprador (auto, editable)"
+              defaultValue={sugerido || undefined}
+              key={`cc-${sugerido}`}
+              className={inputClass}
+            />
+          </label>
+        ) : (
+          <input type="hidden" name="comisionComprador" value="0" />
+        )}
         <input
           name="senaUsd"
           type="number"

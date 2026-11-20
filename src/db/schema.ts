@@ -579,6 +579,11 @@ export const reservasVenta = pgTable("reservas_venta", {
       notas: text("notas"),
       // Marca si ya se generaron las líneas de comisiones para esta reserva,
       // para no duplicarlas si el estado se vuelve a guardar.
+      // Reparto entre agentes (ver src/lib/reparto-reserva.ts).
+      tipoComision: text("tipo_comision").notNull().default("ENTERA"), // ENTERA | COMPARTIDA
+      quienPaga: text("quien_paga").notNull().default("AMBAS"), // AMBAS | CLIENTE | PROPIETARIO
+      agentePropiedadId: text("agente_propiedad_id"), // cerró (entera) o aportó la propiedad
+      agenteClienteId: text("agente_cliente_id"), // aportó el cliente (compartida)
       comisionesGeneradas: boolean("comisiones_generadas").notNull().default(false),
       agenteId: text("agente_id")
         .notNull()
@@ -624,7 +629,14 @@ export const reservasAlquiler = pgTable("reservas_alquiler", {
       garantia: text("garantia"),
       escribano: text("escribano"),
       comisionTotalUsd: integer("comision_total_usd"),
+      comisionPropietarioUsd: integer("comision_propietario_usd"),
+      comisionInquilinoUsd: integer("comision_inquilino_usd"),
       notas: text("notas"),
+      // Reparto entre agentes (ver src/lib/reparto-reserva.ts).
+      tipoComision: text("tipo_comision").notNull().default("ENTERA"), // ENTERA | COMPARTIDA
+      quienPaga: text("quien_paga").notNull().default("AMBAS"), // AMBAS | CLIENTE | PROPIETARIO
+      agentePropiedadId: text("agente_propiedad_id"), // cerró (entera) o aportó la propiedad
+      agenteClienteId: text("agente_cliente_id"), // aportó el cliente (compartida)
       comisionesGeneradas: boolean("comisiones_generadas").notNull().default(false),
       agenteId: text("agente_id")
         .notNull()
