@@ -60,6 +60,9 @@ export const usuarios = pgTable("usuarios", {
       // Usuarios a medida que el agente progresa, guiado por la
       // facturación acumulada que se calcula en src/lib/comisiones.ts.
       nivelComision: text("nivel_comision").notNull().default("AGENTE"),
+      // % como Team leader sobre las operaciones de su equipo (César 25, un
+      // líder nuevo 10). Ver src/lib/comisiones.ts.
+      porcentajeLider: doublePrecision("porcentaje_lider").notNull().default(10),
       creadoEn: timestamp("creado_en").notNull().defaultNow(),
 });
 

@@ -41,16 +41,28 @@ cuando cambie algo.
   | Asesor | USD 10.000 | 45 % |
   | Ejecutivo | USD 20.000 | 50 % |
 
-- **Reparto PROVISORIO** (constantes `PORCENTAJE_*`):
+- **Reparto DEFINITIVO** (acordado por Rosario con César y Huillen, nov. 2026), en `calcularReparto()`. Todos los % son sobre la comisión total:
+  - **Empresa: 10 % fijo**, nunca baja (`PORCENTAJE_GASTOS_EMPRESA`).
+  - **Agente:** su escala (40 / 45 / 50).
+  - **Team leader:** su % sobre el equipo (`usuarios.porcentaje_lider`). César, "team leader especial", 25 %; un líder nuevo, 10 % (`PORCENTAJE_LIDER_DEFECTO`). Solo la CEO lo ve y lo cambia en Usuarios.
+  - **Administración (Huillen) y Dirección (Rosario):** se reparten por mitades lo que queda.
+  - **Escalas:** el agente sube 5 % y esos 5 % los ceden los de arriba. El líder baja 2,5 % (`BAJA_LIDER_POR_ESCALA`) y Administración y Dirección 1,25 % cada una; sin líder, 2,5 % cada una.
 
-  | Parte | % |
-  |---|---|
-  | Agente | 40 (o según su nivel) |
-  | Gastos de la empresa | 10 (fijo, línea sin beneficiario) |
-  | Líder | 20 |
-  | Administrador | 15 |
-  | CEO | 15 |
+  | Equipo | Agente 40 | Asesor 45 | Ejecutivo 50 |
+  |---|---|---|---|
+  | César (25 %) | César 25 · Huillen 12,5 · Rosario 12,5 | 22,5 · 11,25 · 11,25 | 20 · 10 · 10 |
+  | Líder nuevo (10 %) | líder 10 · 20 · 20 | 7,5 · 18,75 · 18,75 | 5 · 17,5 · 17,5 |
+  | Huillen o Rosario (directo) | Huillen 25 · Rosario 25 | 22,5 · 22,5 | 20 · 20 |
 
+  - **Si vende un líder:** cobra como agente (su nivel) más su % de líder.
+  - **Si venden Huillen o Rosario:** **45 % y 45 %** para las dos, más el 10 % de la empresa, sin importar quién vendió (acuerdo original entre ellas). La parte de quien vendió va como "Comisión agente (operación propia…)", así cuenta para su objetivo del mes.
+  - Si falta la Administradora o la CEO, su parte va a la otra. La diferencia de redondeo (1 dólar) va a la línea de la CEO; la de la empresa queda exacta.
+  - La escala se cuenta por la facturación acumulada desde que entró (no se reinicia por año).
+  - Al arrancar, los Team leaders que ya existían quedaron con 25 % (marca `comisiones-lider-25`).
+- **Privacidad del reparto** (`src/lib/comisiones-texto.ts`, decisión de Rosario): el reparto completo lo ve **solo la CEO**.
+  - Los demás ven la escala de los agentes (40 / 45 / 50).
+  - En las otras líneas ven solo de qué es la comisión, sin porcentaje: "Comisión como team leader", "Comisión de dirección", "Comisión por operación propia".
+  - Esto se aplica en Comisiones y en la nota de Mis finanzas. En Usuarios, el % de líder no se manda a nadie más que a la CEO.
 - La pantalla Comisiones muestra:
   - "Mis comisiones" por separado;
   - un resumen por usuario con buscador por nombre;
@@ -287,11 +299,7 @@ cuando cambie algo.
 
 ## Pendientes
 
-1. **Porcentajes finales de comisiones.** Rosario los define después de la reunión con César y Huillen.
-   - Problema a resolver: con un agente en 45 % o 50 %, el reparto provisorio suma **105 % / 110 %**.
-   - Hay que acordar de dónde sale la diferencia.
-   - Se cambia en las constantes de `src/lib/comisiones.ts`.
-2. **Tutorial del CRM** (ver abajo). Se hace cuando Rosario diga que la primera etapa de Orion está cerrada.
+1. **Tutorial del CRM** (ver abajo). Se hace cuando Rosario diga que la primera etapa de Orion está cerrada.
 
 ## Plan del tutorial (acordado con Rosario)
 
