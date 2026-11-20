@@ -59,10 +59,12 @@ cuando cambie algo.
   - Si falta la Administradora o la CEO, su parte va a la otra. La diferencia de redondeo (1 dólar) va a la línea de la CEO; la de la empresa queda exacta.
   - La escala se cuenta por la facturación acumulada desde que entró (no se reinicia por año).
   - Al arrancar, los Team leaders que ya existían quedaron con 25 % (marca `comisiones-lider-25`).
-- **Privacidad del reparto** (`src/lib/comisiones-texto.ts`, decisión de Rosario): el reparto completo lo ve **solo la CEO**.
-  - Los demás ven la escala de los agentes (40 / 45 / 50).
-  - En las otras líneas ven solo de qué es la comisión, sin porcentaje: "Comisión como team leader", "Comisión de dirección", "Comisión por operación propia".
-  - Esto se aplica en Comisiones y en la nota de Mis finanzas. En Usuarios, el % de líder no se manda a nadie más que a la CEO.
+- **Privacidad del reparto** (`src/lib/comisiones-texto.ts`, decisión de Rosario): **cada uno ve sus propios porcentajes, no los de los demás.** La CEO ve todo.
+  - En sus propias líneas, César ve su % de líder y Huillen el suyo.
+  - La escala de los agentes (40 / 45 / 50) la ve todo el que vea esa línea.
+  - En una línea ajena que no es de agente se muestra solo "Comisión como team leader", "Comisión de dirección" o "Comisión por operación propia", sin %.
+  - En Usuarios, el % de líder lo edita solo la CEO. El líder ve el suyo, sin poder cambiarlo; nadie más lo recibe.
+  - En Mis finanzas, la nota de la comisión va completa, porque son las propias.
 - La pantalla Comisiones muestra:
   - "Mis comisiones" por separado;
   - un resumen por usuario con buscador por nombre;

@@ -88,8 +88,8 @@ export default async function UsuariosPage() {
 
   const agentes = activos.filter((a) => visibles.has(a.id)).map((a) => ({
     ...a,
-    // El % de líder es parte del reparto: solo para la CEO.
-    porcentajeLider: ceo ? a.porcentajeLider : 0,
+    // % de líder: lo ve la CEO y el propio líder (el suyo), nadie más.
+    porcentajeLider: ceo || a.id === sesion.userId ? a.porcentajeLider : 0,
     propiedadesActivas: mapaPropiedades.get(a.id) ?? 0,
     captaciones: mapaCaptaciones.get(a.id) ?? 0,
     visitasProgramadas: mapaVisitas.get(a.id) ?? 0,
