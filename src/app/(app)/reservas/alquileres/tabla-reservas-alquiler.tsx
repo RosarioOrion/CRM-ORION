@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { cambiarEstadoReservaAlquiler } from "./actions";
+import { cambiarEstadoReservaAlquiler, guardarRepartoAlquiler } from "./actions";
+import { RepartoFila } from "../reparto-fila";
+import { esQuienPaga, esTipoComision, type UsuarioEquipo } from "@/lib/reparto-reserva";
 import { ESTADO_RESERVA_ALQUILER_LABEL, type EstadoReservaAlquiler } from "@/lib/reservas";
 
 type Reserva = {
@@ -14,15 +16,29 @@ type Reserva = {
   moneda: string;
   comisionTotalUsd: number | null;
   agenteNombre: string;
+  agenteId: string;
+  tipoComision: string;
+  quienPaga: string;
+  agentePropiedadId: string | null;
+  agenteClienteId: string | null;
+  comisionPropietarioUsd: number | null;
+  comisionInquilinoUsd: number | null;
+  comisionesGeneradas: boolean;
   puedeEditar: boolean;
 };
 
 export function TablaReservasAlquiler({
   reservas,
   esAdmin,
+  usuarios,
+  yoId,
+  esCeo,
 }: {
   reservas: Reserva[];
   esAdmin: boolean;
+  usuarios: UsuarioEquipo[];
+  yoId: string;
+  esCeo: boolean;
 }) {
   const [, startTransition] = useTransition();
   const [estados, setEstados] = useState<Record<string, EstadoReservaAlquiler>>(
@@ -76,7 +92,7 @@ export function TablaReservasAlquiler({
                   {r.propietarioNombre && r.inquilinoNombre ? " · " : ""}
                   {r.inquilinoNombre ? `Inquilino: ${r.inquilinoNombre}` : ""}
                 </p>
-                <p className="mt-1 text-xs text-gray-400">Agente: {r.agenteNombre}</p>
+
               </div>
 
               <div className="text-right">
@@ -92,6 +108,47 @@ export function TablaReservasAlquiler({
                 )}
               </div>
             </div>
+            <RepartoFila
+              reservaId={r.id}
+              operacion="ALQUILER"
+              reparto={{
+                tipoComision: esTipoComision(r.tipoComision) ? r.tipoComision : "ENTERA",
+                quienPaga: esQuienPaga(r.quienPaga) ? r.quienPaga : "AMBAS",
+                agentePropiedadId: r.agentePropiedadId,
+                agenteClienteId: r.agenteClienteId,
+              }}
+              agenteId={r.agenteId}
+              usuarios={usuarios}
+              yoId={yoId}
+              esCeo={esCeo}
+              puedeCambiar={r.puedeEditar && estado !== "CANCELADA"}
+              generadas={r.comisionesGeneradas}
+              guardar={guardarRepartoAlquiler}
+              extra={
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="flex flex-col gap-1">
+                    Paga el propietario (USD)
+                    <input
+                      name="comisionPropietarioUsd"
+                      type="number"
+                      min="0"
+                      defaultValue={r.comisionPropietarioUsd ?? ""}
+                      className="rounded border border-gray-300 px-2 py-1 dark:border-gray-600 dark:bg-gray-900"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    Paga el inquilino (USD)
+                    <input
+                      name="comisionInquilinoUsd"
+                      type="number"
+                      min="0"
+                      defaultValue={r.comisionInquilinoUsd ?? (r.comisionPropietarioUsd == null ? r.comisionTotalUsd ?? "" : "")}
+                      className="rounded border border-gray-300 px-2 py-1 dark:border-gray-600 dark:bg-gray-900"
+                    />
+                  </label>
+                </div>
+              }
+            />
 
             {r.puedeEditar && estado === "RESERVADA" && (
               <div className="mt-3 flex flex-wrap items-center justify-end gap-1.5">

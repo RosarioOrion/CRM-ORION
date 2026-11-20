@@ -197,6 +197,8 @@ export async function generarComisionesOperacion(op: {
   reservaAlquilerId?: string;
   agenteId: string;
   comisionTotal: number;
+  /** Se agrega al concepto de cada línea (ej. "compartida · punta vendedora"). */
+  detalle?: string | null;
 }): Promise<boolean> {
   const [agente] = await db
     .select({ id: usuarios.id, rol: usuarios.rol, nivelComision: usuarios.nivelComision, teamLeaderId: usuarios.teamLeaderId })
@@ -259,7 +261,7 @@ export async function generarComisionesOperacion(op: {
       reservaVentaId: op.reservaVentaId ?? null,
       reservaAlquilerId: op.reservaAlquilerId ?? null,
       beneficiarioId: l.beneficiarioId,
-      concepto: l.concepto,
+      concepto: op.detalle ? `${l.concepto} · ${op.detalle}` : l.concepto,
       porcentaje: l.porcentaje,
       monto: l.monto,
     }))
@@ -291,4 +293,31 @@ export function escalaDe(facturado: number, niveles: NivelComisionConfig[]): Esc
     ? Math.min(100, Math.round(((facturado - desde) / Math.max(1, siguiente.facturacionMinima - desde)) * 100))
     : 100;
   return { facturado, nivel, siguiente, avance };
+}
+
+/**
+ * Genera las comisiones de una reserva, dividida por agente (entera o
+ * compartida, ver src/lib/reparto-reserva.ts). Devuelve false si no había
+ * nada que generar o si alguna parte falló.
+ */
+export async function generarComisionesReserva(op: {
+  tipo: "VENTA" | "ALQUILER";
+  reservaVentaId?: string;
+  reservaAlquilerId?: string;
+  partes: { agenteId: string; monto: number; detalle: string | null }[];
+}): Promise<boolean> {
+  if (!op.partes.length) return false;
+  let todas = true;
+  for (const p of op.partes) {
+    const ok = await generarComisionesOperacion({
+      tipo: op.tipo,
+      reservaVentaId: op.reservaVentaId,
+      reservaAlquilerId: op.reservaAlquilerId,
+      agenteId: p.agenteId,
+      comisionTotal: p.monto,
+      detalle: p.detalle,
+    });
+    todas &&= ok;
+  }
+  return todas;
 }

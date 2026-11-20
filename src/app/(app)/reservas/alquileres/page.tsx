@@ -2,7 +2,8 @@ import { db } from "@/db";
 import { reservasAlquiler, usuarios } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { equipoVisible, esCEO, esSupervisor } from "@/lib/permisos";
-import { eq, desc, inArray } from "drizzle-orm";
+import { eq, desc, inArray, or } from "drizzle-orm";
+import { usuariosParaReparto } from "@/lib/reparto-reserva-form";
 import { NuevaReservaAlquilerForm } from "./nueva-reserva-alquiler-form";
 import { TablaReservasAlquiler } from "./tabla-reservas-alquiler";
 
@@ -26,16 +27,35 @@ export default async function ReservasAlquilerPage() {
       comisionTotalUsd: reservasAlquiler.comisionTotalUsd,
       agenteId: reservasAlquiler.agenteId,
       agenteNombre: usuarios.nombre,
+      tipoComision: reservasAlquiler.tipoComision,
+      quienPaga: reservasAlquiler.quienPaga,
+      agentePropiedadId: reservasAlquiler.agentePropiedadId,
+      agenteClienteId: reservasAlquiler.agenteClienteId,
+      comisionPropietarioUsd: reservasAlquiler.comisionPropietarioUsd,
+      comisionInquilinoUsd: reservasAlquiler.comisionInquilinoUsd,
+      comisionesGeneradas: reservasAlquiler.comisionesGeneradas,
     })
     .from(reservasAlquiler)
     .innerJoin(usuarios, eq(reservasAlquiler.agenteId, usuarios.id))
-    .where(esCEO(sesion.rol) ? undefined : inArray(reservasAlquiler.agenteId, visibles))
+    // Las compartidas las ven los dos agentes (y sus jefes).
+    .where(
+      esCEO(sesion.rol)
+        ? undefined
+        : or(
+            inArray(reservasAlquiler.agenteId, visibles),
+            inArray(reservasAlquiler.agentePropiedadId, visibles),
+            inArray(reservasAlquiler.agenteClienteId, visibles)
+          )
+    )
     .orderBy(desc(reservasAlquiler.creadoEn));
 
   const reservas = filas.map((r) => ({
     ...r,
-    puedeEditar: esCEO(sesion.rol) || r.agenteId === sesion.userId,
+    puedeEditar:
+      esCEO(sesion.rol) || [r.agenteId, r.agentePropiedadId, r.agenteClienteId].includes(sesion.userId),
   }));
+
+  const usuariosReparto = await usuariosParaReparto();
 
   return (
     <div>
@@ -56,10 +76,16 @@ export default async function ReservasAlquilerPage() {
       </p>
 
       <div className="mb-6">
-        <NuevaReservaAlquilerForm />
+        <NuevaReservaAlquilerForm usuarios={usuariosReparto} yoId={sesion.userId} esCeo={esCEO(sesion.rol)} />
       </div>
 
-      <TablaReservasAlquiler reservas={reservas} esAdmin={admin} />
+      <TablaReservasAlquiler
+        reservas={reservas}
+        esAdmin={admin}
+        usuarios={usuariosReparto}
+        yoId={sesion.userId}
+        esCeo={esCEO(sesion.rol)}
+      />
     </div>
   );
 }

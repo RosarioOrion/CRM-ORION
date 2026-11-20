@@ -2,23 +2,39 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { crearReservaAlquiler, type ReservaAlquilerState } from "./actions";
+import { CamposReparto } from "../campos-reparto";
+import type { QuienPaga, UsuarioEquipo } from "@/lib/reparto-reserva";
 
 const initialState: ReservaAlquilerState = {};
 
 const inputClass =
   "rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orion-navy dark:border-gray-700 dark:bg-gray-900 dark:text-white";
 
-export function NuevaReservaAlquilerForm() {
+export function NuevaReservaAlquilerForm({
+  usuarios,
+  yoId,
+  esCeo,
+}: {
+  usuarios: UsuarioEquipo[];
+  yoId: string;
+  esCeo: boolean;
+}) {
   const [state, formAction, pending] = useActionState(crearReservaAlquiler, initialState);
   const [abierto, setAbierto] = useState(false);
+  const [quienPaga, setQuienPaga] = useState<QuienPaga>("AMBAS");
+  const [vuelta, setVuelta] = useState(0);
 
   useEffect(() => {
     if (state?.ok && !pending) {
+      /* eslint-disable react-hooks/set-state-in-effect -- cerrar y limpiar el formulario al guardar */
       setAbierto(false);
       const form = document.getElementById(
         "form-nueva-reserva-alquiler"
       ) as HTMLFormElement | null;
       form?.reset();
+      setQuienPaga("AMBAS");
+      setVuelta((v) => v + 1);
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [state?.ok, pending]);
 
@@ -113,13 +129,34 @@ export function NuevaReservaAlquilerForm() {
           placeholder="Duración (meses)"
           className={inputClass}
         />
-        <input
-          name="comisionTotalUsd"
-          type="number"
-          min="0"
-          placeholder="Monto comisión total USD"
-          className={inputClass}
+        <CamposReparto
+          key={vuelta}
+          operacion="ALQUILER"
+          usuarios={usuarios}
+          yoId={yoId}
+          esCeo={esCeo}
+          onQuienPaga={setQuienPaga}
         />
+        {quienPaga !== "CLIENTE" && (
+          <input
+            name="comisionPropietarioUsd"
+            type="number"
+            min="0"
+            placeholder="Comisión que paga el propietario (USD)"
+            aria-label="Comisión que paga el propietario (USD)"
+            className={inputClass}
+          />
+        )}
+        {quienPaga !== "PROPIETARIO" && (
+          <input
+            name="comisionInquilinoUsd"
+            type="number"
+            min="0"
+            placeholder="Comisión que paga el inquilino (USD)"
+            aria-label="Comisión que paga el inquilino (USD)"
+            className={inputClass}
+          />
+        )}
 
         <label className="text-xs text-gray-500 dark:text-gray-400">
           Fecha reserva

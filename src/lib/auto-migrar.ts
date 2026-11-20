@@ -187,6 +187,15 @@ const SENTENCIAS = [
       INSERT INTO datos_cargados (clave) VALUES ('comisiones-lider-25');
     END IF;
   END $c$`),
+  // Reservas: comisión entera o compartida, quién paga y agentes de cada punta.
+  ...["reservas_venta", "reservas_alquiler"].flatMap((t) => [
+    sql.raw(`ALTER TABLE ${t} ADD COLUMN IF NOT EXISTS tipo_comision text NOT NULL DEFAULT 'ENTERA'`),
+    sql.raw(`ALTER TABLE ${t} ADD COLUMN IF NOT EXISTS quien_paga text NOT NULL DEFAULT 'AMBAS'`),
+    sql.raw(`ALTER TABLE ${t} ADD COLUMN IF NOT EXISTS agente_propiedad_id text`),
+    sql.raw(`ALTER TABLE ${t} ADD COLUMN IF NOT EXISTS agente_cliente_id text`),
+  ]),
+  sql`ALTER TABLE reservas_alquiler ADD COLUMN IF NOT EXISTS comision_propietario_usd integer`,
+  sql`ALTER TABLE reservas_alquiler ADD COLUMN IF NOT EXISTS comision_inquilino_usd integer`,
   // Audios de los capítulos (grabados por la CEO). El archivo va en bytea
   // sin comprimir (STORAGE EXTERNAL) para poder leer pedazos al reproducir.
   sql`CREATE TABLE IF NOT EXISTS capacitacion_audios (

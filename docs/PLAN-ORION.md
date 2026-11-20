@@ -59,6 +59,17 @@ cuando cambie algo.
   - Si falta la Administradora o la CEO, su parte va a la otra. La diferencia de redondeo (1 dólar) va a la línea de la CEO; la de la empresa queda exacta.
   - La escala se cuenta por la facturación acumulada desde que entró (no se reinicia por año).
   - Al arrancar, los Team leaders que ya existían quedaron con 25 % (marca `comisiones-lider-25`).
+- **Comisión entera o compartida** (en la reserva, `src/lib/reparto-reserva.ts`, `reservas/campos-reparto.tsx`):
+  - **Entera:** la cerró un solo agente. Un agente queda él mismo; la CEO puede elegir a cualquiera. Se muestra su líder ("Líder: César" o "Equipo de Huillen").
+  - **Compartida:** se elige el agente que aportó la propiedad y el que aportó el comprador o inquilino, cada uno con su líder.
+  - **¿Quién paga?:** las dos puntas, solo el comprador/inquilino o solo el vendedor/propietario.
+    - Compartida y pagan las dos: cada agente se lleva **la punta que aportó** (la del vendedor/propietario el de la propiedad, la otra el del cliente).
+    - Compartida y paga una sola punta: **mitad y mitad**.
+    - Después, cada parte se reparte con las reglas de arriba, según el líder de ese agente. Al concepto se le agrega "· compartida · punta vendedora", "· mitad…", etc.
+  - En alquileres se cargan por separado lo que paga el propietario y lo que paga el inquilino. `comision_total_usd` queda como la suma.
+  - Las reservas viejas cuentan como entera del agente que las cargó; en alquileres, el total se toma como pagado por el inquilino.
+  - En cada reserva aparece el resumen del reparto y, mientras no se generaron las comisiones, el botón **Cambiar** (`guardarReparto*`).
+  - Una reserva compartida la ven y la mueven los dos agentes y sus jefes. La reserva queda a nombre del agente de la propiedad.
 - **Privacidad del reparto** (`src/lib/comisiones-texto.ts`, decisión de Rosario): **cada uno ve sus propios porcentajes, no los de los demás.** La CEO ve todo.
   - En sus propias líneas, César ve su % de líder y Huillen el suyo.
   - La escala de los agentes (40 / 45 / 50) la ve todo el que vea esa línea.

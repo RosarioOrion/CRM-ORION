@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { cambiarEstadoReservaVenta } from "./actions";
+import { cambiarEstadoReservaVenta, guardarRepartoVenta } from "./actions";
+import { RepartoFila } from "../reparto-fila";
+import { esQuienPaga, esTipoComision, type UsuarioEquipo } from "@/lib/reparto-reserva";
 import {
   ESTADOS_RESERVA_VENTA,
   ESTADO_RESERVA_VENTA_LABEL,
@@ -19,6 +21,12 @@ type Reserva = {
   comisionComprador: number | null;
   porcentajePorParte: number;
   agenteNombre: string;
+  agenteId: string;
+  tipoComision: string;
+  quienPaga: string;
+  agentePropiedadId: string | null;
+  agenteClienteId: string | null;
+  comisionesGeneradas: boolean;
   puedeEditar: boolean;
 };
 
@@ -26,7 +34,17 @@ function fmtUsd(n: number) {
   return `USD ${n.toLocaleString("es-UY")}`;
 }
 
-export function TablaReservasVenta({ reservas }: { reservas: Reserva[] }) {
+export function TablaReservasVenta({
+  reservas,
+  usuarios,
+  yoId,
+  esCeo,
+}: {
+  reservas: Reserva[];
+  usuarios: UsuarioEquipo[];
+  yoId: string;
+  esCeo: boolean;
+}) {
   const [, startTransition] = useTransition();
   const [estados, setEstados] = useState<Record<string, EstadoReservaVenta>>(
     Object.fromEntries(reservas.map((r) => [r.id, r.estado]))
@@ -52,10 +70,14 @@ export function TablaReservasVenta({ reservas }: { reservas: Reserva[] }) {
       {reservas.map((r) => {
         const estado = estados[r.id];
         const idx = ESTADOS_RESERVA_VENTA.indexOf(estado);
-        const comVendedor =
-          r.comisionVendedor ?? Math.round((r.precioCierre * r.porcentajePorParte) / 100);
-        const comComprador =
-          r.comisionComprador ?? Math.round((r.precioCierre * r.porcentajePorParte) / 100);
+        const pagaVendedor = r.quienPaga !== "CLIENTE";
+        const pagaComprador = r.quienPaga !== "PROPIETARIO";
+        const comVendedor = pagaVendedor
+          ? r.comisionVendedor ?? Math.round((r.precioCierre * r.porcentajePorParte) / 100)
+          : 0;
+        const comComprador = pagaComprador
+          ? r.comisionComprador ?? Math.round((r.precioCierre * r.porcentajePorParte) / 100)
+          : 0;
 
         return (
           <div
@@ -85,7 +107,7 @@ export function TablaReservasVenta({ reservas }: { reservas: Reserva[] }) {
                   {r.vendedorNombre && r.compradorNombre ? " · " : ""}
                   {r.compradorNombre ? `Comprador: ${r.compradorNombre}` : ""}
                 </p>
-                <p className="mt-1 text-xs text-gray-400">Agente: {r.agenteNombre}</p>
+
               </div>
 
               <div className="text-right">
@@ -93,10 +115,28 @@ export function TablaReservasVenta({ reservas }: { reservas: Reserva[] }) {
                   {fmtUsd(r.precioCierre)}
                 </p>
                 <p className="text-[11px] text-gray-400">
-                  Com. {fmtUsd(comVendedor + comComprador)} ({r.porcentajePorParte}% c/parte)
+                  Com. {fmtUsd(comVendedor + comComprador)}
+                  {pagaVendedor && pagaComprador ? ` (${r.porcentajePorParte}% c/parte)` : ""}
                 </p>
               </div>
             </div>
+            <RepartoFila
+              reservaId={r.id}
+              operacion="VENTA"
+              reparto={{
+                tipoComision: esTipoComision(r.tipoComision) ? r.tipoComision : "ENTERA",
+                quienPaga: esQuienPaga(r.quienPaga) ? r.quienPaga : "AMBAS",
+                agentePropiedadId: r.agentePropiedadId,
+                agenteClienteId: r.agenteClienteId,
+              }}
+              agenteId={r.agenteId}
+              usuarios={usuarios}
+              yoId={yoId}
+              esCeo={esCeo}
+              puedeCambiar={r.puedeEditar && estado !== "CANCELADA"}
+              generadas={r.comisionesGeneradas}
+              guardar={guardarRepartoVenta}
+            />
 
             {r.puedeEditar && estado !== "CANCELADA" && (
               <div className="mt-3 flex flex-wrap items-center justify-end gap-1.5">
