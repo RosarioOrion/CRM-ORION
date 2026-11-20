@@ -64,9 +64,10 @@ export default async function ComisionesPage({
 
   const comisionesConNombre = filas.map((f) => ({
     id: f.id,
-    // El reparto completo lo ve solo la CEO (ver comisiones-texto.ts).
-    concepto: conceptoVisible(f.concepto, esCEO(sesion.rol)),
-    porcentaje: esCEO(sesion.rol) || esLineaDeEscala(f.concepto) ? f.porcentaje : 0,
+    // Cada uno ve sus propios %; los de los demás, solo la CEO (ver comisiones-texto.ts).
+    concepto: conceptoVisible(f.concepto, esCEO(sesion.rol) || f.beneficiarioId === sesion.userId),
+    porcentaje:
+      esCEO(sesion.rol) || f.beneficiarioId === sesion.userId || esLineaDeEscala(f.concepto) ? f.porcentaje : 0,
     monto: f.monto,
     pagada: f.pagada,
     beneficiarioNombre: f.beneficiarioNombre ?? "🏢 Empresa",

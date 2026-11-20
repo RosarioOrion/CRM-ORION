@@ -1,7 +1,8 @@
 // Cómo se muestra el concepto de una línea de comisión. Decisión de
-// Rosario: el reparto completo (% de líder, Administración y Dirección) lo
-// ve solo la CEO. Los demás ven la escala de los agentes (40 / 45 / 50 %) y,
-// en las otras líneas, solo de qué es la comisión, sin porcentaje.
+// Rosario: cada uno ve SUS PROPIOS porcentajes (César el suyo de líder,
+// Huillen el suyo); los de los demás, solo la CEO. La escala de los agentes
+// (40 / 45 / 50 %) la ve todo el que vea esa línea. En las líneas ajenas
+// que no son de agente se muestra solo de qué es la comisión, sin %.
 
 /** ¿Es una línea de agente de la escala (no una operación propia de la dirección)? */
 export const esLineaDeEscala = (concepto: string) =>

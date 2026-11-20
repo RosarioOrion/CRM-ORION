@@ -1,5 +1,4 @@
 import { and, asc, desc, eq, gte, isNotNull, lt } from "drizzle-orm";
-import { conceptoVisible } from "@/lib/comisiones-texto";
 import { db } from "@/db";
 import { comisiones, finanzasMeses, finanzasMovimientos } from "@/db/schema";
 import { aPesos, categoria, mesSiguiente, type MovimientoMin } from "@/lib/finanzas";
@@ -30,7 +29,7 @@ export async function sincronizarComisiones(usuarioId: string) {
         categoria: "COMISION",
         monto: c.monto,
         moneda: "USD",
-        nota: `${conceptoVisible(c.concepto, false)} (desde Comisiones)`,
+        nota: `${c.concepto} (desde Comisiones)`,
         comisionId: c.id,
       }))
     )

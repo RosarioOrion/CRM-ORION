@@ -268,7 +268,12 @@ export function TablaAgentes({
                     ))}
                   </select>
                   )}
-                  {/* El % de líder lo ve y lo cambia solo la CEO. */}
+                  {/* El % de líder lo cambia solo la CEO; el líder ve el suyo. */}
+                  {!puedeGestionar && roles[a.id] === "TEAM_LEADER" && a.id === usuarioActualId && (
+                    <span className="mt-1 block text-[10px] text-gray-500 dark:text-gray-400">
+                      Como líder: {String(a.porcentajeLider).replace(".", ",")}% del equipo
+                    </span>
+                  )}
                   {puedeGestionar && roles[a.id] === "TEAM_LEADER" && (
                     <label className="mt-1 flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400">
                       Como líder:
