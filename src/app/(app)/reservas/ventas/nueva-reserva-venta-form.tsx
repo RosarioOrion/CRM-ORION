@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { startTransition, useActionState, useEffect, useState } from "react";
 import { crearReservaVenta, type ReservaVentaState } from "./actions";
 import { CamposReparto } from "../campos-reparto";
 import type { QuienPaga, UsuarioEquipo } from "@/lib/reparto-reserva";
@@ -70,7 +70,13 @@ export function NuevaReservaVentaForm({
       </div>
       <form
         id="form-nueva-reserva-venta"
-        action={formAction}
+        // Se envía a mano (no con action=) para que, si hay un error, no se
+        // borre lo que ya estaba escrito. Al guardar bien, se limpia arriba.
+        onSubmit={(e) => {
+          e.preventDefault();
+          const datos = new FormData(e.currentTarget);
+          startTransition(() => formAction(datos));
+        }}
         className="grid grid-cols-1 gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:grid-cols-2 dark:bg-gray-800 dark:border-gray-700"
       >
         <div className="sm:col-span-2">

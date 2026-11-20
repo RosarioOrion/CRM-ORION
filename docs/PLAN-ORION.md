@@ -72,6 +72,7 @@ cuando cambie algo.
   - En alquileres se cargan por separado lo que paga el propietario y lo que paga el inquilino. `comision_total_usd` queda como la suma.
   - Las reservas viejas cuentan como entera del agente que las cargó; en alquileres, el total se toma como pagado por el inquilino.
   - En cada reserva aparece el resumen del reparto y, mientras no se generaron las comisiones, el botón **Cambiar** (`guardarReparto*`).
+  - Los formularios de reserva se envían con `onSubmit` + `startTransition(formAction)` y no con `action=`. Así, si hay un error al guardar, no se borra lo ya escrito: React 19 limpia el formulario después de un `action=`.
   - Una reserva compartida la ven y la mueven los dos agentes y sus jefes. La reserva queda a nombre del agente de la propiedad.
 - **Privacidad del reparto** (`src/lib/comisiones-texto.ts`, decisión de Rosario): **cada uno ve sus propios porcentajes, no los de los demás.** La CEO ve todo.
   - En sus propias líneas, César ve su % de líder y Huillen el suyo.
