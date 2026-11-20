@@ -316,7 +316,18 @@ cuando cambie algo.
 
 ## Pendientes
 
-1. **Tutorial del CRM** (ver abajo). Se hace cuando Rosario diga que la primera etapa de Orion está cerrada.
+Orden acordado con Rosario (nov. 2026):
+
+1. **Copia de seguridad de los datos (próximo, "mañana arrancamos con el 1").** Hoy todo vive en una sola base de Railway (contactos, propiedades con fotos, manual, audios) y no hay copias ni forma de exportar.
+   - Botón **"Descargar respaldo"** solo para la CEO: contactos, propiedades, reservas y comisiones en Excel o CSV.
+   - Revisar si el plan de Railway hace copias automáticas; si no, sumar una copia semanal.
+2. **Qué pasa después del cierre** (Cap. 42, firma y fidelización):
+   - aviso de vencimiento de contratos de alquiler (unos 60 días antes; la reserva ya guarda `duracion_meses`);
+   - seguimiento después de la escritura (7 días, 1 mes, 1 año) para pedir testimonio y referidos, con mensajes de WhatsApp;
+   - marcar a los clientes que cerraron como "Cliente Orion".
+3. **Vencimiento de autorizaciones y exclusividades**: cargar la fecha de fin y avisar antes de que venza.
+4. **Embudo del negocio para la CEO**: captaciones → publicadas → reservas → cierres, con el tiempo de cada paso. Antes, revisar qué muestra hoy `/productividad` para no duplicarlo.
+5. **Tutorial del CRM** (ver abajo). Se hace cuando Rosario diga que la primera etapa de Orion está cerrada. Estimación que se le dio: muestra de 1 capítulo (~2 h), manual PDF (4–6 h), videos (5–8 h), guía dentro de Orion opcional (3–4 h).
 
 ## Plan del tutorial (acordado con Rosario)
 
