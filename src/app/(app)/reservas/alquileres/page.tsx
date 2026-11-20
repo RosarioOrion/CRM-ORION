@@ -31,6 +31,8 @@ export default async function ReservasAlquilerPage() {
       quienPaga: reservasAlquiler.quienPaga,
       agentePropiedadId: reservasAlquiler.agentePropiedadId,
       agenteClienteId: reservasAlquiler.agenteClienteId,
+      otraInmobiliaria: reservasAlquiler.otraInmobiliaria,
+      orionAporta: reservasAlquiler.orionAporta,
       comisionPropietarioUsd: reservasAlquiler.comisionPropietarioUsd,
       comisionInquilinoUsd: reservasAlquiler.comisionInquilinoUsd,
       comisionesGeneradas: reservasAlquiler.comisionesGeneradas,

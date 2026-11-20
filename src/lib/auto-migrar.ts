@@ -193,6 +193,8 @@ const SENTENCIAS = [
     sql.raw(`ALTER TABLE ${t} ADD COLUMN IF NOT EXISTS quien_paga text NOT NULL DEFAULT 'AMBAS'`),
     sql.raw(`ALTER TABLE ${t} ADD COLUMN IF NOT EXISTS agente_propiedad_id text`),
     sql.raw(`ALTER TABLE ${t} ADD COLUMN IF NOT EXISTS agente_cliente_id text`),
+    sql.raw(`ALTER TABLE ${t} ADD COLUMN IF NOT EXISTS otra_inmobiliaria text`),
+    sql.raw(`ALTER TABLE ${t} ADD COLUMN IF NOT EXISTS orion_aporta text`),
   ]),
   sql`ALTER TABLE reservas_alquiler ADD COLUMN IF NOT EXISTS comision_propietario_usd integer`,
   sql`ALTER TABLE reservas_alquiler ADD COLUMN IF NOT EXISTS comision_inquilino_usd integer`,

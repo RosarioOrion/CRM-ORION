@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { cambiarEstadoReservaAlquiler, guardarRepartoAlquiler } from "./actions";
 import { RepartoFila } from "../reparto-fila";
-import { esQuienPaga, esTipoComision, type UsuarioEquipo } from "@/lib/reparto-reserva";
+import { esOrionAporta, esQuienPaga, esTipoComision, type UsuarioEquipo } from "@/lib/reparto-reserva";
 import { ESTADO_RESERVA_ALQUILER_LABEL, type EstadoReservaAlquiler } from "@/lib/reservas";
 
 type Reserva = {
@@ -21,6 +21,8 @@ type Reserva = {
   quienPaga: string;
   agentePropiedadId: string | null;
   agenteClienteId: string | null;
+  otraInmobiliaria: string | null;
+  orionAporta: string | null;
   comisionPropietarioUsd: number | null;
   comisionInquilinoUsd: number | null;
   comisionesGeneradas: boolean;
@@ -116,6 +118,8 @@ export function TablaReservasAlquiler({
                 quienPaga: esQuienPaga(r.quienPaga) ? r.quienPaga : "AMBAS",
                 agentePropiedadId: r.agentePropiedadId,
                 agenteClienteId: r.agenteClienteId,
+                otraInmobiliaria: r.otraInmobiliaria,
+                orionAporta: esOrionAporta(r.orionAporta) ? r.orionAporta : null,
               }}
               agenteId={r.agenteId}
               usuarios={usuarios}
@@ -124,6 +128,11 @@ export function TablaReservasAlquiler({
               puedeCambiar={r.puedeEditar && estado !== "CANCELADA"}
               generadas={r.comisionesGeneradas}
               guardar={guardarRepartoAlquiler}
+              montos={
+                r.comisionPropietarioUsd != null || r.comisionInquilinoUsd != null
+                  ? { propiedad: r.comisionPropietarioUsd ?? 0, cliente: r.comisionInquilinoUsd ?? 0 }
+                  : { propiedad: 0, cliente: r.comisionTotalUsd ?? 0 }
+              }
               extra={
                 <div className="grid grid-cols-2 gap-2">
                   <label className="flex flex-col gap-1">

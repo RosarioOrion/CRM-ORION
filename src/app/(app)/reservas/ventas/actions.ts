@@ -14,7 +14,7 @@ import {
 } from "@/lib/reservas";
 import { generarComisionesReserva } from "@/lib/comisiones";
 import { leerReparto } from "@/lib/reparto-reserva-form";
-import { esQuienPaga, esTipoComision, partesDeComision } from "@/lib/reparto-reserva";
+import { esOrionAporta, esQuienPaga, esTipoComision, partesDeComision } from "@/lib/reparto-reserva";
 import { registrar } from "@/lib/registro-actividad";
 import { ESTADO_RESERVA_VENTA_LABEL } from "@/lib/reservas";
 
@@ -165,6 +165,8 @@ export async function cambiarEstadoReservaVenta(
         quienPaga: esQuienPaga(reserva.quienPaga) ? reserva.quienPaga : "AMBAS",
         agentePropiedadId: reserva.agentePropiedadId ?? reserva.agenteId,
         agenteClienteId: reserva.agenteClienteId,
+        otraInmobiliaria: reserva.otraInmobiliaria,
+        orionAporta: esOrionAporta(reserva.orionAporta) ? reserva.orionAporta : null,
         comisionPropiedad: reserva.comisionVendedor ?? porDefecto,
         comisionCliente: reserva.comisionComprador ?? porDefecto,
       }),

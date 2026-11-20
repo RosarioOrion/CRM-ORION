@@ -3,7 +3,13 @@
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { CamposReparto, type RepartoInicial } from "./campos-reparto";
-import { PUNTA_LABEL, QUIEN_PAGA_LABEL, liderDe, type UsuarioEquipo } from "@/lib/reparto-reserva";
+import {
+  PUNTA_LABEL,
+  QUIEN_PAGA_LABEL,
+  divisionConOtraInmobiliaria,
+  liderDe,
+  type UsuarioEquipo,
+} from "@/lib/reparto-reserva";
 
 // En cada reserva: cómo se divide la comisión (entera o compartida, quién
 // paga y el líder de cada agente) y, mientras no se generaron las
@@ -21,6 +27,7 @@ export function RepartoFila({
   generadas,
   guardar,
   extra,
+  montos,
 }: {
   reservaId: string;
   operacion: "VENTA" | "ALQUILER";
@@ -34,6 +41,8 @@ export function RepartoFila({
   guardar: (id: string, fd: FormData) => Promise<{ error?: string }>;
   /** Campos extra dentro del formulario (ej. montos de cada punta). */
   extra?: ReactNode;
+  /** Lo que paga cada punta (para mostrar la parte de Orion con otra inmobiliaria). */
+  montos?: { propiedad: number; cliente: number };
 }) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
@@ -43,11 +52,36 @@ export function RepartoFila({
   const propiedad = reparto.agentePropiedadId ?? agenteId;
   const compartida = reparto.tipoComision === "COMPARTIDA" && reparto.agenteClienteId;
   const puntas = PUNTA_LABEL[operacion];
+  const conOtra = reparto.tipoComision === "OTRA_INMOBILIARIA";
+  const division =
+    conOtra && montos
+      ? divisionConOtraInmobiliaria(
+          operacion,
+          reparto.quienPaga,
+          reparto.orionAporta ?? "PROPIEDAD",
+          reparto.quienPaga === "CLIENTE" ? 0 : montos.propiedad,
+          reparto.quienPaga === "PROPIETARIO" ? 0 : montos.cliente
+        )
+      : null;
+  const usd = (n: number) => `USD ${n.toLocaleString("es-UY")}`;
 
   return (
     <div className="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-gray-900/40 dark:text-gray-300">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        {compartida ? (
+        {conOtra ? (
+          <>
+            <span className="font-semibold text-orion-navy dark:text-white">🏢 Con {reparto.otraInmobiliaria ?? "otra inmobiliaria"}</span>
+            <span>
+              Orion aportó {reparto.orionAporta === "CLIENTE" ? (operacion === "VENTA" ? "el comprador" : "el inquilino") : "la propiedad"}:{" "}
+              {nombre(propiedad)} <span className="text-gray-400">({liderDe(propiedad, usuarios)})</span>
+            </span>
+            {division && (
+              <span>
+                Orion {usd(division.orion)} · {reparto.otraInmobiliaria ?? "la otra"} {usd(division.otra)}
+              </span>
+            )}
+          </>
+        ) : compartida ? (
           <>
             <span className="font-semibold text-orion-navy dark:text-white">🤝 Compartida</span>
             <span>

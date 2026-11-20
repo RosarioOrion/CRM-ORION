@@ -5,6 +5,7 @@ import {
   PUNTA_LABEL,
   QUIEN_PAGA_LABEL,
   liderDe,
+  type OrionAporta,
   type QuienPaga,
   type TipoComision,
   type UsuarioEquipo,
@@ -19,6 +20,8 @@ export type RepartoInicial = {
   quienPaga: QuienPaga;
   agentePropiedadId: string | null;
   agenteClienteId: string | null;
+  otraInmobiliaria?: string | null;
+  orionAporta?: OrionAporta | null;
 };
 
 const inputClass =
@@ -84,6 +87,8 @@ export function CamposReparto({
   const [paga, setPaga] = useState<QuienPaga>(inicial?.quienPaga ?? "AMBAS");
   const [propiedad, setPropiedad] = useState(inicial?.agentePropiedadId ?? yoId);
   const [cliente, setCliente] = useState(inicial?.agenteClienteId ?? "");
+  const [otra, setOtra] = useState(inicial?.otraInmobiliaria ?? "");
+  const [aporta, setAporta] = useState<OrionAporta>(inicial?.orionAporta ?? "PROPIEDAD");
   const puntas = PUNTA_LABEL[operacion];
   const radio = (activo: boolean) =>
     `flex-1 cursor-pointer rounded-lg border px-3 py-2 text-center text-xs font-semibold ${
@@ -97,6 +102,7 @@ export function CamposReparto({
       <p className="text-sm font-semibold text-orion-navy dark:text-white">💰 Comisión</p>
       <input type="hidden" name="tipoComision" value={tipo} />
       <input type="hidden" name="quienPaga" value={paga} />
+      {tipo === "OTRA_INMOBILIARIA" && <input type="hidden" name="orionAporta" value={aporta} />}
 
       <div className="flex gap-2">
         <button type="button" onClick={() => setTipo("ENTERA")} className={radio(tipo === "ENTERA")}>
@@ -105,11 +111,48 @@ export function CamposReparto({
         </button>
         <button type="button" onClick={() => setTipo("COMPARTIDA")} className={radio(tipo === "COMPARTIDA")}>
           Compartida
-          <span className="block text-[10px] font-normal opacity-80">propiedad de uno, cliente de otro</span>
+          <span className="block text-[10px] font-normal opacity-80">entre dos agentes de Orion</span>
+        </button>
+        <button type="button" onClick={() => setTipo("OTRA_INMOBILIARIA")} className={radio(tipo === "OTRA_INMOBILIARIA")}>
+          Con otra inmobiliaria
+          <span className="block text-[10px] font-normal opacity-80">la otra punta es de afuera</span>
         </button>
       </div>
 
-      {tipo === "ENTERA" ? (
+      {tipo === "OTRA_INMOBILIARIA" ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+            Inmobiliaria con la que se comparte
+            <input
+              name="otraInmobiliaria"
+              value={otra}
+              onChange={(e) => setOtra(e.target.value)}
+              placeholder="Nombre de la inmobiliaria"
+              required
+              className={inputClass}
+            />
+          </label>
+          <div className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400">
+            Orion aportó
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setAporta("PROPIEDAD")} className={radio(aporta === "PROPIEDAD")}>
+                La propiedad
+              </button>
+              <button type="button" onClick={() => setAporta("CLIENTE")} className={radio(aporta === "CLIENTE")}>
+                {operacion === "VENTA" ? "El comprador" : "El inquilino"}
+              </button>
+            </div>
+          </div>
+          <ElegirAgente
+            name="agentePropiedadId"
+            etiqueta="Agente de Orion"
+            valor={propiedad}
+            onChange={setPropiedad}
+            usuarios={usuarios}
+            fijo={!esCeo}
+          />
+        </div>
+      ) : tipo === "ENTERA" ? (
         <ElegirAgente
           name="agentePropiedadId"
           etiqueta="Agente que cerró"
@@ -156,6 +199,14 @@ export function CamposReparto({
         </div>
       </div>
 
+      {tipo === "OTRA_INMOBILIARIA" && (
+        <p className="text-[11px] text-gray-600 dark:text-gray-300">
+          {paga === "AMBAS"
+            ? `Orion se queda con la ${aporta === "PROPIEDAD" ? puntas.propiedad : puntas.cliente} y la otra inmobiliaria con la suya.`
+            : "Paga una sola punta: mitad para Orion y mitad para la otra inmobiliaria."}{" "}
+          Solo la parte de Orion se reparte (agente, líder, dirección y empresa).
+        </p>
+      )}
       {tipo === "COMPARTIDA" && (
         <p className="text-[11px] text-gray-600 dark:text-gray-300">
           {paga === "AMBAS"

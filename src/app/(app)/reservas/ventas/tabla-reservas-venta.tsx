@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { cambiarEstadoReservaVenta, guardarRepartoVenta } from "./actions";
 import { RepartoFila } from "../reparto-fila";
-import { esQuienPaga, esTipoComision, type UsuarioEquipo } from "@/lib/reparto-reserva";
+import { esOrionAporta, esQuienPaga, esTipoComision, type UsuarioEquipo } from "@/lib/reparto-reserva";
 import {
   ESTADOS_RESERVA_VENTA,
   ESTADO_RESERVA_VENTA_LABEL,
@@ -26,6 +26,8 @@ type Reserva = {
   quienPaga: string;
   agentePropiedadId: string | null;
   agenteClienteId: string | null;
+  otraInmobiliaria: string | null;
+  orionAporta: string | null;
   comisionesGeneradas: boolean;
   puedeEditar: boolean;
 };
@@ -128,6 +130,8 @@ export function TablaReservasVenta({
                 quienPaga: esQuienPaga(r.quienPaga) ? r.quienPaga : "AMBAS",
                 agentePropiedadId: r.agentePropiedadId,
                 agenteClienteId: r.agenteClienteId,
+                otraInmobiliaria: r.otraInmobiliaria,
+                orionAporta: esOrionAporta(r.orionAporta) ? r.orionAporta : null,
               }}
               agenteId={r.agenteId}
               usuarios={usuarios}
@@ -136,6 +140,10 @@ export function TablaReservasVenta({
               puedeCambiar={r.puedeEditar && estado !== "CANCELADA"}
               generadas={r.comisionesGeneradas}
               guardar={guardarRepartoVenta}
+              montos={{
+                propiedad: r.comisionVendedor ?? Math.round((r.precioCierre * r.porcentajePorParte) / 100),
+                cliente: r.comisionComprador ?? Math.round((r.precioCierre * r.porcentajePorParte) / 100),
+              }}
             />
 
             {r.puedeEditar && estado !== "CANCELADA" && (
