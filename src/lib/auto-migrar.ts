@@ -178,6 +178,15 @@ const SENTENCIAS = [
     busqueda text NOT NULL,
     PRIMARY KEY (documento_id, pagina)
   )`,
+  // Comisiones (acuerdo nov. 2026): % de líder por usuario. Los líderes que
+  // ya existían (César) arrancan con 25%; los nuevos, con 10%.
+  sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS porcentaje_lider double precision NOT NULL DEFAULT 10`,
+  sql.raw(`DO $c$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM datos_cargados WHERE clave = 'comisiones-lider-25') THEN
+      UPDATE usuarios SET porcentaje_lider = 25 WHERE rol = 'TEAM_LEADER';
+      INSERT INTO datos_cargados (clave) VALUES ('comisiones-lider-25');
+    END IF;
+  END $c$`),
   // Audios de los capítulos (grabados por la CEO). El archivo va en bytea
   // sin comprimir (STORAGE EXTERNAL) para poder leer pedazos al reproducir.
   sql`CREATE TABLE IF NOT EXISTS capacitacion_audios (

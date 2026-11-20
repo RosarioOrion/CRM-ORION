@@ -129,6 +129,17 @@ export async function cambiarNivelComisionUsuario(usuarioId: string, nivel: stri
   revalidatePath("/admin/usuarios");
 }
 
+/** % de un Team leader sobre las operaciones de su equipo (César 25, nuevo 10). */
+export async function cambiarPorcentajeLider(usuarioId: string, porcentaje: number) {
+  await requerirAdmin();
+  const pct = Math.round(Number(porcentaje) * 100) / 100;
+  if (!Number.isFinite(pct) || pct < 0 || pct > 40) return;
+  const [u] = await db.select({ rol: usuarios.rol }).from(usuarios).where(eq(usuarios.id, usuarioId));
+  if (!u || u.rol !== "TEAM_LEADER") return;
+  await db.update(usuarios).set({ porcentajeLider: pct }).where(eq(usuarios.id, usuarioId));
+  revalidatePath("/admin/usuarios");
+}
+
 export async function cambiarEstadoUsuario(usuarioId: string, activo: boolean) {
   const sesion = await requerirAdmin();
   if (usuarioId === sesion.userId) {

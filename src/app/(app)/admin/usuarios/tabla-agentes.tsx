@@ -6,6 +6,7 @@ import {
   cambiarRolUsuario,
   cambiarEstadoUsuario,
   cambiarNivelComisionUsuario,
+  cambiarPorcentajeLider,
   cambiarResponsable,
   eliminarUsuario,
 } from "./actions";
@@ -39,6 +40,7 @@ type Agente = {
   activo: boolean;
   teamLeaderId: string | null;
   nivelComision: string;
+  porcentajeLider: number;
   propiedadesActivas: number;
   captaciones: number;
   visitasProgramadas: number;
@@ -265,6 +267,26 @@ export function TablaAgentes({
                       </option>
                     ))}
                   </select>
+                  )}
+                  {/* El % de líder lo ve y lo cambia solo la CEO. */}
+                  {puedeGestionar && roles[a.id] === "TEAM_LEADER" && (
+                    <label className="mt-1 flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400">
+                      Como líder:
+                      <input
+                        type="number"
+                        min={0}
+                        max={40}
+                        step={0.5}
+                        defaultValue={a.porcentajeLider}
+                        disabled={!puedeGestionar}
+                        onBlur={(e) => {
+                          const v = Number(e.target.value);
+                          if (v !== a.porcentajeLider) startTransition(() => cambiarPorcentajeLider(a.id, v));
+                        }}
+                        className={`${sel} w-14 disabled:opacity-70`}
+                      />
+                      % del equipo
+                    </label>
                   )}
                 </td>
                 <td className="px-4 py-3 text-right text-gray-700 dark:text-gray-200">

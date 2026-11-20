@@ -48,6 +48,7 @@ export default async function UsuariosPage() {
           rol: usuarios.rol,
           activo: usuarios.activo,
           nivelComision: usuarios.nivelComision,
+          porcentajeLider: usuarios.porcentajeLider,
           teamLeaderId: usuarios.teamLeaderId,
         })
         .from(usuarios)
@@ -87,6 +88,8 @@ export default async function UsuariosPage() {
 
   const agentes = activos.filter((a) => visibles.has(a.id)).map((a) => ({
     ...a,
+    // El % de líder es parte del reparto: solo para la CEO.
+    porcentajeLider: ceo ? a.porcentajeLider : 0,
     propiedadesActivas: mapaPropiedades.get(a.id) ?? 0,
     captaciones: mapaCaptaciones.get(a.id) ?? 0,
     visitasProgramadas: mapaVisitas.get(a.id) ?? 0,

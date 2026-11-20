@@ -1,4 +1,5 @@
 import { db } from "@/db";
+import { conceptoVisible, esLineaDeEscala } from "@/lib/comisiones-texto";
 import { comisiones, usuarios, reservasVenta, reservasAlquiler } from "@/db/schema";
 import { obtenerSesion } from "@/lib/auth";
 import { equipoVisible, esCEO, esSupervisor } from "@/lib/permisos";
@@ -63,8 +64,9 @@ export default async function ComisionesPage({
 
   const comisionesConNombre = filas.map((f) => ({
     id: f.id,
-    concepto: f.concepto,
-    porcentaje: f.porcentaje,
+    // El reparto completo lo ve solo la CEO (ver comisiones-texto.ts).
+    concepto: conceptoVisible(f.concepto, esCEO(sesion.rol)),
+    porcentaje: esCEO(sesion.rol) || esLineaDeEscala(f.concepto) ? f.porcentaje : 0,
     monto: f.monto,
     pagada: f.pagada,
     beneficiarioNombre: f.beneficiarioNombre ?? "🏢 Empresa",
