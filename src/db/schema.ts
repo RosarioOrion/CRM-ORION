@@ -584,6 +584,8 @@ export const reservasVenta = pgTable("reservas_venta", {
       quienPaga: text("quien_paga").notNull().default("AMBAS"), // AMBAS | CLIENTE | PROPIETARIO
       agentePropiedadId: text("agente_propiedad_id"), // cerró (entera) o aportó la propiedad
       agenteClienteId: text("agente_cliente_id"), // aportó el cliente (compartida)
+      otraInmobiliaria: text("otra_inmobiliaria"), // OTRA_INMOBILIARIA: con quién
+      orionAporta: text("orion_aporta"), // OTRA_INMOBILIARIA: PROPIEDAD | CLIENTE
       comisionesGeneradas: boolean("comisiones_generadas").notNull().default(false),
       agenteId: text("agente_id")
         .notNull()
@@ -637,6 +639,8 @@ export const reservasAlquiler = pgTable("reservas_alquiler", {
       quienPaga: text("quien_paga").notNull().default("AMBAS"), // AMBAS | CLIENTE | PROPIETARIO
       agentePropiedadId: text("agente_propiedad_id"), // cerró (entera) o aportó la propiedad
       agenteClienteId: text("agente_cliente_id"), // aportó el cliente (compartida)
+      otraInmobiliaria: text("otra_inmobiliaria"), // OTRA_INMOBILIARIA: con quién
+      orionAporta: text("orion_aporta"), // OTRA_INMOBILIARIA: PROPIEDAD | CLIENTE
       comisionesGeneradas: boolean("comisiones_generadas").notNull().default(false),
       agenteId: text("agente_id")
         .notNull()

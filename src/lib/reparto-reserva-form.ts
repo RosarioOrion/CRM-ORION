@@ -3,7 +3,14 @@ import { db } from "@/db";
 import { usuarios } from "@/db/schema";
 import type { SessionPayload } from "@/lib/auth";
 import { esCEO } from "@/lib/permisos";
-import { esQuienPaga, esTipoComision, type QuienPaga, type TipoComision } from "@/lib/reparto-reserva";
+import {
+  esOrionAporta,
+  esQuienPaga,
+  esTipoComision,
+  type OrionAporta,
+  type QuienPaga,
+  type TipoComision,
+} from "@/lib/reparto-reserva";
 
 // Lee y valida los campos de reparto de una reserva (formulario de alta o
 // "Cambiar reparto"). Un agente solo puede cargar una reserva donde él sea
@@ -14,6 +21,8 @@ export type DatosReparto = {
   quienPaga: QuienPaga;
   agentePropiedadId: string;
   agenteClienteId: string | null;
+  otraInmobiliaria: string | null;
+  orionAporta: OrionAporta | null;
 };
 
 /** Usuarios que pueden figurar como agentes de una reserva. */
@@ -37,7 +46,16 @@ export async function leerReparto(
   let agentePropiedadId = String(formData.get("agentePropiedadId") || "") || sesion.userId;
   let agenteClienteId = tipoComision === "COMPARTIDA" ? String(formData.get("agenteClienteId") || "") || null : null;
 
-  if (tipoComision === "ENTERA" && !ceo) agentePropiedadId = sesion.userId;
+  // Entera o con otra inmobiliaria: un solo agente de Orion.
+  if (tipoComision !== "COMPARTIDA" && !ceo) agentePropiedadId = sesion.userId;
+  let otraInmobiliaria: string | null = null;
+  let orionAporta: OrionAporta | null = null;
+  if (tipoComision === "OTRA_INMOBILIARIA") {
+    otraInmobiliaria = String(formData.get("otraInmobiliaria") || "").trim().slice(0, 120) || null;
+    if (!otraInmobiliaria) return { error: "Escribí con qué inmobiliaria se comparte." };
+    const ap = formData.get("orionAporta");
+    orionAporta = esOrionAporta(ap) ? ap : "PROPIEDAD";
+  }
   if (tipoComision === "COMPARTIDA") {
     if (!agenteClienteId) return { error: "Elegí el agente que aportó el cliente." };
     if (agenteClienteId === agentePropiedadId) return { error: "En una comisión compartida tienen que ser dos agentes distintos." };
@@ -49,6 +67,6 @@ export async function leerReparto(
   if (!validos.has(agentePropiedadId) || (agenteClienteId && !validos.has(agenteClienteId))) {
     return { error: "Alguno de los agentes elegidos no está activo en Orion." };
   }
-  if (tipoComision === "ENTERA") agenteClienteId = null;
-  return { datos: { tipoComision, quienPaga, agentePropiedadId, agenteClienteId } };
+  if (tipoComision !== "COMPARTIDA") agenteClienteId = null;
+  return { datos: { tipoComision, quienPaga, agentePropiedadId, agenteClienteId, otraInmobiliaria, orionAporta } };
 }

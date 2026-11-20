@@ -32,6 +32,8 @@ export default async function ReservasVentaPage() {
       quienPaga: reservasVenta.quienPaga,
       agentePropiedadId: reservasVenta.agentePropiedadId,
       agenteClienteId: reservasVenta.agenteClienteId,
+      otraInmobiliaria: reservasVenta.otraInmobiliaria,
+      orionAporta: reservasVenta.orionAporta,
       comisionesGeneradas: reservasVenta.comisionesGeneradas,
     })
     .from(reservasVenta)

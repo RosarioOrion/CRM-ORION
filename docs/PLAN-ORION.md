@@ -66,6 +66,9 @@ cuando cambie algo.
     - Compartida y pagan las dos: cada agente se lleva **la punta que aportó** (la del vendedor/propietario el de la propiedad, la otra el del cliente).
     - Compartida y paga una sola punta: **mitad y mitad**.
     - Después, cada parte se reparte con las reglas de arriba, según el líder de ese agente. Al concepto se le agrega "· compartida · punta vendedora", "· mitad…", etc.
+  - **Con otra inmobiliaria** (`OTRA_INMOBILIARIA`): se carga el nombre de la inmobiliaria (obligatorio), qué aportó Orion (la propiedad o el cliente) y el agente de Orion, que se guarda en `agente_propiedad_id`.
+    - Si pagan las dos puntas, Orion se queda con **su punta**; si paga una sola, con **la mitad** (`divisionConOtraInmobiliaria()`).
+    - Solo la parte de Orion genera comisiones. La de la otra inmobiliaria se muestra en la reserva ("Orion USD … · Inmobiliaria X USD …"), pero no se registra en Comisiones.
   - En alquileres se cargan por separado lo que paga el propietario y lo que paga el inquilino. `comision_total_usd` queda como la suma.
   - Las reservas viejas cuentan como entera del agente que las cargó; en alquileres, el total se toma como pagado por el inquilino.
   - En cada reserva aparece el resumen del reparto y, mientras no se generaron las comisiones, el botón **Cambiar** (`guardarReparto*`).

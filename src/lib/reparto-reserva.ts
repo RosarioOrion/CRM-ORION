@@ -9,10 +9,18 @@
 //       (la del vendedor/propietario el de la propiedad; la del comprador/
 //       inquilino el del cliente).
 //     · Si paga una sola punta: se divide en 2 mitades.
+// - OTRA_INMOBILIARIA: Orion aportó la propiedad o el cliente y la otra
+//   punta es de otra inmobiliaria. Misma regla: si pagan las dos puntas,
+//   Orion se queda con la suya; si paga una sola, la mitad. Solo la parte
+//   de Orion genera comisiones; la de la otra inmobiliaria no entra.
+//   (agentePropiedadId guarda el agente de Orion.)
 // Las reservas viejas (sin estos datos) cuentan como ENTERA del agente que
 // la cargó.
 
-export type TipoComision = "ENTERA" | "COMPARTIDA";
+export type TipoComision = "ENTERA" | "COMPARTIDA" | "OTRA_INMOBILIARIA";
+/** Qué aportó Orion cuando se comparte con otra inmobiliaria. */
+export type OrionAporta = "PROPIEDAD" | "CLIENTE";
+export const esOrionAporta = (v: unknown): v is OrionAporta => v === "PROPIEDAD" || v === "CLIENTE";
 /** Quién paga comisión: las dos puntas, solo el cliente (comprador o inquilino) o solo el propietario. */
 export type QuienPaga = "AMBAS" | "CLIENTE" | "PROPIETARIO";
 
@@ -26,7 +34,8 @@ export const PUNTA_LABEL: Record<"VENTA" | "ALQUILER", { propiedad: string; clie
   ALQUILER: { propiedad: "punta propietaria", cliente: "punta inquilina" },
 };
 
-export const esTipoComision = (v: unknown): v is TipoComision => v === "ENTERA" || v === "COMPARTIDA";
+export const esTipoComision = (v: unknown): v is TipoComision =>
+  v === "ENTERA" || v === "COMPARTIDA" || v === "OTRA_INMOBILIARIA";
 export const esQuienPaga = (v: unknown): v is QuienPaga => v === "AMBAS" || v === "CLIENTE" || v === "PROPIETARIO";
 
 export type ParteComision = { agenteId: string; monto: number; detalle: string | null };
@@ -43,11 +52,21 @@ export function partesDeComision(r: {
   /** Lo que paga el vendedor/propietario y lo que paga el comprador/inquilino. */
   comisionPropiedad: number;
   comisionCliente: number;
+  /** Solo con OTRA_INMOBILIARIA. */
+  otraInmobiliaria?: string | null;
+  orionAporta?: OrionAporta | null;
 }): ParteComision[] {
   const pagaPropiedad = r.quienPaga === "CLIENTE" ? 0 : Math.max(0, Math.round(r.comisionPropiedad));
   const pagaCliente = r.quienPaga === "PROPIETARIO" ? 0 : Math.max(0, Math.round(r.comisionCliente));
   const total = pagaPropiedad + pagaCliente;
   if (total <= 0) return [];
+
+  if (r.tipoComision === "OTRA_INMOBILIARIA") {
+    const o = divisionConOtraInmobiliaria(r.operacion, r.quienPaga, r.orionAporta ?? "PROPIEDAD", pagaPropiedad, pagaCliente);
+    if (o.orion <= 0) return [];
+    const con = r.otraInmobiliaria ? `con ${r.otraInmobiliaria}` : "con otra inmobiliaria";
+    return [{ agenteId: r.agentePropiedadId, monto: o.orion, detalle: `compartida ${con} · ${o.etiqueta}` }];
+  }
 
   const compartida =
     r.tipoComision === "COMPARTIDA" && !!r.agenteClienteId && r.agenteClienteId !== r.agentePropiedadId;
@@ -65,6 +84,27 @@ export function partesDeComision(r: {
     { agenteId: r.agentePropiedadId, monto: mitad, detalle: "compartida · mitad (aportó la propiedad)" },
     { agenteId: r.agenteClienteId!, monto: total - mitad, detalle: "compartida · mitad (aportó el cliente)" },
   ];
+}
+
+/**
+ * Con otra inmobiliaria: cuánto queda para Orion y cuánto para la otra.
+ * Pagan las dos puntas → cada una su punta; paga una sola → mitad y mitad.
+ */
+export function divisionConOtraInmobiliaria(
+  operacion: "VENTA" | "ALQUILER",
+  quienPaga: QuienPaga,
+  orionAporta: OrionAporta,
+  pagaPropiedad: number,
+  pagaCliente: number
+): { orion: number; otra: number; etiqueta: string } {
+  const total = pagaPropiedad + pagaCliente;
+  if (quienPaga === "AMBAS") {
+    const orion = orionAporta === "PROPIEDAD" ? pagaPropiedad : pagaCliente;
+    const punta = orionAporta === "PROPIEDAD" ? PUNTA_LABEL[operacion].propiedad : PUNTA_LABEL[operacion].cliente;
+    return { orion, otra: total - orion, etiqueta: punta };
+  }
+  const orion = Math.round(total / 2);
+  return { orion, otra: total - orion, etiqueta: "mitad" };
 }
 
 /** Para mostrar el equipo de un usuario: su líder, o de quién es el equipo directo. */
