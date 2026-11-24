@@ -19,13 +19,15 @@ import {
   estaVencido,
   DURACION_CICLO,
   UMBRAL_REVISAR_PRECIO_DIAS,
-  UMBRAL_ESTANCADA_DIAS,
   proximoLunesQueToca,
   estadoRecurrente,
   diasDeAtraso,
   semanaPideAjuste,
   fechaCorta,
   esFrecuencia,
+  frecuenciaRepublicar,
+  umbralSinContacto,
+  SIN_SEGUIMIENTO,
   lunesDe,
   type CategoriaPipeline,
 } from "@/lib/pipeline";
@@ -125,7 +127,10 @@ export async function armarTarjetasPipeline(
 
     let seguimiento: TarjetaPipelineProps["seguimiento"] = null;
     let republicar: TarjetaPipelineProps["republicar"] = null;
-    if (frecuencia) {
+    if (frecuencia === SIN_SEGUIMIENTO) {
+      // El dueño pidió que lo llamen solo si hay interesados.
+      seguimiento = { estado: "SIN", toca: "", diasAtraso: 0, proximaISO: "" };
+    } else if (frecuencia) {
       const tocaSeg = proximoLunesQueToca(ultimoSeg?.fecha ?? null, inicio, frecuencia);
       const estSeg = estadoRecurrente(tocaSeg, !!ultimoSeg, ahoraLocal);
       seguimiento = {
@@ -134,11 +139,12 @@ export async function armarTarjetasPipeline(
         diasAtraso: estSeg === "ATRASADO" ? diasDeAtraso(tocaSeg, ahoraLocal) : 0,
         proximaISO: `${tocaSeg.getFullYear()}-${String(tocaSeg.getMonth() + 1).padStart(2, "0")}-${String(tocaSeg.getDate()).padStart(2, "0")}`,
       };
-
+    }
+    if (frecuencia !== null) {
       const ultimaRep = deEsta.find((a) => a.descripcion === DESCRIPCION_REPUBLICADO) ?? null;
       // pipeline_acciones guarda la hora real (UTC): la pasamos a hora de Uruguay.
       const ultimaRepUY = ultimaRep ? new Date(ultimaRep.creadoEn.getTime() - 3 * 3600 * 1000) : null;
-      const tocaRep = proximoLunesQueToca(ultimaRepUY, inicio, frecuencia);
+      const tocaRep = proximoLunesQueToca(ultimaRepUY, inicio, frecuenciaRepublicar(frecuencia));
       const estRep = estadoRecurrente(tocaRep, !!ultimaRep, ahoraLocal);
       republicar = {
         estado: estRep,
@@ -174,7 +180,11 @@ export async function armarTarjetasPipeline(
       esFinal,
       vencido: estaVencido(dias, p.operacion),
       revisarPrecio: diasSinAjuste >= UMBRAL_REVISAR_PRECIO_DIAS,
-      estancada: diasSinContacto === null || diasSinContacto >= UMBRAL_ESTANCADA_DIAS,
+      estancada:
+        diasSinContacto === null
+          ? frecuencia !== SIN_SEGUIMIENTO || dias >= umbralSinContacto(frecuencia)
+          : diasSinContacto >= umbralSinContacto(frecuencia),
+      umbralContacto: umbralSinContacto(frecuencia),
       acciones: accionesSemana,
       hechasEstaSemana,
       diasSinContacto,

@@ -86,6 +86,25 @@ cuando cambie algo.
   - el detalle de cada persona;
   - los "Gastos de la empresa" (solo la CEO).
 
+### Seguimiento al dueño en el Pipeline (`src/lib/pipeline.ts`, `pipeline-datos.ts`)
+
+- Pedido de Rosario: **4 opciones** por propiedad (`propiedades.frecuencia_seguimiento`):
+
+  | Opción | Valor | Próximo seguimiento |
+  |---|---|---|
+  | 1 vez por semana (lunes o martes) | 7 | cada lunes |
+  | Cada 15 días | 14 | lunes por medio |
+  | Cada 30 días | 30 | cada 4 semanas, en lunes (`diasDeFrecuencia`) |
+  | Sin seguimiento (solo si hay interesados) | 0 | no se agenda (`proxima_fecha` vacía) |
+
+- **Lunes o martes:** toca el lunes; el martes sigue "a tiempo" ("📌 Toca ahora"). Queda **atrasado desde el miércoles**, y los días de atraso se cuentan desde ahí.
+- **Sin seguimiento:**
+  - la tarjeta muestra "🔕 Solo si hay interesados" y el botón "Registrar llamada (hubo interesados)";
+  - no aparece en "Seguimiento del lunes".
+  - Ojo: `frecuencia` 0 no es lo mismo que `null`; `null` es "todavía no eligió".
+- **Republicar:** cada semana con 7 y cada 15 días con 14. Con 30 o sin seguimiento, igual cada 15 días (`frecuenciaRepublicar`).
+- **Aviso rojo "sin contacto" / "juntando polvo"** según la frecuencia (`umbralSinContacto`): 7 días con semanal, 16 con 15 días, 30 con 30 días. Sin seguimiento, solo si pasan 14 días sin ninguna acción.
+
 ### Actividad (`src/lib/registro-actividad.ts`, `/actividad`)
 
 - Las acciones importantes llaman a `registrar()`.

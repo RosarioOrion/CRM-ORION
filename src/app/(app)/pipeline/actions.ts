@@ -111,7 +111,7 @@ function revalidarPipeline(propiedadId: string) {
   revalidatePath("/dashboard");
 }
 
-/** Cada cuánto se hace el seguimiento al dueño (y republicar): 7 o 14 días. */
+/** Cada cuánto se hace el seguimiento al dueño: 7, 14, 30 días o 0 (sin seguimiento). */
 export async function elegirFrecuenciaSeguimiento(propiedadId: string, frecuencia: number) {
   await requerirPropiedadDelAgente(propiedadId);
   if (!esFrecuencia(frecuencia)) throw new Error("Frecuencia inválida.");
@@ -177,7 +177,9 @@ export async function registrarSeguimientoPipeline(
   const fecha = new Date(ahora.getTime() + real.getSeconds() * 1000 + real.getMilliseconds());
   const frecuencia = esFrecuencia(p.frecuenciaSeguimiento) ? p.frecuenciaSeguimiento : 7;
   const proxLunes = proximoLunesQueToca(fecha, p.fechaInicioPipeline, frecuencia);
-  const proximaFecha = new Date(proxLunes.getFullYear(), proxLunes.getMonth(), proxLunes.getDate(), 10, 0);
+  // Sin seguimiento: no se agenda el próximo (solo si hay interesados).
+  const proximaFecha =
+    frecuencia === 0 ? null : new Date(proxLunes.getFullYear(), proxLunes.getMonth(), proxLunes.getDate(), 10, 0);
 
   await db.insert(seguimientos).values({
     contactoId: p.duenoId,

@@ -223,6 +223,18 @@ export function accionesDeLaSemana(
   return tabla[s];
 }
 
+/**
+ * Días sin ningún movimiento (seguimiento o acción del plan) a partir de los
+ * cuales la propiedad se marca en rojo, según la frecuencia elegida: con
+ * seguimiento cada 15 o 30 días no corresponde avisar a los 7. Sin
+ * seguimiento con el dueño, igual se avisa si pasan 14 días sin ninguna acción.
+ */
+export function umbralSinContacto(frecuencia: number | null): number {
+  if (frecuencia === 0) return 14;
+  if (frecuencia === 14 || frecuencia === 30) return diasDeFrecuencia(frecuencia) + 2;
+  return UMBRAL_ESTANCADA_DIAS;
+}
+
 /** Hoy es viernes en el huso horario de Montevideo (UTC-3, sin DST). */
 export function esViernesHoy(ahora: Date = new Date()): boolean {
   const montevideo = new Date(ahora.getTime() - 3 * 60 * 60 * 1000);
@@ -232,20 +244,41 @@ export function esViernesHoy(ahora: Date = new Date()): boolean {
 // --- Tareas que se repiten: seguimiento al dueño y republicar ----------
 //
 // No dependen de la semana del plan (que corre desde el día de ingreso) sino
-// del calendario: se hacen los LUNES, cada semana o cada 15 días según la
-// propiedad. Si un lunes no se hizo, queda atrasado (en rojo) hasta que se
-// registre; al registrarlo, el próximo se cuenta desde el lunes de esa semana.
+// del calendario: se hacen el LUNES (o el martes, que todavía está a tiempo),
+// cada semana, cada 15 días o cada 30 días (4 semanas) según la propiedad.
+// "Sin seguimiento" (0): el dueño pidió que lo llamen solo si hay
+// interesados; no se le agenda seguimiento. Si un lunes no se hizo, desde el
+// miércoles queda atrasado (en rojo) hasta que se registre; al registrarlo,
+// el próximo se cuenta desde el lunes de esa semana.
 
-export const FRECUENCIAS_SEGUIMIENTO = [7, 14] as const;
+export const FRECUENCIAS_SEGUIMIENTO = [7, 14, 30, 0] as const;
 export type FrecuenciaSeguimiento = (typeof FRECUENCIAS_SEGUIMIENTO)[number];
+/** Sin seguimiento programado: solo se llama al dueño si hay interesados. */
+export const SIN_SEGUIMIENTO = 0;
 
 export const FRECUENCIA_LABEL: Record<FrecuenciaSeguimiento, string> = {
-  7: "Todos los lunes",
-  14: "Cada 15 días (lunes por medio)",
+  7: "1 vez por semana (lunes o martes)",
+  14: "Cada 15 días",
+  30: "Cada 30 días",
+  0: "Sin seguimiento (solo si hay interesados)",
 };
 
 export function esFrecuencia(v: unknown): v is FrecuenciaSeguimiento {
-  return v === 7 || v === 14;
+  return v === 7 || v === 14 || v === 30 || v === 0;
+}
+
+/** Días entre un seguimiento y el siguiente, siempre en semanas enteras (cae en lunes). */
+export function diasDeFrecuencia(f: number): number {
+  return f === 30 ? 28 : f;
+}
+
+/**
+ * Republicar no depende del dueño: con seguimiento cada 30 días o sin
+ * seguimiento, igual se republica cada 15 días para que la publicación no
+ * quede vieja.
+ */
+export function frecuenciaRepublicar(f: number): number {
+  return f === 7 || f === 14 ? f : 14;
 }
 
 const DIA_MS = 24 * 60 * 60 * 1000;
@@ -283,10 +316,11 @@ export function proximoLunesQueToca(
   frecuencia: number
 ): Date {
   if (!ultima) return primerLunesDesde(inicio);
-  return sumarDias(lunesDe(ultima), frecuencia);
+  return sumarDias(lunesDe(ultima), diasDeFrecuencia(frecuencia) || 7);
 }
 
-export type EstadoRecurrente = "PROXIMO" | "HECHO" | "HOY" | "ATRASADO";
+/** SIN: el dueño no tiene seguimiento programado (solo si hay interesados). */
+export type EstadoRecurrente = "PROXIMO" | "HECHO" | "HOY" | "ATRASADO" | "SIN";
 
 export function estadoRecurrente(
   toca: Date,
@@ -296,12 +330,14 @@ export function estadoRecurrente(
   const hoy = inicioDelDia(ahora).getTime();
   const t = inicioDelDia(toca).getTime();
   if (t > hoy) return hayRegistro ? "HECHO" : "PROXIMO";
-  if (t === hoy) return "HOY";
+  // Lunes o martes: todavía está a tiempo.
+  if (hoy - t <= DIA_MS + 2 * 3600 * 1000) return "HOY";
   return "ATRASADO";
 }
 
 export function diasDeAtraso(toca: Date, ahora: Date): number {
-  return Math.max(0, Math.round((inicioDelDia(ahora).getTime() - inicioDelDia(toca).getTime()) / DIA_MS));
+  // Cuenta desde el miércoles: el martes todavía estaba a tiempo.
+  return Math.max(0, Math.round((inicioDelDia(ahora).getTime() - inicioDelDia(toca).getTime()) / DIA_MS) - 1);
 }
 
 /** ¿En esta semana del plan corresponde plantear un ajuste de precio al dueño? */

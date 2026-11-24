@@ -46,7 +46,7 @@ export default async function PipelinePage({
   // Más urgente primero: seguimiento atrasado o que toca hoy, después sin
   // frecuencia elegida, después por días sin contacto.
   const prioridad = (t: (typeof tarjetas)[number]) =>
-    t.seguimiento?.estado === "ATRASADO" ? 0 : t.seguimiento?.estado === "HOY" ? 1 : !t.frecuencia ? 2 : 3;
+    t.seguimiento?.estado === "ATRASADO" ? 0 : t.seguimiento?.estado === "HOY" ? 1 : t.frecuencia == null ? 2 : 3;
   tarjetas.sort(
     (a, b) =>
       prioridad(a) - prioridad(b) || (b.diasSinContacto ?? 999) - (a.diasSinContacto ?? 999)
