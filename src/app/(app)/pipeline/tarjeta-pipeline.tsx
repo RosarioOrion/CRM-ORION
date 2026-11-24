@@ -19,6 +19,8 @@ import {
   type CategoriaPipeline,
   type AccionesSemana,
   type EstadoRecurrente,
+  type FrecuenciaSeguimiento,
+  FRECUENCIAS_SEGUIMIENTO,
   FRECUENCIA_LABEL,
 } from "@/lib/pipeline";
 
@@ -58,11 +60,13 @@ export type TarjetaPipelineProps = {
   acciones: AccionesSemana;
   hechasEstaSemana: CategoriaPipeline[];
   diasSinContacto: number | null;
+  /** Días sin movimiento a partir de los cuales se avisa (según la frecuencia). */
+  umbralContacto: number;
   ultimoAjustePrecio: { fecha: string; precioAnterior: number | null } | null;
   fechaInicioPipeline: string;
   soloLectura?: boolean;
   /** 7 = todos los lunes, 14 = cada 15 días, null = sin elegir todavía. */
-  frecuencia: 7 | 14 | null;
+  frecuencia: FrecuenciaSeguimiento | null;
   seguimiento: (EstadoTareaRecurrente & { proximaISO: string }) | null;
   republicar: (EstadoTareaRecurrente & { ultima: string | null }) | null;
   /** En esta semana del plan corresponde plantear ajuste de precio. */
@@ -80,7 +84,8 @@ export function TarjetaPipeline(p: TarjetaPipelineProps) {
   const [mostrarFecha, setMostrarFecha] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const urgente = p.diasSinContacto === null ? true : p.diasSinContacto >= 7;
+  const urgente =
+    p.diasSinContacto === null ? p.frecuencia !== 0 || p.estancada : p.diasSinContacto >= p.umbralContacto;
 
   function marcarHecha(categoria: CategoriaPipeline) {
     setError(null);
@@ -142,7 +147,9 @@ export function TarjetaPipeline(p: TarjetaPipelineProps) {
             {urgente && !p.esFinal && (
               <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-300">
                 {p.diasSinContacto === null
-                  ? "⚠️ Sin seguimiento registrado todavía"
+                  ? p.frecuencia === 0
+                    ? `⚠️ Sin acciones hace ${p.dias} día(s)`
+                    : "⚠️ Sin seguimiento registrado todavía"
                   : `⚠️ Sin contacto hace ${p.diasSinContacto} día(s)`}
               </span>
             )}
@@ -311,10 +318,16 @@ function ChipEstado({ e, hechoTexto }: { e: EstadoTareaRecurrente; hechoTexto: s
         Primero: {e.toca}
       </span>
     );
+  if (e.estado === "SIN")
+    return (
+      <span className={`${base} bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300`}>
+        🔕 Solo si hay interesados
+      </span>
+    );
   if (e.estado === "HOY")
     return (
       <span className={`${base} bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300`}>
-        📌 Toca hoy
+        📌 Toca ahora (lunes o martes)
       </span>
     );
   return (
@@ -331,7 +344,7 @@ function BloqueRecurrentes({ p }: { p: TarjetaPipelineProps }) {
   const [verHistorial, setVerHistorial] = useState(false);
   const [cambiarFrecuencia, setCambiarFrecuencia] = useState(false);
 
-  function elegir(f: 7 | 14) {
+  function elegir(f: FrecuenciaSeguimiento) {
     setError(null);
     startTransition(async () => {
       try {
@@ -358,7 +371,7 @@ function BloqueRecurrentes({ p }: { p: TarjetaPipelineProps }) {
     "rounded border border-orion-navy/30 px-2 py-0.5 text-[11px] font-semibold text-orion-navy transition hover:bg-orion-navy/10 disabled:opacity-50 dark:border-orion-gold/30 dark:text-orion-gold";
 
   // Primera vez: elegir cada cuánto se hace el seguimiento.
-  if (!p.frecuencia || cambiarFrecuencia) {
+  if (p.frecuencia == null || cambiarFrecuencia) {
     if (p.soloLectura) return null;
     return (
       <div className="rounded-lg border border-orion-gold/50 bg-amber-50/60 p-3 text-xs dark:bg-amber-900/10">
@@ -366,10 +379,11 @@ function BloqueRecurrentes({ p }: { p: TarjetaPipelineProps }) {
           📞 ¿Cada cuánto hacés el seguimiento al dueño{p.dueno ? ` (${p.dueno.nombre})` : ""}?
         </p>
         <p className="mb-2 text-gray-500 dark:text-gray-400">
-          Republicar va a seguir la misma frecuencia.
+          El seguimiento se hace el lunes o el martes. Republicar va cada semana o cada 15 días (con 30 días o sin
+          seguimiento, cada 15 días).
         </p>
         <div className="flex flex-wrap gap-2">
-          {([7, 14] as const).map((f) => (
+          {FRECUENCIAS_SEGUIMIENTO.map((f) => (
             <button
               key={f}
               type="button"
@@ -462,7 +476,11 @@ function BloqueRecurrentes({ p }: { p: TarjetaPipelineProps }) {
                   : botonChico
               }
             >
-              {tocaSeg ? "Registrar seguimiento" : "Registrar un seguimiento extra"}
+              {tocaSeg
+                ? "Registrar seguimiento"
+                : seg.estado === "SIN"
+                  ? "Registrar llamada (hubo interesados)"
+                  : "Registrar un seguimiento extra"}
             </button>
             {p.historial.length > 0 && (
               <button

@@ -61,7 +61,9 @@ export async function registrarSeguimientoSemanal(opts: {
     await db.insert(seguimientos).values({
       ...base,
       propiedadId: p.id,
-      proximaFecha: new Date(proxLunes.getFullYear(), proxLunes.getMonth(), proxLunes.getDate(), 10, 0),
+      // Sin seguimiento: no se agenda el próximo (solo si hay interesados).
+      proximaFecha:
+        frecuencia === 0 ? null : new Date(proxLunes.getFullYear(), proxLunes.getMonth(), proxLunes.getDate(), 10, 0),
     });
     if (opts.tarea) {
       await db.insert(pipelineAcciones).values({
